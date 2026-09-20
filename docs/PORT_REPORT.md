@@ -50,7 +50,7 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 - against the original (`toon 0.2.4` @ `f955c67`, release build, 1 thread each): 0.25× on one object of 16000 keys, 1.27× on 20 rows of 1200 fields, 3.06× on 40000 expanded lines (cv ≤ 4.7%; stdout sha equal; `perf/evidence/EXP-004.*-vs-original.json`), measured on the build of `1230a0d`
 
 - against the original (`toon 0.2.4` @ `f955c67`, release; the port's build of `4c3cccc`, 1 thread, 15 AB/BA pairs): 0.114× on the 1500-row table encode, 0.404× on its decode, 0.0066× on 20000 doubles (cv ≤ 4.7%; `perf/evidence/INCUMBENT.tabular-enc.json`, `.tabular-dec.json`, `.doubles.json`); five more captures of that run were REFUSED_CV and claim nothing
-- EXP-003 alone (one lever per artifact): 2.05× against the all-twins-off arm of the current code (cv 2.7% / 3.9%; A/A 1.019; `perf/evidence/EXP-003.one-lever.ab.json`)
+- EXP-003 alone (one lever per artifact): 2.05× against the all-twins-off arm of the current code (cv 2.7% / 3.9%; A/A 1.019; `perf/evidence/EXP-003.one-lever.ab.json`); the 1.67× and 1.56× above belong to the three levers TOGETHER: EXP-001 and EXP-002 alone were REFUSED_CV twice and are not shown to meet their gates
 
 ### Not claimed
 - a ratio against the original for integers, one-decimal numbers, strings, scientific notation and startup: REFUSED_CV three times (`perf/evidence/INCUMBENT.*.json`); predicate: a quiet host and inputs ten times larger

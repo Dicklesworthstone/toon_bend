@@ -158,7 +158,7 @@ Every RATIO here is a capture by `scripts/incumbent-bench.sh`: AB/BA pairs, medi
 | EXP-002: short integer texts are built from a `Nat` | `--decode` of the same table as TOON (76989 bytes) | 58.2 ms | 37.4 ms | 1.56× (cv 0.8% / 1.5%, A/A 0.995) |
 | EXP-003: division by a power of ten is single-limb short division | `--encode` of 9000 one-decimal numbers | 288.2 ms | 135.6 ms | 2.12× (cv 0.8% / 0.7%, A/A 1.004) |
 
-Each met the gate written on its card before the capture. They are still PROVISIONAL in `perf/NEGATIVE-EVIDENCE.md` (NE-001 to NE-003), for two stated reasons: the fast twins are bound to their specification twins by closed laws and differential runs, not by a quantified law, and one binary carries all three levers, so no capture isolates one. They sit behind the kill-switch `TOON_SPEC=1`.
+These three captures compare one binary that carries ALL THREE levers with the build before them, so each ratio belongs to the three together on that input. Alone (a variant with the other two twins switched off, against the all-twins-off arm of the current binary): EXP-003 is MEASURED at 2.05× (cv 2.7% / 3.9%, A/A 1.019); the captures of EXP-001 and EXP-002 alone were REFUSED by the cv gate twice, and their refused medians (about 16% and 3% below) say that neither is shown to meet its card's gate by itself. All three stay PROVISIONAL in `perf/NEGATIVE-EVIDENCE.md` (NE-001 to NE-003), also because the fast twins are bound to their specification twins by closed laws and differential runs, not by a quantified law. They sit behind the kill-switch `TOON_SPEC=1`.
 
 **Inputs that are large in ONE dimension** (EXP-004, commit `3751630` → `1230a0d`; the earlier build walked a key chain per key):
 

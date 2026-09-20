@@ -57,6 +57,7 @@ Outcome taxonomy (closed set):
 - Disposition: kept behind `TOON_SPEC`; NOT promoted to PERF-LEDGER
 - Why provisional and not WIN: (1) the binding `fast == spec` is ONE quantified gate law plus CLOSED instance laws plus differential runs; no universally quantified equivalence law exists for this twin (the checker's normalizer overflows on bodies with 10^5-scale `Nat` literals); (2) the `3751630` binary carries EXP-001, EXP-002 and EXP-003 together, so this capture does not isolate one lever: the input was chosen to exercise this lever, and the other two also run on it
 - Killing metric: wall on this host at 1 thread
+- One lever per artifact (2026-09-20): a scratch variant of the current code with the other two twins switched off at their gates, against the all-twins-off arm (`TOON_SPEC=1`) of the current binary, captured twice (9 and 15 pairs): REFUSED_CV both times (second attempt: cv 3.1% / 5.3%, A/A arm 20.6% / 14.9%), so NO ratio is claimed. The refused medians, 103.3 ms → 86.3 ms (about 16% below), are far from this card's gate (≥ 25%): the ratio measured above belongs to the THREE levers together on this input, and this lever ALONE is not shown to meet its gate (`perf/evidence/EXP-001.one-lever.ab.json`, `.aa.json`)
 - **Promote to WIN when:** a quantified `fast == spec` law for the twin checks, OR the owner accepts closed laws + differential runs as the binding in writing; AND the capture is repeated with one lever per artifact
 - Tally: W0/L0/N0 (provisional)
 - Agent: Claude (author session)
@@ -72,6 +73,7 @@ Outcome taxonomy (closed set):
 - Disposition: kept behind `TOON_SPEC`; NOT promoted to PERF-LEDGER
 - Why provisional and not WIN: (1) the binding `fast == spec` is ONE quantified gate law plus CLOSED instance laws plus differential runs; no universally quantified equivalence law exists for this twin (the checker's normalizer overflows on bodies with 10^5-scale `Nat` literals); (2) the `3751630` binary carries EXP-001, EXP-002 and EXP-003 together, so this capture does not isolate one lever: the input was chosen to exercise this lever, and the other two also run on it
 - Killing metric: wall on this host at 1 thread
+- One lever per artifact (2026-09-20): a scratch variant of the current code with the other two twins switched off at their gates, against the all-twins-off arm (`TOON_SPEC=1`) of the current binary, captured twice (9 and 15 pairs): REFUSED_CV both times (second attempt: cv 5.2% / 5.0%, A/A arm 5.9% / 3.1%), so NO ratio is claimed. The refused medians, 65.5 ms → 63.4 ms (about 3% below), are far from this card's gate (≥ 15%): the ratio measured above belongs to the THREE levers together on this input, and this lever ALONE is not shown to meet its gate (`perf/evidence/EXP-002.one-lever.ab.json`, `.aa.json`)
 - **Promote to WIN when:** a quantified `fast == spec` law for the twin checks, OR the owner accepts closed laws + differential runs as the binding in writing; AND the capture is repeated with one lever per artifact
 - Tally: W0/L0/N0 (provisional)
 - Agent: Claude (author session)

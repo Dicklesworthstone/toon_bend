@@ -22,7 +22,7 @@ port 97 ms, original 5.6 ms; decode of the 76989-byte TOON: port 62 ms, original
 | created (UTC) | 2026-09-20 |
 | agent | Claude (Claude Code session, author) |
 | graveyard sweep | `rg -i 'fast.?path\|integer\|shortest\|digit' perf/NEGATIVE-EVIDENCE.md` → no entry |
-| status | DONE 2026-09-20: gate met (1.67×, 40% below the baseline; A/A 1.001); PROVISIONAL_LOCAL_WIN, `perf/NEGATIVE-EVIDENCE.md` NE-001 |
+| status | DONE 2026-09-20: the capture of the binary with ALL THREE levers met this gate (1.67×, 40% below the baseline; A/A 1.001); this lever ALONE is not shown to meet it (one-lever captures REFUSED_CV twice, refused medians about 16% below); PROVISIONAL_LOCAL_WIN, `perf/NEGATIVE-EVIDENCE.md` NE-001 |
 | precommitted | true |
 
 ### Hypothesis
@@ -57,7 +57,7 @@ scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-001 --original <baselin
 | created (UTC) | 2026-09-20 |
 | agent | Claude (Claude Code session, author) |
 | graveyard sweep | `rg -i 'fast.?path\|integer\|divis' perf/NEGATIVE-EVIDENCE.md` → no entry |
-| status | DONE 2026-09-20: gate met (1.56×, 36% below; A/A 0.995); PROVISIONAL_LOCAL_WIN, NE-002. The digit bound is 14, not the 15 of this card: a 15-digit text overflows `Nat` (2^48 − 1); `TOON_SPEC=1` on `encnum_ints` caught it before the merge |
+| status | DONE 2026-09-20: the capture of the binary with ALL THREE levers met this gate (1.56×, 36% below; A/A 0.995); this lever ALONE is not shown to meet it (one-lever captures REFUSED_CV twice, refused medians about 3% below: on this input the gain is mostly EXP-001's printer); PROVISIONAL_LOCAL_WIN, NE-002. The digit bound is 14, not the 15 of this card: a 15-digit text overflows `Nat` (2^48 − 1); `TOON_SPEC=1` on `encnum_ints` caught it before the merge |
 | precommitted | true |
 
 ### Hypothesis
@@ -105,7 +105,7 @@ the shortest-digit generator takes each digit by repeated subtraction over big n
 | created (UTC) | 2026-09-20 |
 | agent | Claude (Claude Code session, author) |
 | graveyard sweep | `rg -i 'divis\|short division\|pow10' perf/NEGATIVE-EVIDENCE.md` → no entry |
-| status | DONE 2026-09-20: gate met (2.12×, 53% below; A/A 1.004); PROVISIONAL_LOCAL_WIN, NE-003 |
+| status | DONE 2026-09-20: gate met by the three levers together (2.12×, 53% below; A/A 1.004) AND by this lever alone (2.05×, cv 2.7% / 3.9%, A/A 1.019); PROVISIONAL_LOCAL_WIN, NE-003 |
 | precommitted | true |
 
 ### Hypothesis

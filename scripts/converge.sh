@@ -117,7 +117,9 @@ try:
             if not oq_separator: malformed.append('OQ table needs a delimiter row')
             previous_header = False
         if re.match(r'^\|\s*OQ-', ln):
-            if not re.fullmatch(r'OQ-\d+', cells[0]): malformed.append('malformed OQ identifier')
+            # this port's register names questions after the extractor or phase that raised them (OQ-A1, OQ-P3-1),
+            # and one row answers two of them (OQ-C2 / OQ-E1)
+            if not re.fullmatch(r'OQ-[A-Za-z0-9]+(-[A-Za-z0-9]+)*( / OQ-[A-Za-z0-9]+(-[A-Za-z0-9]+)*)*', cells[0]): malformed.append('malformed OQ identifier')
             if cells[0] in oq_ids: malformed.append(f'duplicate OQ {cells[0]}')
             oq_ids.add(cells[0])
             res = cells[4] if len(cells) > 4 else ""

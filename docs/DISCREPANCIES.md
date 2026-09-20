@@ -87,7 +87,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Approver: pending
 - Resolution: n/a while OPEN
 
-### DISC-CANDIDATES (not divergences: the port is bug-compatible with each; listed so the owner can decide)
+### Bug-compatibility candidates C-1 to C-11 (not divergences: the port is bug-compatible with each; listed so the owner can decide)
 
 These are behaviors of the pinned original that look unintended. The port reproduces all of them and the goldens pin them. Turning any into a fix is a `BugFix` DISC with the owner's approval, a kill-switch and a re-capture; none has been taken.
 
@@ -106,7 +106,7 @@ These are behaviors of the pinned original that look unintended. The port reprod
 | C-11 | `1.7976931348623158e308` is rejected as `number out of range` although it rounds to the largest finite value; the encoder's own TOON text for that value is rejected when fed back as JSON | S10.41 |
 
 <!-- template for the next entry -->
-### DISC-nnn — `<short title>`   [<date> | <class> | OPEN · ACCEPTED · REVERTED · RESOLVED]
+### Entry template — `DISC-<nnn>` — `<short title>`   [<date> | <class> | OPEN · ACCEPTED · REVERTED · RESOLVED]
 - Spec clause: S`<n.m>`
 - Original behavior (cite the golden): `goldens/<case>.out` line `<n>`: `<verbatim>`
 - Port behavior: `<verbatim>`

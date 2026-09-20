@@ -165,57 +165,51 @@ def close_obj(stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<
     case other:
       fail("key must be a string", l, c)
 
-# S2.25 after an array element: whitespace, ',' or ']'; anything else is S9.55 (k is the byte)
+# S2.6 the class of an input byte, a SMALL code (a Nat literal pattern costs the checker one successor
+# per unit, so bytes are never matched as Nat values): 1 whitespace (space, TAB, LF, CR), 2 ',', 3 ']',
+# 4 '}', 5 ':', 6 '"', 7 '[', 8 '{', 9 '-', 10 '0', 11 '1'-'9', 12 'n', 13 't', 14 'f', 15 '\',
+# 0 anything else
+def byte.cls(+b: U32) -> Nat:
+  Bool.pick(Nat, Bool.or(U32.is_eq(b, 32), Bool.or(U32.is_eq(b, 10), Bool.or(U32.is_eq(b, 13), U32.is_eq(b, 9)))), 1n, Bool.pick(Nat, U32.is_eq(b, 44), 2n, Bool.pick(Nat, U32.is_eq(b, 93), 3n, Bool.pick(Nat, U32.is_eq(b, 125), 4n, Bool.pick(Nat, U32.is_eq(b, 58), 5n, Bool.pick(Nat, U32.is_eq(b, 34), 6n, Bool.pick(Nat, U32.is_eq(b, 91), 7n, Bool.pick(Nat, U32.is_eq(b, 123), 8n, Bool.pick(Nat, U32.is_eq(b, 45), 9n, Bool.pick(Nat, U32.is_eq(b, 48), 10n, Bool.pick(Nat, Bool.and(U32.is_ge(b, 49), U32.is_le(b, 57)), 11n, Bool.pick(Nat, U32.is_eq(b, 110), 12n, Bool.pick(Nat, U32.is_eq(b, 116), 13n, Bool.pick(Nat, U32.is_eq(b, 102), 14n, Bool.pick(Nat, U32.is_eq(b, 92), 15n, 0n)))))))))))))))
+
+# S2.18 the escape class of the byte after a backslash: 1 '"', 2 '\', 3 '/', 4 'b', 5 'f', 6 'n',
+# 7 'r', 8 't', 9 'u', 0 anything else
+def esc.cls(+b: U32) -> Nat:
+  Bool.pick(Nat, U32.is_eq(b, 34), 1n, Bool.pick(Nat, U32.is_eq(b, 92), 2n, Bool.pick(Nat, U32.is_eq(b, 47), 3n, Bool.pick(Nat, U32.is_eq(b, 98), 4n, Bool.pick(Nat, U32.is_eq(b, 102), 5n, Bool.pick(Nat, U32.is_eq(b, 110), 6n, Bool.pick(Nat, U32.is_eq(b, 114), 7n, Bool.pick(Nat, U32.is_eq(b, 116), 8n, Bool.pick(Nat, U32.is_eq(b, 117), 9n, 0n)))))))))
+
+# S2.25 after an array element: whitespace, ',' or ']'; anything else is S9.55 (k is the byte class)
 def after.arr(k: Nat, rev: Json, n: Nat, rest: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:
   match k:
-    case 32n:
+    case 1n:
       St{MAfter{}, FArr{rev, n} <> rest, depth, l, c, root}
-    case 9n:
-      St{MAfter{}, FArr{rev, n} <> rest, depth, l, c, root}
-    case 10n:
-      St{MAfter{}, FArr{rev, n} <> rest, depth, l, c, root}
-    case 13n:
-      St{MAfter{}, FArr{rev, n} <> rest, depth, l, c, root}
-    case 44n:
+    case 2n:
       St{MVal{2n}, FArr{rev, n} <> rest, depth, l, c, root}
-    case 93n:
+    case 3n:
       push(JArr{n, rev_items(rev, JNil{})}, rest, Nat.sub(depth, 1n), l, c, root)
     case _:
       fail("expected `,` or `]`", l, c)
 
-# S2.27 after an object member: whitespace, ',' or '}'; anything else is S9.56 (k is the byte)
+# S2.27 after an object member: whitespace, ',' or '}'; anything else is S9.56 (k is the byte class)
 def after.obj(k: Nat, rev: Json, key: String, rest: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:
   match k:
-    case 32n:
+    case 1n:
       St{MAfter{}, FObj{rev, key} <> rest, depth, l, c, root}
-    case 9n:
-      St{MAfter{}, FObj{rev, key} <> rest, depth, l, c, root}
-    case 10n:
-      St{MAfter{}, FObj{rev, key} <> rest, depth, l, c, root}
-    case 13n:
-      St{MAfter{}, FObj{rev, key} <> rest, depth, l, c, root}
-    case 44n:
+    case 2n:
       St{MKey{False{}}, FObj{rev, key} <> rest, depth, l, c, root}
-    case 125n:
+    case 4n:
       push(JObj{rev_entries(rev, JNil{})}, rest, Nat.sub(depth, 1n), l, c, root)
     case _:
       fail("expected `,` or `}`", l, c)
 
-# S2.4 after the root value only whitespace may follow; anything else is S9.67 (k is the byte)
+# S2.4 after the root value only whitespace may follow; anything else is S9.67 (k is the byte class)
 def after.root(k: Nat, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:
   match k:
-    case 32n:
-      St{MAfter{}, Nil{}, depth, l, c, root}
-    case 9n:
-      St{MAfter{}, Nil{}, depth, l, c, root}
-    case 10n:
-      St{MAfter{}, Nil{}, depth, l, c, root}
-    case 13n:
+    case 1n:
       St{MAfter{}, Nil{}, depth, l, c, root}
     case _:
       fail("trailing characters", l, c)
 
-# S2.13 the byte after a value is judged by the enclosing context (k is the byte)
+# S2.13 the byte after a value is judged by the enclosing context (k is the byte class)
 def after(stack: List<&2, Frame>, depth: Nat, l: Nat, c: Nat, root: Maybe<&2, Json>, k: Nat) -> St:
   match stack:
     case Nil{}:
@@ -249,45 +243,34 @@ def value.close(ctx: Nat, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, 
     case _:
       fail("expected value", l, c)
 
-# S2.6 a digit 1-9 starts a number; every other byte here is S9.58
-def value.dflt(digit: Bool, b: U32, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:
-  match digit:
-    case True{}:
-      St{MNum{Num{2n, False{}, SCon{Chr{b}, SNil{}}, SNil{}, False{}, 0n, True{}}}, stack, depth, l, c, root}
-    case False{}:
-      fail("expected value", l, c)
-
-# S2.6 value dispatch on the first byte (k is the byte b as a Nat)
-def value(ctx: Nat, stack: List<&2, Frame>, depth: Nat, l: Nat, c: Nat, root: Maybe<&2, Json>, k: Nat, +b: U32) -> St:
+# S2.6 value dispatch on the first byte (k is the class of byte b); a digit 1-9 starts a number and
+# every byte without a rule here is S9.58
+def value(ctx: Nat, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>, k: Nat, b: U32) -> St:
   match k:
-    case 32n:
+    case 1n:
       St{MVal{ctx}, stack, depth, l, c, root}
-    case 9n:
-      St{MVal{ctx}, stack, depth, l, c, root}
-    case 10n:
-      St{MVal{ctx}, stack, depth, l, c, root}
-    case 13n:
-      St{MVal{ctx}, stack, depth, l, c, root}
-    case 110n:
+    case 12n:
       St{MLit{"ull", JNull{}}, stack, depth, l, c, root}
-    case 116n:
+    case 13n:
       St{MLit{"rue", JBool{True{}}}, stack, depth, l, c, root}
-    case 102n:
+    case 14n:
       St{MLit{"alse", JBool{False{}}}, stack, depth, l, c, root}
-    case 34n:
+    case 6n:
       St{MStr{SNil{}, False{}, 0n, 0}, stack, depth, l, c, root}
-    case 45n:
+    case 9n:
       St{MNum{Num{0n, True{}, SNil{}, SNil{}, False{}, 0n, False{}}}, stack, depth, l, c, root}
-    case 48n:
+    case 10n:
       St{MNum{Num{1n, False{}, "0", SNil{}, False{}, 0n, False{}}}, stack, depth, l, c, root}
-    case 91n:
+    case 11n:
+      St{MNum{Num{2n, False{}, SCon{Chr{b}, SNil{}}, SNil{}, False{}, 0n, True{}}}, stack, depth, l, c, root}
+    case 7n:
       open(True{}, stack, depth, l, c, root)
-    case 123n:
+    case 8n:
       open(False{}, stack, depth, l, c, root)
-    case 93n:
+    case 3n:
       value.close(ctx, stack, depth, l, c, root)
     case _:
-      value.dflt(Bool.and(U32.is_ge(b, 49), U32.is_le(b, 57)), b, stack, depth, l, c, root)
+      fail("expected value", l, c)
 
 # S2.27 '}' where a key is awaited: the empty object right after '{', `trailing comma` after ','
 def keymode.close(first: Bool, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:
@@ -297,36 +280,24 @@ def keymode.close(first: Bool, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: 
     case False{}:
       fail("trailing comma", l, c)
 
-# S2.27 where a key is awaited: whitespace, '"', or '}'; anything else is S9.63 (k is the byte)
+# S2.27 where a key is awaited: whitespace, '"', or '}'; anything else is S9.63 (k is the byte class)
 def keymode(first: Bool, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>, k: Nat) -> St:
   match k:
-    case 32n:
+    case 1n:
       St{MKey{first}, stack, depth, l, c, root}
-    case 9n:
-      St{MKey{first}, stack, depth, l, c, root}
-    case 10n:
-      St{MKey{first}, stack, depth, l, c, root}
-    case 13n:
-      St{MKey{first}, stack, depth, l, c, root}
-    case 34n:
+    case 6n:
       St{MStr{SNil{}, True{}, 0n, 0}, stack, depth, l, c, root}
-    case 125n:
+    case 4n:
       keymode.close(first, stack, depth, l, c, root)
     case _:
       fail("key must be a string", l, c)
 
-# S2.27 where ':' is awaited: whitespace or ':'; anything else is S9.54 (k is the byte)
+# S2.27 where ':' is awaited: whitespace or ':'; anything else is S9.54 (k is the byte class)
 def colon(stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>, k: Nat) -> St:
   match k:
-    case 32n:
+    case 1n:
       St{MColon{}, stack, depth, l, c, root}
-    case 9n:
-      St{MColon{}, stack, depth, l, c, root}
-    case 10n:
-      St{MColon{}, stack, depth, l, c, root}
-    case 13n:
-      St{MColon{}, stack, depth, l, c, root}
-    case 58n:
+    case 5n:
       St{MVal{0n}, stack, depth, l, c, root}
     case _:
       fail("expected `:`", l, c)
@@ -383,36 +354,37 @@ def str.byte(ctl: Bool, ascii: Bool, need: Nat, +b: U32, part: U32, rev: String,
     case False{} False{} 1n+m:
       St{str.cont(m, ((part << 6n) .|. (b .&. 63) : U32), rev, key), stack, depth, l, c, root}
 
-# S2.15 inside a string (k is the byte b as a Nat)
+# S2.15 inside a string (k is the class of byte b)
 def str(rev: String, key: Bool, need: Nat, part: U32, stack: List<&2, Frame>, depth: Nat, l: Nat, c: Nat, root: Maybe<&2, Json>, k: Nat, +b: U32) -> St:
   match k:
-    case 34n:
+    case 6n:
       str.end(key, rev, stack, depth, l, c, root)
-    case 92n:
+    case 15n:
       St{MEsc{rev, key}, stack, depth, l, c, root}
     case _:
       str.byte(U32.is_lt(b, 32), U32.is_lt(b, 128), need, b, part, rev, key, stack, depth, l, c, root)
 
-# S2.18 simple escapes (case-sensitive); any other byte is S9.59, reported just after it (k is the byte)
-def esc(rev: String, key: Bool, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>, k: Nat) -> St:
-  match k:
-    case 34n:
+# S2.18 simple escapes (case-sensitive); any other byte is S9.59, reported just after it. e is the
+# escape class of the byte: 1 '"', 2 '\', 3 '/', 4 'b', 5 'f', 6 'n', 7 'r', 8 't', 9 'u'
+def esc(rev: String, key: Bool, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>, e: Nat) -> St:
+  match e:
+    case 1n:
       St{MStr{SCon{Chr{34}, rev}, key, 0n, 0}, stack, depth, l, c, root}
-    case 92n:
+    case 2n:
       St{MStr{SCon{Chr{92}, rev}, key, 0n, 0}, stack, depth, l, c, root}
-    case 47n:
+    case 3n:
       St{MStr{SCon{Chr{47}, rev}, key, 0n, 0}, stack, depth, l, c, root}
-    case 98n:
+    case 4n:
       St{MStr{SCon{Chr{8}, rev}, key, 0n, 0}, stack, depth, l, c, root}
-    case 102n:
+    case 5n:
       St{MStr{SCon{Chr{12}, rev}, key, 0n, 0}, stack, depth, l, c, root}
-    case 110n:
+    case 6n:
       St{MStr{SCon{Chr{10}, rev}, key, 0n, 0}, stack, depth, l, c, root}
-    case 114n:
+    case 7n:
       St{MStr{SCon{Chr{13}, rev}, key, 0n, 0}, stack, depth, l, c, root}
-    case 116n:
+    case 8n:
       St{MStr{SCon{Chr{9}, rev}, key, 0n, 0}, stack, depth, l, c, root}
-    case 117n:
+    case 9n:
       St{MHex{rev, key, 0n, 0, False{}, 0}, stack, depth, l, c, root}
     case _:
       fail("invalid escape", l, c)
@@ -451,20 +423,20 @@ def hex(rev: String, key: Bool, +n: Nat, v: U32, bad: Bool, hi: U32, stack: List
   +d = hex.val(b)
   hex.go(Nat.is_ge(n, 3n), rev, key, 1n+n, ((v << 4n) .|. (d .&. 15) : U32), Bool.or(bad, U32.is_eq(d, 255)), hi, stack, depth, l, c, root)
 
-# S2.23 after a high surrogate the next byte must be a backslash (k is the byte)
+# S2.23 after a high surrogate the next byte must be a backslash (k is the byte class)
 def hibs(rev: String, key: Bool, hi: U32, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>, k: Nat) -> St:
   match k:
-    case 92n:
+    case 15n:
       St{MHiU{rev, key, hi}, stack, depth, l, c, root}
     case _:
       fail("unexpected end of hex escape", l, c)
 
-# S2.23 and the byte after it must be 'u' (k is the byte)
-def hiu(rev: String, key: Bool, hi: U32, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>, k: Nat) -> St:
-  match k:
-    case 117n:
+# S2.23 and the byte after it must be 'u'
+def hiu(rev: String, key: Bool, hi: U32, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>, u: Bool) -> St:
+  match u:
+    case True{}:
       St{MHex{rev, key, 0n, 0, False{}, hi}, stack, depth, l, c, root}
-    case _:
+    case False{}:
       fail("unexpected end of hex escape", l, c)
 
 # S2.8 byte classes of the number grammar: 0 '0', 1 '1'-'9', 2 '.', 3 'e' or 'E', 4 '+', 5 '-', 6 other
@@ -623,8 +595,8 @@ def num.route(r: NR, stack: List<&2, Frame>, depth: Nat, l0: Nat, c0: Nat, +l1: 
       num.end(num.value(num), stack, depth, l0, c0, l1, c1, root, k)
 
 # S2.6 one byte in the current mode. (l0, c0) is the position before the byte, (l1, c1) after it:
-# every offending-byte error is reported at (l1, c1) (S2.41). k is the byte b as a Nat, for the defs
-# that dispatch on it.
+# every offending-byte error is reported at (l1, c1) (S2.41). k is the class of byte b (byte.cls), for
+# the defs that dispatch on it.
 def step.mode(mode: Mode, stack: List<&2, Frame>, depth: Nat, l0: Nat, c0: Nat, l1: Nat, c1: Nat, root: Maybe<&2, Json>, k: Nat, +b: U32) -> St:
   match mode:
     case MVal{ctx}:
@@ -640,13 +612,13 @@ def step.mode(mode: Mode, stack: List<&2, Frame>, depth: Nat, l0: Nat, c0: Nat, 
     case MStr{rev, key, need, part}:
       str(rev, key, need, part, stack, depth, l1, c1, root, k, b)
     case MEsc{rev, key}:
-      esc(rev, key, stack, depth, l1, c1, root, k)
+      esc(rev, key, stack, depth, l1, c1, root, esc.cls(b))
     case MHex{rev, key, n, v, bad, hi}:
       hex(rev, key, n, v, bad, hi, stack, depth, l1, c1, root, b)
     case MHiBs{rev, key, hi}:
       hibs(rev, key, hi, stack, depth, l1, c1, root, k)
     case MHiU{rev, key, hi}:
-      hiu(rev, key, hi, stack, depth, l1, c1, root, k)
+      hiu(rev, key, hi, stack, depth, l1, c1, root, U32.is_eq(b, 117))
     case MNum{num}:
       num.route(num.next(num, b), stack, depth, l0, c0, l1, c1, root, k)
     case MErr{msg, l, c}:
@@ -675,7 +647,7 @@ def step(st: St, +b: U32) -> St:
       St{MErr{msg, el, ec}, stack, depth, l, c, root}
     case St{mode, stack, depth, +l, +c, root}:
       +lf = U32.is_eq(b, 10)
-      step.mode(mode, stack, depth, l, c, pos.line(lf, l), pos.col(lf, c), root, U32.to_nat(b), b)
+      step.mode(mode, stack, depth, l, c, pos.line(lf, l), pos.col(lf, c), root, byte.cls(b), b)
 
 # S2.45 one pass over the bytes, first error wins. Measure: the byte list.
 def run(bytes: List<&2, U32>, st: St) -> St:
@@ -793,40 +765,45 @@ def w.ch.plain(esc: Bool, c: U32, acc: String) -> String:
     case False{}:
       SCon{Chr{c}, acc}
 
-# S5.63 writer A: \b and \f have short forms; DEL and U+0080-U+009F are written raw (k is c as a Nat)
+# S5.63, S5.64 the class of a scalar for the writers: 1 '"', 2 '\', 3 U+0008, 4 TAB, 5 LF, 6 U+000C,
+# 7 CR, 0 anything else
+def w.cls(+c: U32) -> Nat:
+  Bool.pick(Nat, U32.is_eq(c, 34), 1n, Bool.pick(Nat, U32.is_eq(c, 92), 2n, Bool.pick(Nat, U32.is_eq(c, 8), 3n, Bool.pick(Nat, U32.is_eq(c, 9), 4n, Bool.pick(Nat, U32.is_eq(c, 10), 5n, Bool.pick(Nat, U32.is_eq(c, 12), 6n, Bool.pick(Nat, U32.is_eq(c, 13), 7n, 0n)))))))
+
+# S5.63 writer A: \b and \f have short forms; DEL and U+0080-U+009F are written raw (k is w.cls of c)
 def w.ch_a(k: Nat, +c: U32, acc: String) -> String:
   match k:
-    case 34n:
+    case 1n:
       SCon{Chr{34}, SCon{Chr{92}, acc}}
-    case 92n:
+    case 2n:
       SCon{Chr{92}, SCon{Chr{92}, acc}}
-    case 8n:
+    case 3n:
       SCon{Chr{98}, SCon{Chr{92}, acc}}
-    case 9n:
+    case 4n:
       SCon{Chr{116}, SCon{Chr{92}, acc}}
-    case 10n:
+    case 5n:
       SCon{Chr{110}, SCon{Chr{92}, acc}}
-    case 12n:
+    case 6n:
       SCon{Chr{102}, SCon{Chr{92}, acc}}
-    case 13n:
+    case 7n:
       SCon{Chr{114}, SCon{Chr{92}, acc}}
     case _:
       w.ch.plain(U32.is_lt(c, 32), c, acc)
 
 
 # S5.64 writer B: only \" \\ \n \r \t have short forms; every other Cc scalar (U+0000-U+001F, U+007F,
-# U+0080-U+009F) is \u00XX; there is no \b and no \f (k is c as a Nat)
+# U+0080-U+009F) is \u00XX; there is no \b and no \f (k is w.cls of c)
 def w.ch_b(k: Nat, +c: U32, acc: String) -> String:
   match k:
-    case 34n:
+    case 1n:
       SCon{Chr{34}, SCon{Chr{92}, acc}}
-    case 92n:
+    case 2n:
       SCon{Chr{92}, SCon{Chr{92}, acc}}
-    case 9n:
+    case 4n:
       SCon{Chr{116}, SCon{Chr{92}, acc}}
-    case 10n:
+    case 5n:
       SCon{Chr{110}, SCon{Chr{92}, acc}}
-    case 13n:
+    case 7n:
       SCon{Chr{114}, SCon{Chr{92}, acc}}
     case _:
       w.ch.plain(Bool.or(U32.is_le(c, 31), Bool.and(U32.is_ge(c, 127), U32.is_le(c, 159))), c, acc)
@@ -835,9 +812,9 @@ def w.ch_b(k: Nat, +c: U32, acc: String) -> String:
 def w.ch(tab_b: Bool, +c: U32, acc: String) -> String:
   match tab_b:
     case False{}:
-      w.ch_a(U32.to_nat(c), c, acc)
+      w.ch_a(w.cls(c), c, acc)
     case True{}:
-      w.ch_b(U32.to_nat(c), c, acc)
+      w.ch_b(w.cls(c), c, acc)
 
 # S5.67 the scalars of a string or key, escaped, onto acc (a loop over the text)
 def w.chars(s: String, +tab_b: Bool, acc: String) -> String:

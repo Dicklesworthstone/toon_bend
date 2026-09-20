@@ -236,3 +236,12 @@ def is_ident(s: String, dot: Bool) -> Bool:
       False{}
     case SCon{Chr{c}, rest}:
       key_rest.go(rest, dot, key_first(c))
+
+# S8.5 the bytes of an ASCII text (every scalar below U+0080 is its own byte): closed laws build their
+# inputs with it
+def ascii_bytes(s: String, acc: List<&2, U32>) -> List<&2, U32>:
+  match s:
+    case SNil{}:
+      List.reverse(&2, U32, acc)
+    case SCon{Chr{c}, rest}:
+      ascii_bytes(rest, c <> acc)

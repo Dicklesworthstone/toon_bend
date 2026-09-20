@@ -37,7 +37,7 @@ def long_id.go(ns: List<&2, String>, +name: String, i: Nat, hit: Bool) -> Nat:
 def long_id(name: String) -> Nat:
   long_id.go(names(), name, 0n, False{})
 
-# T2 the display form of an argument in messages and in context-built Usage lines
+# S1.3 (table T2) the display form of an argument in messages and in context-built Usage lines
 def disp(id: Nat) -> String:
   match id:
     case 0n:
@@ -67,7 +67,7 @@ def disp(id: Nat) -> String:
     case _:
       "--version"
 
-# T1 whether an argument takes a value
+# S1.3 (table T1) whether an argument takes a value
 def takes_value(id: Nat) -> Bool:
   match id:
     case 1n:
@@ -374,7 +374,8 @@ def has.go(c: List<&2, Nat>, +id: Nat, hit: Bool) -> Bool:
 def has(c: List<&2, Nat>, id: Nat) -> Bool:
   has.go(c, id, False{})
 
-# S1.72 the options and flags of C in C's order, each followed by one space (INPUT is always last)
+# S1.72 the options and flags of C in C's order, each followed by one space (INPUT is always last);
+# the line is accumulated reversed
 def usage.args(c: List<&2, Nat>, acc: String) -> String:
   match c:
     case Nil{}:
@@ -382,7 +383,7 @@ def usage.args(c: List<&2, Nat>, acc: String) -> String:
     case Con{0n, rest}:
       usage.args(rest, acc)
     case Con{id, rest}:
-      usage.args(rest, acc ++ disp(id) ++ " ")
+      usage.args(rest, SCon{Chr{32}, T.rev_onto(disp(id), acc)})
 
 # S1.72 `<INPUT>` when INPUT is committed, else `[INPUT]`
 def usage.input(committed: Bool) -> String:
@@ -398,7 +399,7 @@ def usage(+c: List<&2, Nat>) -> String:
     case Nil{}:
       usage_fixed()
     case Con{x, rest}:
-      usage.args(x <> rest, "Usage: toon ") ++ usage.input(has(c, 0n))
+      String.reverse(T.rev_onto(usage.input(has(c, 0n)), usage.args(x <> rest, T.rev_onto("Usage: toon ", SNil{}))))
 
 # S1.71 unknown long option without a similar name
 def e71(+name: String, usage_line: String) -> String:
@@ -480,13 +481,13 @@ def version_text() -> String:
 
 # ---------------------------------------------------------------- S1.30–S1.34 option values
 
-# T1 the option values (flags and the presence of INPUT are read from the committed list): INPUT word,
+# S1.3 (table T1) the option values (flags and the presence of INPUT are read from the committed list): INPUT word,
 # output word, delimiter, indent, key folding, flatten depth (any value above the deepest possible key
 # chain acts as unlimited, S7.2: capped at 1000), path expansion
 type Vals is Data:
   Vals{input: String, output: String, delim: U32, indent: Nat, fold: Bool, budget: Nat, expand: Bool}
 
-# T1 the defaults
+# S1.3 (table T1) the defaults
 def vals0() -> Vals:
   Vals{SNil{}, SNil{}, 44, 2n, False{}, 1000n, False{}}
 
@@ -849,19 +850,18 @@ def on.long(id: Nat, valued: Bool, has_val: Bool, +name: String, val: String, +c
     case +i True{} False{}:
       wait.after(resolve(c, p, v), i)
 
-# S1.8 a character of a short cluster: e, d, h, V act as their long flags; any other is S1.77
-def on.short(k: Nat, c32: U32, c: List<&2, Nat>, p: Pend, v: Vals) -> PS:
-  match k:
-    case 101n:
-      flag.after(resolve(c, p, v), 2n)
-    case 100n:
-      flag.after(resolve(c, p, v), 3n)
-    case 104n:
-      flag.after(resolve(c, p, v), 11n)
-    case 86n:
-      flag.after(resolve(c, p, v), 12n)
-    case _:
+# S1.3 the only short flag letters are e, d, h, V (case-sensitive); `o` never reaches this def (S1.8)
+def short.id(+ch: U32) -> Nat:
+  Bool.pick(Nat, U32.is_eq(ch, 101), 2n, Bool.pick(Nat, U32.is_eq(ch, 100), 3n, Bool.pick(Nat, U32.is_eq(ch, 104), 11n, Bool.pick(Nat, U32.is_eq(ch, 86), 12n, 0n))))
+
+# S1.8 a character of a short cluster: e, d, h, V act as their long flags (id is that flag, or 0); any
+# other character is S1.77
+def on.short(id: Nat, c32: U32, c: List<&2, Nat>, p: Pend, v: Vals) -> PS:
+  match id:
+    case 0n:
       PStop{2n, SNil{}, e77(c32)}
+    case +i:
+      flag.after(resolve(c, p, v), i)
 
 # S1.9, S1.15 (iv)–(vi) a plain word: the value of a waiting option (only before the escape); else
 # INPUT when none was seen (committed or pending); else an extra positional, S1.78
@@ -886,7 +886,7 @@ def on.tok(st: PS, t: Tok) -> PS:
     case PGo{c, p, v} TLong{+name, has_val, val}:
       on.long(long_id(name), takes_value(long_id(name)), has_val, name, val, c, p, v)
     case PGo{c, p, v} TShort{+ch}:
-      on.short(U32.to_nat(ch), ch, c, p, v)
+      on.short(short.id(ch), ch, c, p, v)
     case PGo{c, p, v} TOut{True{}, val}:
       opt.after(resolve(c, p, v), 1n, val)
     case PGo{c, p, v} TOut{False{}, val}:
@@ -904,7 +904,7 @@ def scan(ts: List<&2, Tok>, st: PS) -> PS:
 
 # ---------------------------------------------------------------- S1.16, S4.300–S4.303 the accepted argv
 
-# T1, S4.300 the resolved options: whether INPUT is a path (else stdin) and the word; whether there is
+# S1.3 (table T1), S4.300 the resolved options: whether INPUT is a path (else stdin) and the word; whether there is
 # an output path and the word; decode mode; delimiter; indent; strict; key folding; flatten depth;
 # path expansion; statistics
 type Opts is Data:
@@ -1183,3 +1183,31 @@ def o.input(o: Opts) -> String:
   match o:
     case Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
       input
+
+# ---------------------------------------------------------------- S5.112 the whole pure core
+
+# S5.112 everything the program prints for an argv and an input, as a value: the exit code, the bytes
+# for stdout (or for the -o file) and the text for stderr WITHOUT its final LF. The shell performs it;
+# the closed laws state it.
+type Out is Data:
+  Out{code: Nat, out: String, err: String}
+
+# S5.111 a runtime failure is exit code 1 with nothing written; a success carries the statistics lines
+def run.cr(r: CR) -> Out:
+  match r:
+    case CErr{msg}:
+      Out{1n, SNil{}, msg}
+    case COk{out, stats}:
+      Out{0n, out, stats}
+
+# S1.135 an argv error, help or version never looks at the input
+def run.parsed(p: Parsed, bytes: List<&2, U32>) -> Out:
+  match p:
+    case PExit{code, out, err}:
+      Out{code, out, err}
+    case PRun{o}:
+      run.cr(convert(o, bytes))
+
+# S5.112 argv and input bytes to the program's observable result (without the success line of -o)
+def run_pure(argv: List<&2, String>, bytes: List<&2, U32>) -> Out:
+  run.parsed(parse(argv), bytes)

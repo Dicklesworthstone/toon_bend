@@ -51,19 +51,23 @@ def is_word(+s: String) -> Bool:
 def needs_quote(+s: String, delim: U32) -> Bool:
   Bool.or(String.is_empty(s), Bool.or(T.has_edge_ws(s), Bool.or(is_word(s), Bool.or(F.is_like(s), Bool.or(has_bad(s, delim), starts_dash(s))))))
 
+# S4.19 the escape class of a scalar: 1 '\', 2 '"', 3 LF, 4 CR, 5 TAB, 0 anything else
+def esc.cls(+c: U32) -> Nat:
+  Bool.pick(Nat, U32.is_eq(c, 92), 1n, Bool.pick(Nat, U32.is_eq(c, 34), 2n, Bool.pick(Nat, U32.is_eq(c, 10), 3n, Bool.pick(Nat, U32.is_eq(c, 13), 4n, Bool.pick(Nat, U32.is_eq(c, 9), 5n, 0n)))))
+
 # S4.19 exactly five escapes, per scalar, onto a reversed accumulator; everything else is copied.
-# k is the scalar c as a Nat: a match on U32 literals compiles to a bit tree per arm set (bend #867).
+# k is the escape class of c (esc.cls): a small code, never the scalar's own value
 def esc.ch(k: Nat, c: U32, acc: String) -> String:
   match k:
-    case 92n:
+    case 1n:
       SCon{Chr{92}, SCon{Chr{92}, acc}}
-    case 34n:
+    case 2n:
       SCon{Chr{34}, SCon{Chr{92}, acc}}
-    case 10n:
+    case 3n:
       SCon{Chr{110}, SCon{Chr{92}, acc}}
-    case 13n:
+    case 4n:
       SCon{Chr{114}, SCon{Chr{92}, acc}}
-    case 9n:
+    case 5n:
       SCon{Chr{116}, SCon{Chr{92}, acc}}
     case _:
       SCon{Chr{c}, acc}
@@ -74,7 +78,7 @@ def esc.go(s: String, acc: String) -> String:
     case SNil{}:
       acc
     case SCon{Chr{+c}, rest}:
-      esc.go(rest, esc.ch(U32.to_nat(c), c, acc))
+      esc.go(rest, esc.ch(esc.cls(c), c, acc))
 
 # S4.20 the quoted form onto a reversed accumulator
 def put.quoted(s: String, acc: String) -> String:

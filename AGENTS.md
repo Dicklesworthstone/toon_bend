@@ -281,7 +281,7 @@ toon_bend/
 | convergence | `./scripts/converge.sh docs/PORT_STATE.md` (computed from the rounds table and the OQ/DISC registers; T2: ≥ 5 rounds, last 2 clean, ≥ 1 non-author round) |
 | the pins | `./scripts/pin-check.sh docs/PIN.toml` |
 | the state file | `./scripts/state-check.sh docs/PORT_STATE.md` before ending a session (no placeholders, gate lines pasted, one executable next action) |
-| the words | `./scripts/claims-lint.sh docs/*.md perf/*.md README.md` before committing any claim |
+| the words | `./scripts/claims-lint.sh docs/PORT_STATE.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md docs/PORT_REPORT.md perf/*.md README.md` before committing any claim (the claim-bearing documents; the spec's clauses are not claims) |
 
 ### Core Types Quick Reference
 
@@ -311,7 +311,7 @@ toon_bend/
 
 - The `async-stream` feature (asupersync streaming) and the `wasm` bindings
 - The `EncodeReplacer` library callback (no CLI spelling, so no golden can be captured for it)
-- clap's "a similar argument exists" suggestion engine (the fixed usage errors ARE ported)
+- Library-only behavior no CLI path reaches (the writers on malformed event streams, `toon_to_json`); clap's similarity tips ARE ported (the exclusion was withdrawn in Phase 1, OQ-A1)
 - Shell completions, `tracing` logs, build metadata
 - Native Windows behavior
 
@@ -721,7 +721,7 @@ git push                # Push to remote
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
 2. **Run quality gates** (if code changed) - `./scripts/port-doctor.sh --threads 8 --original ./oracle/toon --`; paste its table
 3. **Rewrite `docs/PORT_STATE.md`** - phase, pasted gate lines, open OQ/DISC/NE items, ONE executable next action; then `./scripts/state-check.sh docs/PORT_STATE.md`
-4. **Lint the words** - `./scripts/claims-lint.sh docs/*.md perf/*.md README.md`
+4. **Lint the words** - `./scripts/claims-lint.sh docs/PORT_STATE.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md README.md`
 5. **Update issue status** - Close finished work, update in-progress items
 6. **Sync beads** - `br sync --flush-only` to export to JSONL
 7. **Commit** (and push when a remote is configured)

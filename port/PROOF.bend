@@ -251,6 +251,32 @@ def Laws.div_pow10_one_k1():
 def Laws.div_pow10_zero_k3():
   {==}
 
+# ---------------------------------------------------------------- carriers and the cap (closed)
+
+# S6.10 computed
+def Laws.key_hash_fnv1a():
+  {==}
+
+# S6.10 computed
+def Laws.kt_member():
+  {==}
+
+# S6.10 computed
+def Laws.kt_not_member():
+  {==}
+
+# S6.42 computed
+def Laws.expand_order_first_insertion():
+  {==}
+
+# S4.248 computed
+def Laws.expand_cap_is_256_reject():
+  {==}
+
+# S4.248 computed
+def Laws.expand_cap_is_256_accept():
+  {==}
+
 # ---------------------------------------------------------------- closed goldens of the whole pure core:
 # every one is proved by computation
 
@@ -880,4 +906,500 @@ def Laws.golden_toonerr_extra_bare_dash_undetected():
 
 # S5.112 goldens/toonerr_list_first_field_list_shallow
 def Laws.golden_toonerr_list_first_field_list_shallow():
+  {==}
+
+# S5.112 goldens/fx_enc_primitives_01
+def Laws.golden_fx_enc_primitives_01():
+  {==}
+
+# S5.112 goldens/fx_enc_primitives_03
+def Laws.golden_fx_enc_primitives_03():
+  {==}
+
+# S5.112 goldens/fx_enc_primitives_04
+def Laws.golden_fx_enc_primitives_04():
+  {==}
+
+# S5.112 goldens/fx_enc_primitives_07
+def Laws.golden_fx_enc_primitives_07():
+  {==}
+
+# S5.112 goldens/fx_enc_primitives_09
+def Laws.golden_fx_enc_primitives_09():
+  {==}
+
+# S5.112 goldens/fx_enc_primitives_11
+def Laws.golden_fx_enc_primitives_11():
+  {==}
+
+# S5.112 goldens/fx_enc_primitives_14
+def Laws.golden_fx_enc_primitives_14():
+  {==}
+
+# S5.112 goldens/fx_enc_primitives_16
+def Laws.golden_fx_enc_primitives_16():
+  {==}
+
+# S5.112 goldens/fx_enc_objects_04
+def Laws.golden_fx_enc_objects_04():
+  {==}
+
+# S5.112 goldens/fx_enc_objects_17
+def Laws.golden_fx_enc_objects_17():
+  {==}
+
+# S5.112 goldens/fx_enc_objects_20
+def Laws.golden_fx_enc_objects_20():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_primitive_01
+def Laws.golden_fx_enc_arrays_primitive_01():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_primitive_04
+def Laws.golden_fx_enc_arrays_primitive_04():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_primitive_08
+def Laws.golden_fx_enc_arrays_primitive_08():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_nested_01
+def Laws.golden_fx_enc_arrays_nested_01():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_nested_03
+def Laws.golden_fx_enc_arrays_nested_03():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_tabular_02
+def Laws.golden_fx_enc_arrays_tabular_02():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_tabular_03
+def Laws.golden_fx_enc_arrays_tabular_03():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_objects_15
+def Laws.golden_fx_enc_arrays_objects_15():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_objects_02
+def Laws.golden_fx_enc_arrays_objects_02():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_objects_10
+def Laws.golden_fx_enc_arrays_objects_10():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_objects_13
+def Laws.golden_fx_enc_arrays_objects_13():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_objects_14
+def Laws.golden_fx_enc_arrays_objects_14():
+  {==}
+
+# S5.112 goldens/fx_enc_objects_03
+def Laws.golden_fx_enc_objects_03():
+  {==}
+
+# S5.112 goldens/fx_enc_objects_25
+def Laws.golden_fx_enc_objects_25():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_nested_10
+def Laws.golden_fx_enc_arrays_nested_10():
+  {==}
+
+# S5.112 goldens/flag_indent_0_encode
+def Laws.golden_flag_indent_0_encode():
+  {==}
+
+# S5.112 goldens/flag_indent_16_encode
+def Laws.golden_flag_indent_16_encode():
+  {==}
+
+# S5.112 goldens/fx_enc_whitespace_01
+def Laws.golden_fx_enc_whitespace_01():
+  {==}
+
+# S5.112 goldens/fx_enc_delimiters_01
+def Laws.golden_fx_enc_delimiters_01():
+  {==}
+
+# S5.112 goldens/fx_enc_delimiters_02
+def Laws.golden_fx_enc_delimiters_02():
+  {==}
+
+# S5.112 goldens/fx_enc_delimiters_06
+def Laws.golden_fx_enc_delimiters_06():
+  {==}
+
+# S5.112 goldens/fx_enc_delimiters_10
+def Laws.golden_fx_enc_delimiters_10():
+  {==}
+
+# S5.112 goldens/fx_enc_delimiters_16
+def Laws.golden_fx_enc_delimiters_16():
+  {==}
+
+# S5.112 goldens/fx_enc_delimiters_20
+def Laws.golden_fx_enc_delimiters_20():
+  {==}
+
+# S5.112 goldens/fx_enc_key_folding_01
+def Laws.golden_fx_enc_key_folding_01():
+  {==}
+
+# S5.112 goldens/fx_enc_key_folding_03
+def Laws.golden_fx_enc_key_folding_03():
+  {==}
+
+# S5.112 goldens/fx_enc_key_folding_05
+def Laws.golden_fx_enc_key_folding_05():
+  {==}
+
+# S5.112 goldens/fx_enc_key_folding_08
+def Laws.golden_fx_enc_key_folding_08():
+  {==}
+
+# S5.112 goldens/fx_enc_key_folding_12
+def Laws.golden_fx_enc_key_folding_12():
+  {==}
+
+# S5.112 goldens/fx_enc_key_folding_13
+def Laws.golden_fx_enc_key_folding_13():
+  {==}
+
+# S5.112 goldens/enc_folding_collision
+def Laws.golden_enc_folding_collision():
+  {==}
+
+# S5.112 goldens/enc_fold_root_literal_nested
+def Laws.golden_enc_fold_root_literal_nested():
+  {==}
+
+# S5.112 goldens/enc_fold_budget_threading_5
+def Laws.golden_enc_fold_budget_threading_5():
+  {==}
+
+# S5.112 goldens/enc_fold_list_item_dup_key
+def Laws.golden_enc_fold_list_item_dup_key():
+  {==}
+
+# S5.112 goldens/flag_flatten_depth_3
+def Laws.golden_flag_flatten_depth_3():
+  {==}
+
+# S5.112 goldens/fx_dec_indentation_errors_01
+def Laws.golden_fx_dec_indentation_errors_01():
+  {==}
+
+# S5.112 goldens/fx_dec_indentation_errors_04
+def Laws.golden_fx_dec_indentation_errors_04():
+  {==}
+
+# S5.112 goldens/fx_dec_indentation_errors_08
+def Laws.golden_fx_dec_indentation_errors_08():
+  {==}
+
+# S5.112 goldens/fx_dec_indentation_errors_13
+def Laws.golden_fx_dec_indentation_errors_13():
+  {==}
+
+# S5.112 goldens/fx_dec_blank_lines_01
+def Laws.golden_fx_dec_blank_lines_01():
+  {==}
+
+# S5.112 goldens/toonedge_indent4
+def Laws.golden_toonedge_indent4():
+  {==}
+
+# S5.112 goldens/toonedge_indent0_flat
+def Laws.golden_toonedge_indent0_flat():
+  {==}
+
+# S5.112 goldens/toonlenient_indent_not_multiple
+def Laws.golden_toonlenient_indent_not_multiple():
+  {==}
+
+# S5.112 goldens/fx_dec_primitives_01
+def Laws.golden_fx_dec_primitives_01():
+  {==}
+
+# S5.112 goldens/fx_dec_primitives_04
+def Laws.golden_fx_dec_primitives_04():
+  {==}
+
+# S5.112 goldens/fx_dec_primitives_08
+def Laws.golden_fx_dec_primitives_08():
+  {==}
+
+# S5.112 goldens/fx_dec_primitives_19
+def Laws.golden_fx_dec_primitives_19():
+  {==}
+
+# S5.112 goldens/fx_dec_primitives_22
+def Laws.golden_fx_dec_primitives_22():
+  {==}
+
+# S5.112 goldens/fx_dec_objects_04
+def Laws.golden_fx_dec_objects_04():
+  {==}
+
+# S5.112 goldens/fx_dec_objects_17
+def Laws.golden_fx_dec_objects_17():
+  {==}
+
+# S5.112 goldens/fx_dec_whitespace_01
+def Laws.golden_fx_dec_whitespace_01():
+  {==}
+
+# S5.112 goldens/fx_dec_whitespace_06
+def Laws.golden_fx_dec_whitespace_06():
+  {==}
+
+# S5.112 goldens/toonedge_header_in_value_first_bracket_only
+def Laws.golden_toonedge_header_in_value_first_bracket_only():
+  {==}
+
+# S5.112 goldens/fx_dec_delimiters_01
+def Laws.golden_fx_dec_delimiters_01():
+  {==}
+
+# S5.112 goldens/fx_dec_delimiters_02
+def Laws.golden_fx_dec_delimiters_02():
+  {==}
+
+# S5.112 goldens/fx_dec_delimiters_16
+def Laws.golden_fx_dec_delimiters_16():
+  {==}
+
+# S5.112 goldens/fx_dec_delimiters_21
+def Laws.golden_fx_dec_delimiters_21():
+  {==}
+
+# S5.112 goldens/toonedge_length_plus_and_zero
+def Laws.golden_toonedge_length_plus_and_zero():
+  {==}
+
+# S5.112 goldens/toonedge_fields_space_only
+def Laws.golden_toonedge_fields_space_only():
+  {==}
+
+# S5.112 goldens/fx_dec_numbers_02
+def Laws.golden_fx_dec_numbers_02():
+  {==}
+
+# S5.112 goldens/fx_dec_numbers_03
+def Laws.golden_fx_dec_numbers_03():
+  {==}
+
+# S5.112 goldens/fx_dec_numbers_05
+def Laws.golden_fx_dec_numbers_05():
+  {==}
+
+# S5.112 goldens/fx_dec_numbers_10
+def Laws.golden_fx_dec_numbers_10():
+  {==}
+
+# S5.112 goldens/fx_dec_numbers_16
+def Laws.golden_fx_dec_numbers_16():
+  {==}
+
+# S5.112 goldens/fx_dec_numbers_20
+def Laws.golden_fx_dec_numbers_20():
+  {==}
+
+# S5.112 goldens/fx_dec_arrays_nested_02
+def Laws.golden_fx_dec_arrays_nested_02():
+  {==}
+
+# S5.112 goldens/fx_dec_arrays_nested_07
+def Laws.golden_fx_dec_arrays_nested_07():
+  {==}
+
+# S5.112 goldens/fx_dec_arrays_nested_09
+def Laws.golden_fx_dec_arrays_nested_09():
+  {==}
+
+# S5.112 goldens/fx_dec_objects_03
+def Laws.golden_fx_dec_objects_03():
+  {==}
+
+# S5.112 goldens/fx_dec_objects_22
+def Laws.golden_fx_dec_objects_22():
+  {==}
+
+# S5.112 goldens/fx_dec_objects_28
+def Laws.golden_fx_dec_objects_28():
+  {==}
+
+# S5.112 goldens/fx_dec_root_form_01
+def Laws.golden_fx_dec_root_form_01():
+  {==}
+
+# S5.112 goldens/fx_dec_arrays_tabular_02
+def Laws.golden_fx_dec_arrays_tabular_02():
+  {==}
+
+# S5.112 goldens/fx_dec_arrays_tabular_03
+def Laws.golden_fx_dec_arrays_tabular_03():
+  {==}
+
+# S5.112 goldens/toonedge_data_row_test
+def Laws.golden_toonedge_data_row_test():
+  {==}
+
+# S5.112 goldens/fx_dec_blank_lines_05
+def Laws.golden_fx_dec_blank_lines_05():
+  {==}
+
+# S5.112 goldens/fx_dec_blank_lines_11
+def Laws.golden_fx_dec_blank_lines_11():
+  {==}
+
+# S5.112 goldens/fx_dec_validation_errors_01
+def Laws.golden_fx_dec_validation_errors_01():
+  {==}
+
+# S5.112 goldens/toonlenient_row_width_short
+def Laws.golden_toonlenient_row_width_short():
+  {==}
+
+# S5.112 goldens/toonlenient_extra_tabular_rows
+def Laws.golden_toonlenient_extra_tabular_rows():
+  {==}
+
+# S5.112 goldens/toonlenient_blank_in_tabular
+def Laws.golden_toonlenient_blank_in_tabular():
+  {==}
+
+# S5.112 goldens/fx_dec_path_expansion_01
+def Laws.golden_fx_dec_path_expansion_01():
+  {==}
+
+# S5.112 goldens/fx_dec_path_expansion_03
+def Laws.golden_fx_dec_path_expansion_03():
+  {==}
+
+# S5.112 goldens/fx_dec_path_expansion_05
+def Laws.golden_fx_dec_path_expansion_05():
+  {==}
+
+# S5.112 goldens/fx_dec_path_expansion_08
+def Laws.golden_fx_dec_path_expansion_08():
+  {==}
+
+# S5.112 goldens/fx_dec_path_expansion_10
+def Laws.golden_fx_dec_path_expansion_10():
+  {==}
+
+# S5.112 goldens/fx_dec_path_expansion_11
+def Laws.golden_fx_dec_path_expansion_11():
+  {==}
+
+# S5.112 goldens/toonedge_expand_quoted_unquoted_same_key
+def Laws.golden_toonedge_expand_quoted_unquoted_same_key():
+  {==}
+
+# S5.112 goldens/decnum_root_negative_zero
+def Laws.golden_decnum_root_negative_zero():
+  {==}
+
+# S5.112 goldens/fx_dec_numbers_06
+def Laws.golden_fx_dec_numbers_06():
+  {==}
+
+# S5.112 goldens/fx_dec_numbers_08
+def Laws.golden_fx_dec_numbers_08():
+  {==}
+
+# S5.112 goldens/jsonout_root_array
+def Laws.golden_jsonout_root_array():
+  {==}
+
+# S5.112 goldens/jsonout_duplicate_keys
+def Laws.golden_jsonout_duplicate_keys():
+  {==}
+
+# S5.112 goldens/flag_decode_indent_0
+def Laws.golden_flag_decode_indent_0():
+  {==}
+
+# S5.112 goldens/flag_decode_indent_4
+def Laws.golden_flag_decode_indent_4():
+  {==}
+
+# S5.112 goldens/encnum_root_negative_zero
+def Laws.golden_encnum_root_negative_zero():
+  {==}
+
+# S5.112 goldens/encnum_overflow_positive
+def Laws.golden_encnum_overflow_positive():
+  {==}
+
+# S5.112 goldens/encnum_overflow_negative
+def Laws.golden_encnum_overflow_negative():
+  {==}
+
+# S5.112 goldens/fx_enc_arrays_objects_01
+def Laws.golden_fx_enc_arrays_objects_01():
+  {==}
+
+# S5.112 goldens/happy_readme_users
+def Laws.golden_happy_readme_users():
+  {==}
+
+# S5.112 goldens/happy_readme_users_decode
+def Laws.golden_happy_readme_users_decode():
+  {==}
+
+# S5.112 goldens/flag_delimiter_word_pipe
+def Laws.golden_flag_delimiter_word_pipe():
+  {==}
+
+# S5.112 goldens/flag_delimiter_backslash_t
+def Laws.golden_flag_delimiter_backslash_t():
+  {==}
+
+# S5.112 goldens/flag_short_combined_e
+def Laws.golden_flag_short_combined_e():
+  {==}
+
+# S5.112 goldens/flag_indent_equals
+def Laws.golden_flag_indent_equals():
+  {==}
+
+# S5.112 goldens/flag_double_dash_only
+def Laws.golden_flag_double_dash_only():
+  {==}
+
+# S5.112 goldens/flag_no_strict_on_encode_ignored
+def Laws.golden_flag_no_strict_on_encode_ignored():
+  {==}
+
+# S5.112 goldens/flag_stdin_dash
+def Laws.golden_flag_stdin_dash():
+  {==}
+
+# S5.112 goldens/flag_stdin_dash_decode
+def Laws.golden_flag_stdin_dash_decode():
+  {==}
+
+# S2.100 goldens/jsonerr_invalid_utf8_stdin
+def Laws.golden_jsonerr_invalid_utf8_stdin():
+  {==}
+
+# S2.100 goldens/toonerr_invalid_utf8_stdin
+def Laws.golden_toonerr_invalid_utf8_stdin():
+  {==}
+
+# S2.100 goldens/jsonerr_overlong_utf8
+def Laws.golden_jsonerr_overlong_utf8():
+  {==}
+
+# S2.100 goldens/jsonerr_truncated_utf8
+def Laws.golden_jsonerr_truncated_utf8():
   {==}

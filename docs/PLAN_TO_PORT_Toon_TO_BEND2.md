@@ -18,6 +18,15 @@ interpreter, C at 1 and N threads, and JS executions agree with the Rust
 binary byte for byte on 678 captured cases) and **proved fast twins** (the
 row-wise encode and decode kernels are data-parallel by shape, so a balanced
 fork is bound to the literal sequential twin by a law instead of by testing).
+
+> **Amendment (2026-09-20, after Phase 5's first levers).** The corpus is 1053 cases now (678 at Phase 0, 1005 after
+> Phase 1). The second property was NOT bought in the planned form: no parallel row kernel was built (no bang, no
+> parallel let; ARCH §11 A7), and the three fast twins that exist (number printing, small-integer reading, division
+> by a power of ten) are bound to their spec twins by ONE quantified gate law (`twin_gate_switch`: under
+> `TOON_SPEC=1` every twin selector is off), by closed instance laws, and by comparing both twins against the
+> original on generated numbers (`scripts/diff-fuzz.py numbers --switch TOON_SPEC=1`). A universally quantified
+> `fast == spec` law exists for none of them: the checker's normalizer overflows on bodies with 10^5-scale `Nat`
+> literals and does not finish on the shortest-digit generator.
 It also yields the first machine-checked statements of TOON's algebraic
 properties (escape/unescape round trip, quoting safety, fold/expand inverse).
 No GPU lane is planned: the workload is text with data-dependent structure,
@@ -66,7 +75,7 @@ so no bang is placed (GPU-PORTS "Is the original a GPU port at all?": no).
 | `--stats` | `src/cli/mod.rs:estimate_tokens` | Unicode-whitespace word and character counts; percent through two f64 operations and `{:.1}` |
 | usage surface | `clap 4.6.6` derive in `src/cli/args.rs` | `--help`/`-h`, `--version`/`-V`, value validation, conflicts, repeats, missing values, unexpected arguments with the `--` tip; exit 2 |
 | input errors | `src/error.rs`, Rust `std::io` | missing file, directory, invalid UTF-8 (`stream did not contain valid UTF-8`), uncreatable output; exit 1 |
-| library surface as Bend modules | `src/lib.rs` | `encode`, `encode_lines`, `decode`, `decode_stream` (events), `expand`, exported from `port/` for Bend callers; exercised through the CLI goldens |
+| library surface as Bend modules | `src/lib.rs` | `E.encode` (lines), `D.decode`, `D.decode_expanded`, `J.read`, `J.write_ln`, `C.run_pure`, importable from `port/` by Bend callers; exercised through the CLI goldens. (Amended 2026-09-20: the row first listed `decode_stream` (events); ARCH §11 A1 removed the event list, the event ORDER of S3.20–S3.22 is the order in which `D.attach` places values, and no event API is exported. The original's async streaming stays excluded below.) |
 
 ### Excluded (each row is debt or infeasibility, never "later")
 

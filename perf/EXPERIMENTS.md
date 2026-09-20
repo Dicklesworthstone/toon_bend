@@ -131,3 +131,44 @@ twins compared on ≥ 10^6 generated (a, k) by a native driver, and `lanes.sh` w
 ```bash
 scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-003 --original <baseline binary> -- --encode <decimals.json> --port <lever binary> -- --encode <decimals.json>
 ```
+
+## EXP-004 — hashed key carriers (a change of the SPEC twins' carrier, not a fast twin)
+
+| field | value |
+|---|---|
+| experiment_id | EXP-004 |
+| program / def | `port/text.bend` (`key_hash`, `KT`, `kt.*`), `port/json.bend` (`FObj.idx`, `obj.member`, `KM`, `km.*`), `port/encode.bend` (`keys.kt`, `row.lock`, `put.cells`), `port/decode.bend` (`blank.*`, `XV`, `xm.*`, `path.ins`, `x.norm`) |
+| created (UTC) | 2026-09-20 |
+| agent | Claude (Claude Code session, author); the finding is the round 6 non-author reviewer's |
+| graveyard sweep | `rg -i 'hash\|carrier\|key set\|quadratic\|linear walk' perf/NEGATIVE-EVIDENCE.md` → no entry |
+| status | PROPOSED |
+| precommitted | the gate below was written before the merge into `port/` and before any capture; the scratch implementation existed already (it was written to answer the review finding), so this card is NOT "before the lever" and says so |
+
+### Hypothesis
+Four places walk a key chain once per key, which is quadratic in the keys of ONE object: the JSON reader's repeated-key test (S6.10),
+the encoder's folding sibling test (S4.63), the tabular row lookup by header key (S6.31), and path expansion's lookup and re-insertion
+(S6.42); the decoder also re-scanned the blank lines of an array body per line. A hashed key set / map beside the ordered chain makes each
+of them near-linear, so the four inputs below finish in under 2 s each at 1 thread where the baseline needs more than 5 s.
+
+### Motivation
+Round 6 review, maintenance numbers on the shared host: 8000 keys in one object 5.2 s; 30000 folded keys and 40000 expanded lines did
+not finish in 120 s; 20 rows of 1200 fields 16.6 s. The original needs under 3 s for each.
+
+### Lever (one)
+`T.KT`: a 16-level bit tree over FNV-1a (32 bit) of the key, with small buckets compared by `T.str_eq`; order stays in the entry chain or
+in an explicit key list, the tree only answers membership and lookup. There is NO slow twin kept beside it and no `TOON_SPEC` arm: the
+carrier is part of the spec twins. Evidence: the goldens on every lane; the closed laws `key_hash_fnv1a`, `kt_member`, `kt_not_member`,
+`expand_order_first_insertion`, `expand_cap_is_256_reject`, `expand_cap_is_256_accept`; `scripts/diff-fuzz.py` lenses `docs`, `expand`
+and `scale` against the original.
+
+### Precommitted gate
+Each of the four inputs: port median under 2 s at `--threads 1`, stdout and stderr identical to the original's, cv ≤ 5% on both arms;
+the baseline artifact (commit `3751630`) either exceeds 5 s or its 60 s budget on the same input; `bend PROOF.bend` → `All terms check.`;
+lanes PASS; no input of EXP-001..003 slower than the baseline by more than 5%.
+
+### One-line invocation
+```bash
+scripts/incumbent-bench.sh --runs 5 --max-cv 5 --timeout 60 --tag EXP-004 --original <baseline binary> -- -e perf/inputs/wide_object_16000.json --port <merged binary> -- -e perf/inputs/wide_object_16000.json
+```
+(and the same with `-e --key-folding safe perf/inputs/fold_keys_30000.json`, `-d --expand-paths safe perf/inputs/expand_lines_40000.toon`,
+`-e perf/inputs/wide_rows_1200.json`)

@@ -106,7 +106,7 @@ law expansion_cap_on_values:
 
 # S4.248 nor a merge or a literal insertion
 law expansion_cap_on_merges:
-  for tgt: D.ER
+  for tgt: D.XR
   for src: J.Json
   for strict: Bool
   {D.plan(0n, tgt, src, strict) == D.ACap{} : D.Act}
@@ -277,6 +277,32 @@ law div_pow10_one_k1:
 # S7.21 (EXP-003) the short division equals the restoring division
 law div_pow10_zero_k3:
   {BN.div_pow10(Nil{}, 3n) == BN.div_pow10.spec(Nil{}, 3n) : BN.P5}
+
+# ---------------------------------------------------------------- carriers and the cap (closed)
+
+# S6.10 the key hash is FNV-1a over the scalar values: the published 32-bit test value of "hello"
+law key_hash_fnv1a:
+  {T.key_hash("hello") == 1335831723 : U32}
+
+# S6.10 a key put into the set is in it
+law kt_member:
+  {T.kt.has(T.kt.put(T.kt.put(T.kt.empty(), "a"), "b.c"), "b.c") == True{} : Bool}
+
+# S6.10 and a key never put is not
+law kt_not_member:
+  {T.kt.has(T.kt.put(T.kt.put(T.kt.empty(), "a"), "b.c"), "b") == False{} : Bool}
+
+# S6.42 (captured from the original) expanded keys keep the position of their FIRST insertion: `a` stays before `m` although `a.c` comes after it
+law expand_order_first_insertion:
+  {C.run_pure(["--decode", "--expand-paths", "safe", "--indent", "0"], T.ascii_bytes("z: x\na.b: p\nm: q\na.c: r\n", Nil{})) == C.Out{0n, "{\"z\":\"x\",\"a\":{\"b\":\"p\",\"c\":\"r\"},\"m\":\"q\"}\n", ""} : C.Out}
+
+# S4.248 (toonerr_expand_segments_254) the cap is 256, not just "some fuel": a root key of 254 segments is rejected
+law expand_cap_is_256_reject:
+  {D.decode_expanded("k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k: x\n", True{}, 2n, False{}) == D.DErr{"Path expansion exceeded maximum depth of 256"} : D.DR}
+
+# S4.248 (toonedge_expand_segments_253) and 253 segments are accepted
+law expand_cap_is_256_accept:
+  {D.dr.ok(D.decode_expanded("k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k: x\n", True{}, 2n, False{})) == True{} : Bool}
 
 # ---------------------------------------------------------------- closed goldens of the WHOLE pure core
 #
@@ -915,3 +941,504 @@ law golden_toonerr_extra_bare_dash_undetected:
 # S5.112 goldens/toonerr_list_first_field_list_shallow
 law golden_toonerr_list_first_field_list_shallow:
   {C.run_pure(["--decode"], T.ascii_bytes("l[1]:\n  - k[2]:\n    - a\n    - b\n", Nil{})) == C.Out{1n, "", "Expected 2 list array items, but got 0"} : C.Out}
+
+# ---------------------------------------------------------------- closed goldens of the WHOLE pure core, second batch (encoder, folding,
+# delimiters, tabular rows, expansion, small numbers through the fast twins): at least one per board row that can carry one
+
+# S5.112 goldens/fx_enc_primitives_01
+law golden_fx_enc_primitives_01:
+  {C.run_pure(["--encode"], T.ascii_bytes("\"hello\"\n", Nil{})) == C.Out{0n, "hello\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_primitives_03
+law golden_fx_enc_primitives_03:
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\"\n", Nil{})) == C.Out{0n, "\"\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_primitives_04
+law golden_fx_enc_primitives_04:
+  {C.run_pure(["--encode"], T.ascii_bytes("\"true\"\n", Nil{})) == C.Out{0n, "\"true\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_primitives_07
+law golden_fx_enc_primitives_07:
+  {C.run_pure(["--encode"], T.ascii_bytes("\"42\"\n", Nil{})) == C.Out{0n, "\"42\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_primitives_09
+law golden_fx_enc_primitives_09:
+  {C.run_pure(["--encode"], T.ascii_bytes("\"1e-6\"\n", Nil{})) == C.Out{0n, "\"1e-6\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_primitives_11
+law golden_fx_enc_primitives_11:
+  {C.run_pure(["--encode"], T.ascii_bytes("\"line1\\nline2\"\n", Nil{})) == C.Out{0n, "\"line1\\nline2\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_primitives_14
+law golden_fx_enc_primitives_14:
+  {C.run_pure(["--encode"], T.ascii_bytes("\"C:\\\\Users\\\\path\"\n", Nil{})) == C.Out{0n, "\"C:\\\\Users\\\\path\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_primitives_16
+law golden_fx_enc_primitives_16:
+  {C.run_pure(["--encode"], T.ascii_bytes("\"- item\"\n", Nil{})) == C.Out{0n, "\"- item\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_objects_04
+law golden_fx_enc_objects_04:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"note\":\"a:b\"}\n", Nil{})) == C.Out{0n, "note: \"a:b\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_objects_17
+law golden_fx_enc_objects_17:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"full name\":\"Ada\"}\n", Nil{})) == C.Out{0n, "\"full name\": Ada\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_objects_20
+law golden_fx_enc_objects_20:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"123\":\"x\"}\n", Nil{})) == C.Out{0n, "\"123\": x\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_primitive_01
+law golden_fx_enc_arrays_primitive_01:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"tags\":[\"reading\",\"gaming\"]}\n", Nil{})) == C.Out{0n, "tags[2]: reading,gaming\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_primitive_04
+law golden_fx_enc_arrays_primitive_04:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"items\":[]}\n", Nil{})) == C.Out{0n, "items[0]:\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_primitive_08
+law golden_fx_enc_arrays_primitive_08:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"items\":[\"a\",\"b,c\",\"d:e\"]}\n", Nil{})) == C.Out{0n, "items[3]: a,\"b,c\",\"d:e\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_nested_01
+law golden_fx_enc_arrays_nested_01:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"pairs\":[[\"a\",\"b\"],[\"c\",\"d\"]]}\n", Nil{})) == C.Out{0n, "pairs[2]:\n  - [2]: a,b\n  - [2]: c,d\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_nested_03
+law golden_fx_enc_arrays_nested_03:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"pairs\":[[],[]]}\n", Nil{})) == C.Out{0n, "pairs[2]:\n  - [0]:\n  - [0]:\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_tabular_02
+law golden_fx_enc_arrays_tabular_02:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"items\":[{\"id\":1,\"value\":null},{\"id\":2,\"value\":\"test\"}]}\n", Nil{})) == C.Out{0n, "items[2]{id,value}:\n  1,null\n  2,test\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_tabular_03
+law golden_fx_enc_arrays_tabular_03:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"items\":[{\"sku\":\"A,1\",\"desc\":\"cool\",\"qty\":2},{\"sku\":\"B2\",\"desc\":\"wip: test\",\"qty\":1}]}\n", Nil{})) == C.Out{0n, "items[2]{sku,desc,qty}:\n  \"A,1\",cool,2\n  B2,\"wip: test\",1\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_objects_15
+law golden_fx_enc_arrays_objects_15:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"items\":[{\"a\":1,\"b\":2,\"c\":3},{\"c\":30,\"b\":20,\"a\":10}]}\n", Nil{})) == C.Out{0n, "items[2]{a,b,c}:\n  1,2,3\n  10,20,30\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_objects_02
+law golden_fx_enc_arrays_objects_02:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"items\":[{\"id\":1,\"nested\":{\"x\":1}}]}\n", Nil{})) == C.Out{0n, "items[1]:\n  - id: 1\n    nested:\n      x: 1\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_objects_10
+law golden_fx_enc_arrays_objects_10:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"items\":[{\"name\":\"Ada\",\"data\":[]}]}\n", Nil{})) == C.Out{0n, "items[1]:\n  - name: Ada\n    data[0]:\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_objects_13
+law golden_fx_enc_arrays_objects_13:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"items\":[{\"data\":[],\"name\":\"x\"}]}\n", Nil{})) == C.Out{0n, "items[1]:\n  - data[0]:\n    name: x\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_objects_14
+law golden_fx_enc_arrays_objects_14:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"items\":[\"first\",\"second\",{}]}\n", Nil{})) == C.Out{0n, "items[3]:\n  - first\n  - second\n  -\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_objects_03
+law golden_fx_enc_objects_03:
+  {C.run_pure(["--encode"], T.ascii_bytes("{}\n", Nil{})) == C.Out{0n, "\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_objects_25
+law golden_fx_enc_objects_25:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":{\"b\":{\"c\":\"deep\"}}}\n", Nil{})) == C.Out{0n, "a:\n  b:\n    c: deep\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_nested_10
+law golden_fx_enc_arrays_nested_10:
+  {C.run_pure(["--encode"], T.ascii_bytes("[]\n", Nil{})) == C.Out{0n, "[0]:\n", ""} : C.Out}
+
+# S5.112 goldens/flag_indent_0_encode
+law golden_flag_indent_0_encode:
+  {C.run_pure(["--encode", "--indent", "0"], T.ascii_bytes("{\"a\":{\"b\":1},\"l\":[{\"x\":1},{\"y\":2}]}\n", Nil{})) == C.Out{0n, "a:\nb: 1\nl[2]:\n- x: 1\n- y: 2\n", ""} : C.Out}
+
+# S5.112 goldens/flag_indent_16_encode
+law golden_flag_indent_16_encode:
+  {C.run_pure(["--encode", "--indent", "16"], T.ascii_bytes("{\"a\":{\"b\":1}}\n", Nil{})) == C.Out{0n, "a:\n                b: 1\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_whitespace_01
+law golden_fx_enc_whitespace_01:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"id\":123}\n", Nil{})) == C.Out{0n, "id: 123\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_delimiters_01
+law golden_fx_enc_delimiters_01:
+  {C.run_pure(["--encode", "--delimiter", "\t"], T.ascii_bytes("{\"tags\":[\"reading\",\"gaming\",\"coding\"]}\n", Nil{})) == C.Out{0n, "tags[3\t]: reading\tgaming\tcoding\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_delimiters_02
+law golden_fx_enc_delimiters_02:
+  {C.run_pure(["--encode", "--delimiter", "|"], T.ascii_bytes("{\"tags\":[\"reading\",\"gaming\",\"coding\"]}\n", Nil{})) == C.Out{0n, "tags[3|]: reading|gaming|coding\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_delimiters_06
+law golden_fx_enc_delimiters_06:
+  {C.run_pure(["--encode", "--delimiter", "\t"], T.ascii_bytes("{\"pairs\":[[\"a\",\"b\"],[\"c\",\"d\"]]}\n", Nil{})) == C.Out{0n, "pairs[2\t]:\n  - [2\t]: a\tb\n  - [2\t]: c\td\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_delimiters_10
+law golden_fx_enc_delimiters_10:
+  {C.run_pure(["--encode", "--delimiter", "\t"], T.ascii_bytes("[{\"id\":1},{\"id\":2}]\n", Nil{})) == C.Out{0n, "[2\t]{id}:\n  1\n  2\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_delimiters_16
+law golden_fx_enc_delimiters_16:
+  {C.run_pure(["--encode", "--delimiter", ","], T.ascii_bytes("{\"items\":[{\"id\":1,\"note\":\"a,b\"},{\"id\":2,\"note\":\"c,d\"}]}\n", Nil{})) == C.Out{0n, "items[2]{id,note}:\n  1,\"a,b\"\n  2,\"c,d\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_delimiters_20
+law golden_fx_enc_delimiters_20:
+  {C.run_pure(["--encode", "--delimiter", "|"], T.ascii_bytes("{\"pairs\":[[\"a\",\"b|c\"]]}\n", Nil{})) == C.Out{0n, "pairs[1|]:\n  - [2|]: a|\"b|c\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_key_folding_01
+law golden_fx_enc_key_folding_01:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"a\":{\"b\":{\"c\":1}}}\n", Nil{})) == C.Out{0n, "a.b.c: 1\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_key_folding_03
+law golden_fx_enc_key_folding_03:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"a\":{\"b\":{\"items\":[{\"id\":1,\"name\":\"A\"},{\"id\":2,\"name\":\"B\"}]}}}\n", Nil{})) == C.Out{0n, "a.b.items[2]{id,name}:\n  1,A\n  2,B\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_key_folding_05
+law golden_fx_enc_key_folding_05:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"data\":{\"meta\":{\"items\":[1,2]}},\"data.meta.items\":\"literal\"}\n", Nil{})) == C.Out{0n, "data:\n  meta:\n    items[2]: 1,2\ndata.meta.items: literal\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_key_folding_08
+law golden_fx_enc_key_folding_08:
+  {C.run_pure(["--encode", "--key-folding", "safe", "--flatten-depth", "0"], T.ascii_bytes("{\"a\":{\"b\":{\"c\":1}}}\n", Nil{})) == C.Out{0n, "a:\n  b:\n    c: 1\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_key_folding_12
+law golden_fx_enc_key_folding_12:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"a\":{\"b\":[1,2]}}\n", Nil{})) == C.Out{0n, "a.b[2]: 1,2\n", ""} : C.Out}
+
+# S5.112 goldens/fx_enc_key_folding_13
+law golden_fx_enc_key_folding_13:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"first\":{\"second\":{\"third\":1}},\"simple\":2,\"short\":{\"path\":3}}\n", Nil{})) == C.Out{0n, "first.second.third: 1\nsimple: 2\nshort.path: 3\n", ""} : C.Out}
+
+# S5.112 goldens/enc_folding_collision
+law golden_enc_folding_collision:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"a\": {\"b\": 1}, \"a.b\": 2, \"c\": {\"d\": {\"e\": 1}}, \"c.d\": {\"e\": 2}}\n", Nil{})) == C.Out{0n, "a:\n  b: 1\na.b: 2\nc.d.e: 1\nc.d:\n  e: 2\n", ""} : C.Out}
+
+# S5.112 goldens/enc_fold_root_literal_nested
+law golden_enc_fold_root_literal_nested:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"x\": {\"a\": {\"b\": 1}, \"c\": 2}, \"x.a.b\": 3}\n", Nil{})) == C.Out{0n, "x:\n  a:\n    b: 1\n  c: 2\nx.a.b: 3\n", ""} : C.Out}
+
+# S5.112 goldens/enc_fold_budget_threading_5
+law golden_enc_fold_budget_threading_5:
+  {C.run_pure(["--encode", "--key-folding", "safe", "--flatten-depth", "5"], T.ascii_bytes("{\"a\": {\"b\": {\"x\": {\"y\": {\"z\": {\"w\": 1}}}, \"k\": 1}}}\n", Nil{})) == C.Out{0n, "a.b:\n  x.y.z:\n    w: 1\n  k: 1\n", ""} : C.Out}
+
+# S5.112 goldens/enc_fold_list_item_dup_key
+law golden_enc_fold_list_item_dup_key:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("[{\"c.d\": 7, \"c\": {\"d\": 1}}]\n", Nil{})) == C.Out{0n, "[1]:\n  - c.d: 7\n    c.d: 1\n", ""} : C.Out}
+
+# S5.112 goldens/flag_flatten_depth_3
+law golden_flag_flatten_depth_3:
+  {C.run_pure(["--encode", "--key-folding", "safe", "--flatten-depth", "3"], T.ascii_bytes("{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":1}}}}}\n", Nil{})) == C.Out{0n, "a.b.c:\n  d:\n    e: 1\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_indentation_errors_01
+law golden_fx_dec_indentation_errors_01:
+  {C.run_pure(["--decode", "--indent", "2"], T.ascii_bytes("a:\n   b: 1", Nil{})) == C.Out{1n, "", "Validation error at line 2: Indentation must be exact multiple of 2, but found 3 spaces"} : C.Out}
+
+# S5.112 goldens/fx_dec_indentation_errors_04
+law golden_fx_dec_indentation_errors_04:
+  {C.run_pure(["--decode", "--indent", "4"], T.ascii_bytes("a:\n    b: 1", Nil{})) == C.Out{0n, "{\n    \"a\": {\n        \"b\": 1.0\n    }\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_indentation_errors_08
+law golden_fx_dec_indentation_errors_08:
+  {C.run_pure(["--decode"], T.ascii_bytes("text: \"hello\tworld\"", Nil{})) == C.Out{0n, "{\n  \"text\": \"hello\\tworld\"\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_indentation_errors_13
+law golden_fx_dec_indentation_errors_13:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: 1\n\nb: 2", Nil{})) == C.Out{0n, "{\n  \"a\": 1.0,\n  \"b\": 2.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_blank_lines_01
+law golden_fx_dec_blank_lines_01:
+  {C.run_pure(["--decode"], T.ascii_bytes("items[3]:\n  - a\n\n  - b\n  - c", Nil{})) == C.Out{1n, "", "Line 3: Blank lines inside list array are not allowed in strict mode"} : C.Out}
+
+# S5.112 goldens/toonedge_indent4
+law golden_toonedge_indent4:
+  {C.run_pure(["--decode", "--indent", "4"], T.ascii_bytes("a:\n    b:\n        c: 1\n", Nil{})) == C.Out{0n, "{\n    \"a\": {\n        \"b\": {\n            \"c\": 1.0\n        }\n    }\n}\n", ""} : C.Out}
+
+# S5.112 goldens/toonedge_indent0_flat
+law golden_toonedge_indent0_flat:
+  {C.run_pure(["--decode", "--indent", "0"], T.ascii_bytes("a: 1\nb: 2\n", Nil{})) == C.Out{0n, "{\"a\":1.0,\"b\":2.0}\n", ""} : C.Out}
+
+# S5.112 goldens/toonlenient_indent_not_multiple
+law golden_toonlenient_indent_not_multiple:
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("outer:\n a: 1", Nil{})) == C.Out{0n, "{\n  \"outer\": {},\n  \"a\": 1.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_primitives_01
+law golden_fx_dec_primitives_01:
+  {C.run_pure(["--decode"], T.ascii_bytes("hello", Nil{})) == C.Out{0n, "\"hello\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_primitives_04
+law golden_fx_dec_primitives_04:
+  {C.run_pure(["--decode"], T.ascii_bytes("\"line1\\nline2\"", Nil{})) == C.Out{0n, "\"line1\\nline2\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_primitives_08
+law golden_fx_dec_primitives_08:
+  {C.run_pure(["--decode"], T.ascii_bytes("\"say \\\"hello\\\"\"", Nil{})) == C.Out{0n, "\"say \\\"hello\\\"\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_primitives_19
+law golden_fx_dec_primitives_19:
+  {C.run_pure(["--decode"], T.ascii_bytes("\"true\"", Nil{})) == C.Out{0n, "\"true\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_primitives_22
+law golden_fx_dec_primitives_22:
+  {C.run_pure(["--decode"], T.ascii_bytes("\"42\"", Nil{})) == C.Out{0n, "\"42\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_objects_04
+law golden_fx_dec_objects_04:
+  {C.run_pure(["--decode"], T.ascii_bytes("note: \"a:b\"", Nil{})) == C.Out{0n, "{\n  \"note\": \"a:b\"\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_objects_17
+law golden_fx_dec_objects_17:
+  {C.run_pure(["--decode"], T.ascii_bytes("\"full name\": Ada", Nil{})) == C.Out{0n, "{\n  \"full name\": \"Ada\"\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_whitespace_01
+law golden_fx_dec_whitespace_01:
+  {C.run_pure(["--decode"], T.ascii_bytes("tags[3]: a , b , c", Nil{})) == C.Out{0n, "{\n  \"tags\": [\n    \"a\",\n    \"b\",\n    \"c\"\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_whitespace_06
+law golden_fx_dec_whitespace_06:
+  {C.run_pure(["--decode"], T.ascii_bytes("items[3]: a,,c", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    \"a\",\n    \"\",\n    \"c\"\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/toonedge_header_in_value_first_bracket_only
+law golden_toonedge_header_in_value_first_bracket_only:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: \"[abc] [1]: y\"\nb: \"x[1] y\"\nc: \"x[1\\t]: y\"\nd: \"x[1]{p:q}\"\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"[abc] [1]: y\",\n  \"b\": \"x[1] y\",\n  \"c\": \"x[1\\t]: y\",\n  \"d\": \"x[1]{p:q}\"\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_delimiters_01
+law golden_fx_dec_delimiters_01:
+  {C.run_pure(["--decode"], T.ascii_bytes("tags[3\t]: reading\tgaming\tcoding", Nil{})) == C.Out{0n, "{\n  \"tags\": [\n    \"reading\",\n    \"gaming\",\n    \"coding\"\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_delimiters_02
+law golden_fx_dec_delimiters_02:
+  {C.run_pure(["--decode"], T.ascii_bytes("tags[3|]: reading|gaming|coding", Nil{})) == C.Out{0n, "{\n  \"tags\": [\n    \"reading\",\n    \"gaming\",\n    \"coding\"\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_delimiters_16
+law golden_fx_dec_delimiters_16:
+  {C.run_pure(["--decode"], T.ascii_bytes("items[2\t]: a,b\tc,d", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    \"a,b\",\n    \"c,d\"\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_delimiters_21
+law golden_fx_dec_delimiters_21:
+  {C.run_pure(["--decode"], T.ascii_bytes("items[2\t]:\n  - status: a,b\n  - status: c,d", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    {\n      \"status\": \"a,b\"\n    },\n    {\n      \"status\": \"c,d\"\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/toonedge_length_plus_and_zero
+law golden_toonedge_length_plus_and_zero:
+  {C.run_pure(["--decode"], T.ascii_bytes("a[+2]: x,y\nb[02]: x,y\nc[ 2]: x,y\n", Nil{})) == C.Out{0n, "{\n  \"a\": [\n    \"x\",\n    \"y\"\n  ],\n  \"b\": [\n    \"x\",\n    \"y\"\n  ],\n  \"c[ 2]\": \"x,y\"\n}\n", ""} : C.Out}
+
+# S5.112 goldens/toonedge_fields_space_only
+law golden_toonedge_fields_space_only:
+  {C.run_pure(["--decode"], T.ascii_bytes("items[1]{ }:\n  - 1\n", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    {\n      \"\": \"- 1\"\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_numbers_02
+law golden_fx_dec_numbers_02:
+  {C.run_pure(["--decode"], T.ascii_bytes("value: -1E+03", Nil{})) == C.Out{0n, "{\n  \"value\": -1000.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_numbers_03
+law golden_fx_dec_numbers_03:
+  {C.run_pure(["--decode"], T.ascii_bytes("value: 2.5e2", Nil{})) == C.Out{0n, "{\n  \"value\": 250.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_numbers_05
+law golden_fx_dec_numbers_05:
+  {C.run_pure(["--decode"], T.ascii_bytes("value: -0", Nil{})) == C.Out{0n, "{\n  \"value\": 0.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_numbers_10
+law golden_fx_dec_numbers_10:
+  {C.run_pure(["--decode"], T.ascii_bytes("value: 5E+00", Nil{})) == C.Out{0n, "{\n  \"value\": 5.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_numbers_16
+law golden_fx_dec_numbers_16:
+  {C.run_pure(["--decode"], T.ascii_bytes("05", Nil{})) == C.Out{0n, "\"05\"\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_numbers_20
+law golden_fx_dec_numbers_20:
+  {C.run_pure(["--decode"], T.ascii_bytes("nums[3]: 05,007,0123", Nil{})) == C.Out{0n, "{\n  \"nums\": [\n    \"05\",\n    \"007\",\n    \"0123\"\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_arrays_nested_02
+law golden_fx_dec_arrays_nested_02:
+  {C.run_pure(["--decode"], T.ascii_bytes("items[3]:\n  - first\n  - second\n  -", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    \"first\",\n    \"second\",\n    {}\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_arrays_nested_07
+law golden_fx_dec_arrays_nested_07:
+  {C.run_pure(["--decode"], T.ascii_bytes("items[1]:\n  - name: Ada\n    data[0]:", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    {\n      \"name\": \"Ada\",\n      \"data\": []\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_arrays_nested_09
+law golden_fx_dec_arrays_nested_09:
+  {C.run_pure(["--decode"], T.ascii_bytes("pairs[2]:\n  - [2]: a,b\n  - [2]: c,d", Nil{})) == C.Out{0n, "{\n  \"pairs\": [\n    [\n      \"a\",\n      \"b\"\n    ],\n    [\n      \"c\",\n      \"d\"\n    ]\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_objects_03
+law golden_fx_dec_objects_03:
+  {C.run_pure(["--decode"], T.ascii_bytes("user:", Nil{})) == C.Out{0n, "{\n  \"user\": {}\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_objects_22
+law golden_fx_dec_objects_22:
+  {C.run_pure(["--decode"], T.ascii_bytes("user.name: Ada", Nil{})) == C.Out{0n, "{\n  \"user.name\": \"Ada\"\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_objects_28
+law golden_fx_dec_objects_28:
+  {C.run_pure(["--decode"], T.ascii_bytes("a:\n  b:\n    c: deep", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": {\n      \"c\": \"deep\"\n    }\n  }\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_root_form_01
+law golden_fx_dec_root_form_01:
+  {C.run_pure(["--decode"], T.ascii_bytes("", Nil{})) == C.Out{0n, "{}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_arrays_tabular_02
+law golden_fx_dec_arrays_tabular_02:
+  {C.run_pure(["--decode"], T.ascii_bytes("items[2]{id,value}:\n  1,null\n  2,\"test\"", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    {\n      \"id\": 1.0,\n      \"value\": null\n    },\n    {\n      \"id\": 2.0,\n      \"value\": \"test\"\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_arrays_tabular_03
+law golden_fx_dec_arrays_tabular_03:
+  {C.run_pure(["--decode"], T.ascii_bytes("items[2]{id,note}:\n  1,\"a:b\"\n  2,\"c:d\"", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    {\n      \"id\": 1.0,\n      \"note\": \"a:b\"\n    },\n    {\n      \"id\": 2.0,\n      \"note\": \"c:d\"\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/toonedge_data_row_test
+law golden_toonedge_data_row_test:
+  {C.run_pure(["--decode"], T.ascii_bytes("t[1]{a,b}:\n  1,2\n  x: 4,5\n", Nil{})) == C.Out{0n, "{\n  \"t\": [\n    {\n      \"a\": 1.0,\n      \"b\": 2.0\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_blank_lines_05
+law golden_fx_dec_blank_lines_05:
+  {C.run_pure(["--decode"], T.ascii_bytes("outer[2]:\n  - inner[2]:\n    - a\n\n    - b\n  - x", Nil{})) == C.Out{1n, "", "Expected 2 list array items, but got 0"} : C.Out}
+
+# S5.112 goldens/fx_dec_blank_lines_11
+law golden_fx_dec_blank_lines_11:
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("items[3]:\n  - a\n\n  - b\n  - c", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    \"a\",\n    \"b\",\n    \"c\"\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_validation_errors_01
+law golden_fx_dec_validation_errors_01:
+  {C.run_pure(["--decode"], T.ascii_bytes("tags[2]: a,b,c", Nil{})) == C.Out{1n, "", "Expected 2 inline array items, but got 3"} : C.Out}
+
+# S5.112 goldens/toonlenient_row_width_short
+law golden_toonlenient_row_width_short:
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("rows[1]{a,b,c}:\n  1,2", Nil{})) == C.Out{0n, "{\n  \"rows\": [\n    {\n      \"a\": 1.0,\n      \"b\": 2.0,\n      \"c\": null\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/toonlenient_extra_tabular_rows
+law golden_toonlenient_extra_tabular_rows:
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("rows[1]{id}:\n  1\n  2", Nil{})) == C.Out{0n, "{\n  \"rows\": [\n    {\n      \"id\": 1.0\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/toonlenient_blank_in_tabular
+law golden_toonlenient_blank_in_tabular:
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("rows[2]{id}:\n  1\n\n  2", Nil{})) == C.Out{0n, "{\n  \"rows\": [\n    {\n      \"id\": 1.0\n    },\n    {\n      \"id\": 2.0\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_path_expansion_01
+law golden_fx_dec_path_expansion_01:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b.c: 1", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": {\n      \"c\": 1.0\n    }\n  }\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_path_expansion_03
+law golden_fx_dec_path_expansion_03:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b.items[2]{id,name}:\n  1,A\n  2,B", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": {\n      \"items\": [\n        {\n          \"id\": 1.0,\n          \"name\": \"A\"\n        },\n        {\n          \"id\": 2.0,\n          \"name\": \"B\"\n        }\n      ]\n    }\n  }\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_path_expansion_05
+law golden_fx_dec_path_expansion_05:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b.c: 1\na.b.d: 2\na.e: 3", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": {\n      \"c\": 1.0,\n      \"d\": 2.0\n    },\n    \"e\": 3.0\n  }\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_path_expansion_08
+law golden_fx_dec_path_expansion_08:
+  {C.run_pure(["--decode", "--expand-paths", "safe", "--no-strict"], T.ascii_bytes("a.b: 1\na: 2", Nil{})) == C.Out{0n, "{\n  \"a\": 2.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_path_expansion_10
+law golden_fx_dec_path_expansion_10:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b: 1\n\"c.d\": 2", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": 1.0\n  },\n  \"c.d\": 2.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_path_expansion_11
+law golden_fx_dec_path_expansion_11:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("full-name.x: 1", Nil{})) == C.Out{0n, "{\n  \"full-name.x\": 1.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/toonedge_expand_quoted_unquoted_same_key
+law golden_toonedge_expand_quoted_unquoted_same_key:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("\"a.b\": 1\na.b: 2\n", Nil{})) == C.Out{1n, "", "Path expansion conflict at key \"a.b\": cannot merge primitive with primitive"} : C.Out}
+
+# S5.112 goldens/decnum_root_negative_zero
+law golden_decnum_root_negative_zero:
+  {C.run_pure(["--decode"], T.ascii_bytes("-0", Nil{})) == C.Out{0n, "0.0\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_numbers_06
+law golden_fx_dec_numbers_06:
+  {C.run_pure(["--decode"], T.ascii_bytes("value: -0.0", Nil{})) == C.Out{0n, "{\n  \"value\": 0.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/fx_dec_numbers_08
+law golden_fx_dec_numbers_08:
+  {C.run_pure(["--decode"], T.ascii_bytes("value: 05", Nil{})) == C.Out{0n, "{\n  \"value\": \"05\"\n}\n", ""} : C.Out}
+
+# S5.112 goldens/jsonout_root_array
+law golden_jsonout_root_array:
+  {C.run_pure(["--decode"], T.ascii_bytes("[3]: 1,two,true", Nil{})) == C.Out{0n, "[\n  1.0,\n  \"two\",\n  true\n]\n", ""} : C.Out}
+
+# S5.112 goldens/jsonout_duplicate_keys
+law golden_jsonout_duplicate_keys:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: 1\na: 2\nb: 3\n", Nil{})) == C.Out{0n, "{\n  \"a\": 1.0,\n  \"a\": 2.0,\n  \"b\": 3.0\n}\n", ""} : C.Out}
+
+# S5.112 goldens/flag_decode_indent_0
+law golden_flag_decode_indent_0:
+  {C.run_pure(["-d", "--indent", "0"], T.ascii_bytes("a: 1\nb[2]: 1,2\n", Nil{})) == C.Out{0n, "{\"a\":1.0,\"b\":[1.0,2.0]}\n", ""} : C.Out}
+
+# S5.112 goldens/flag_decode_indent_4
+law golden_flag_decode_indent_4:
+  {C.run_pure(["-d", "--indent", "4"], T.ascii_bytes("a:\n    b: 1\n", Nil{})) == C.Out{0n, "{\n    \"a\": {\n        \"b\": 1.0\n    }\n}\n", ""} : C.Out}
+
+# S5.112 goldens/encnum_root_negative_zero
+law golden_encnum_root_negative_zero:
+  {C.run_pure(["--encode"], T.ascii_bytes("-0.0\n", Nil{})) == C.Out{0n, "0\n", ""} : C.Out}
+
+# S5.112 goldens/encnum_overflow_positive
+law golden_encnum_overflow_positive:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":1e309}\n", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: number out of range at line 1 column 10"} : C.Out}
+
+# S5.112 goldens/encnum_overflow_negative
+law golden_encnum_overflow_negative:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":-1e309}\n", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: number out of range at line 1 column 11"} : C.Out}
+
+# S5.112 goldens/fx_enc_arrays_objects_01
+law golden_fx_enc_arrays_objects_01:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"items\":[{\"id\":1,\"name\":\"First\"},{\"id\":2,\"name\":\"Second\",\"extra\":true}]}\n", Nil{})) == C.Out{0n, "items[2]:\n  - id: 1\n    name: First\n  - id: 2\n    name: Second\n    extra: true\n", ""} : C.Out}
+
+# S5.112 goldens/happy_readme_users
+law golden_happy_readme_users:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"users\":[{\"id\":1,\"name\":\"Alice\"},{\"id\":2,\"name\":\"Bob\"}]}\n", Nil{})) == C.Out{0n, "users[2]{id,name}:\n  1,Alice\n  2,Bob\n", ""} : C.Out}
+
+# S5.112 goldens/happy_readme_users_decode
+law golden_happy_readme_users_decode:
+  {C.run_pure(["--decode"], T.ascii_bytes("users[2]{id,name}:\n  1,Alice\n  2,Bob\n", Nil{})) == C.Out{0n, "{\n  \"users\": [\n    {\n      \"id\": 1.0,\n      \"name\": \"Alice\"\n    },\n    {\n      \"id\": 2.0,\n      \"name\": \"Bob\"\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S5.112 goldens/flag_delimiter_word_pipe
+law golden_flag_delimiter_word_pipe:
+  {C.run_pure(["--encode", "--delimiter", "pipe"], T.ascii_bytes("{\"t\":[\"a\",\"b\"]}\n", Nil{})) == C.Out{0n, "t[2|]: a|b\n", ""} : C.Out}
+
+# S5.112 goldens/flag_delimiter_backslash_t
+law golden_flag_delimiter_backslash_t:
+  {C.run_pure(["--encode", "--delimiter", "\\t"], T.ascii_bytes("{\"t\":[\"a\",\"b\"]}\n", Nil{})) == C.Out{0n, "t[2\t]: a\tb\n", ""} : C.Out}
+
+# S5.112 goldens/flag_short_combined_e
+law golden_flag_short_combined_e:
+  {C.run_pure(["-e"], T.ascii_bytes("{\"name\":\"Alice\",\"age\":30,\"tags\":[\"a\",\"b\"]}\n", Nil{})) == C.Out{0n, "name: Alice\nage: 30\ntags[2]: a,b\n", ""} : C.Out}
+
+# S5.112 goldens/flag_indent_equals
+law golden_flag_indent_equals:
+  {C.run_pure(["--encode", "--indent=4"], T.ascii_bytes("{\"a\":{\"b\":1}}\n", Nil{})) == C.Out{0n, "a:\n    b: 1\n", ""} : C.Out}
+
+# S5.112 goldens/flag_double_dash_only
+law golden_flag_double_dash_only:
+  {C.run_pure(["--"], T.ascii_bytes("{\"name\":\"Alice\",\"age\":30,\"tags\":[\"a\",\"b\"]}\n", Nil{})) == C.Out{0n, "name: Alice\nage: 30\ntags[2]: a,b\n", ""} : C.Out}
+
+# S5.112 goldens/flag_no_strict_on_encode_ignored
+law golden_flag_no_strict_on_encode_ignored:
+  {C.run_pure(["--encode", "--no-strict"], T.ascii_bytes("{\"name\":\"Alice\",\"age\":30,\"tags\":[\"a\",\"b\"]}\n", Nil{})) == C.Out{0n, "name: Alice\nage: 30\ntags[2]: a,b\n", ""} : C.Out}
+
+# S5.112 goldens/flag_stdin_dash
+law golden_flag_stdin_dash:
+  {C.run_pure(["-e", "-"], T.ascii_bytes("{\"name\":\"Alice\",\"age\":30,\"tags\":[\"a\",\"b\"]}\n", Nil{})) == C.Out{0n, "name: Alice\nage: 30\ntags[2]: a,b\n", ""} : C.Out}
+
+# S5.112 goldens/flag_stdin_dash_decode
+law golden_flag_stdin_dash_decode:
+  {C.run_pure(["-d", "-"], T.ascii_bytes("name: Alice\nage: 30\ntags[2]: a,b\n", Nil{})) == C.Out{0n, "{\n  \"name\": \"Alice\",\n  \"age\": 30.0,\n  \"tags\": [\n    \"a\",\n    \"b\"\n  ]\n}\n", ""} : C.Out}
+
+# ---------------------------------------------------------------- strict UTF-8 on raw byte lists (closed)
+
+# S2.100 goldens/jsonerr_invalid_utf8_stdin: the bytes 7b 22 61 22 3a 22 ff fe 22 7d 0a
+law golden_jsonerr_invalid_utf8_stdin:
+  {C.run_pure(["--encode"], [123, 34, 97, 34, 58, 34, 255, 254, 34, 125, 10]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
+
+# S2.100 goldens/toonerr_invalid_utf8_stdin: the bytes 61 3a 20 ff 0a
+law golden_toonerr_invalid_utf8_stdin:
+  {C.run_pure(["--decode"], [97, 58, 32, 255, 10]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
+
+# S2.100 goldens/jsonerr_overlong_utf8: the bytes 22 c0 af 22 0a (an overlong form is invalid)
+law golden_jsonerr_overlong_utf8:
+  {C.run_pure(["--encode"], [34, 192, 175, 34, 10]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
+
+# S2.100 goldens/jsonerr_truncated_utf8: the bytes 7b 22 61 22 3a 22 e2 82 22 7d (a sequence cut short)
+law golden_jsonerr_truncated_utf8:
+  {C.run_pure(["--encode"], [123, 34, 97, 34, 58, 34, 226, 130, 34, 125]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}

@@ -796,12 +796,12 @@ def header(+content: String) -> Hdr:
 #   object (then a line starting with `- ` is not a field, S4.225), and the key (with its quoted flag)
 #   under which the construct opened above it will be stored.
 # FTab: a tabular body: rows so far, declared length N, rows read, row depth r, the fields and their
-#   count, the delimiter, the line number of the first row (0: none yet).
-# FList: a list body: items so far, N, items read, item depth t, the line number of the first item.
+#   count, the delimiter, the blank-line candidate of the body (blank.start).
+# FList: a list body: items so far, N, items read, item depth t, the blank-line candidate.
 type Frame is Data:
   FObj{rev: J.Json, d: Nat, item: Bool, key: String, q: Bool}
-  FTab{rev: J.Json, n: Nat, cnt: Nat, r: Nat, fields: List<&2, Field>, nf: Nat, delim: U32, first: Nat}
-  FList{rev: J.Json, n: Nat, cnt: Nat, t: Nat, first: Nat}
+  FTab{rev: J.Json, n: Nat, cnt: Nat, r: Nat, fields: List<&2, Field>, nf: Nat, delim: U32, cand: Nat}
+  FList{rev: J.Json, n: Nat, cnt: Nat, t: Nat, cand: Nat}
 
 # S3.29 what does not change shape during the pass: strict mode, the blank-line numbers (ascending),
 # the number of the line consumed last, and the numeric kill-switch (TOON_SPEC=1)
@@ -881,35 +881,40 @@ def attach(v: J.Json, frames: List<&2, Frame>, pk: Peek, g: G) -> Step:
     case Con{FTab{rev, n, cnt, r, fields, nf, delim, first}, more}:
       SErr{"internal: a value inside a tabular body"}
 
-# S4.213 (2), S4.215 (2) the class of the head of the blank-line list against an open range (lo, hi):
-# 0 not above lo, 1 strictly inside, 2 at or above hi (or no head)
-def blank.cls(bs: List<&2, Nat>, lo: Nat, hi: Nat) -> Nat:
+# S6.44 whether the first blank-line number is below a line number
+def blank.lt(bs: List<&2, Nat>, num: Nat) -> Bool:
   match bs:
     case Nil{}:
-      2n
-    case Con{+b, rest}:
-      Bool.pick(Nat, Nat.is_le(b, lo), 0n, Bool.pick(Nat, Nat.is_lt(b, hi), 1n, 2n))
+      False{}
+    case Con{b, rest}:
+      Nat.is_lt(b, num)
 
-# S6.44 the loop: the list is ascending, so the first member inside the range is the one reported
-def blank.go(bs: List<&2, Nat>, k: Nat, +lo: Nat, +hi: Nat) -> Nat:
-  match bs k:
-    case Nil{} _:
-      0n
-    case Con{b, rest} 1n:
+# S6.44 the blank-line numbers are ascending and lines are consumed in order, so the numbers below the
+# line being consumed are dropped for good: every open body has already noted its candidate (each
+# number is dropped once; re-scanning them at every body made the pass quadratic in round 6's probes)
+def blank.drop(bs: List<&2, Nat>, lt: Bool, +num: Nat) -> List<&2, Nat>:
+  match bs lt:
+    case Con{b, +rest} True{}:
+      blank.drop(rest, blank.lt(rest, num), num)
+    case other _:
+      other
+
+# S4.213 (2), S4.215 (2) a body's candidate: 0 before its first line; then the number of the first
+# blank line AFTER that first line, or 1 when there is none (a line number after a first line is >= 2).
+# `bs` is the list already dropped up to the line being consumed.
+def blank.start(cand: Nat, bs: List<&2, Nat>) -> Nat:
+  match cand bs:
+    case 0n Nil{}:
+      1n
+    case 0n Con{b, rest}:
       b
-    case Con{b, rest} 2n:
-      0n
-    case Con{b, +rest} _:
-      blank.go(rest, blank.cls(rest, lo, hi), lo, hi)
+    case 1n+c _:
+      1n+c
 
-# S6.44 the first blank line strictly inside (lo, hi), or 0
-def blank.range(+blanks: List<&2, Nat>, +lo: Nat, +hi: Nat) -> Nat:
-  blank.go(blanks, blank.cls(blanks, lo, hi), lo, hi)
-
-# S4.213 (2), S4.215 (2) the first blank line strictly between the first line of a body and the last
-# line it consumed, or 0; a body that read nothing (first = 0) has no range
-def blank.in(blanks: List<&2, Nat>, +first: Nat, last: Nat) -> Nat:
-  blank.range(blanks, first, Bool.pick(Nat, Nat.is_eq(first, 0n), 0n, last))
+# S4.213 (2), S4.215 (2) the first blank line strictly between a body's first line and the last line it
+# consumed, or 0
+def blank.in(+cand: Nat, last: Nat) -> Nat:
+  Bool.pick(Nat, Bool.and(Nat.is_ge(cand, 2n), Nat.is_lt(cand, last)), cand, 0n)
 
 # S9.110, S9.112 the counted thing of a body
 def close.unit(tab: Bool) -> String:
@@ -976,9 +981,9 @@ def pop(frames: List<&2, Frame>, +pk: Peek, g: G) -> Step:
     case Con{FObj{rev, d, item, key, q}, more} g0:
       attach(J.JObj{J.rev_entries(rev, J.JNil{})}, more, pk, g0)
     case Con{FTab{rev, +n, +cnt, r, fields, nf, delim, first}, more} G{+strict, +blanks, +last, spec}:
-      close.fin(close.msg(strict, Nat.is_ne(cnt, n), blank.in(blanks, first, last), surplus.tab(pk, r, delim), True{}, n, cnt), J.JArr{cnt, J.rev_items(rev, J.JNil{})}, more, pk, G{strict, blanks, last, spec})
+      close.fin(close.msg(strict, Nat.is_ne(cnt, n), blank.in(first, last), surplus.tab(pk, r, delim), True{}, n, cnt), J.JArr{cnt, J.rev_items(rev, J.JNil{})}, more, pk, G{strict, blanks, last, spec})
     case Con{FList{rev, +n, +cnt, t, first}, more} G{+strict, +blanks, +last, spec}:
-      close.fin(close.msg(strict, Nat.is_ne(cnt, n), blank.in(blanks, first, last), surplus.list(pk, t), False{}, n, cnt), J.JArr{cnt, J.rev_items(rev, J.JNil{})}, more, pk, G{strict, blanks, last, spec})
+      close.fin(close.msg(strict, Nat.is_ne(cnt, n), blank.in(first, last), surplus.list(pk, t), False{}, n, cnt), J.JArr{cnt, J.rev_items(rev, J.JNil{})}, more, pk, G{strict, blanks, last, spec})
 
 # S4.211 the primitives of a value list so far (newest first) and their count, or the first failure
 type PR is Data:
@@ -1090,12 +1095,12 @@ def row.zip(fields: List<&2, Field>, vals: J.Json, acc: J.Json) -> J.Json:
       row.zip(fs, J.JNil{}, J.JECons{name, quoted, J.JNull{}, acc})
 
 # S4.212 the row's values as primitives (surplus ones too: their failures surface), then the object
-def row.fin(pr: PR, +num: Nat, rev: J.Json, n: Nat, cnt: Nat, r: Nat, +fields: List<&2, Field>, nf: Nat, delim: U32, +first: Nat, more: List<&2, Frame>, pk: Peek, g: G) -> Step:
+def row.fin(pr: PR, num: Nat, rev: J.Json, n: Nat, cnt: Nat, r: Nat, +fields: List<&2, Field>, nf: Nat, delim: U32, first: Nat, more: List<&2, Frame>, pk: Peek, g: G) -> Step:
   match pr:
     case PRErr{msg}:
       SErr{msg}
     case PROk{prev, pc}:
-      decide(FTab{J.JCons{J.JObj{J.rev_entries(row.zip(fields, J.rev_items(prev, J.JNil{}), J.JNil{}), J.JNil{})}, rev}, n, 1n+cnt, r, fields, nf, delim, Bool.pick(Nat, Nat.is_eq(first, 0n), num, first)} <> more, pk, g)
+      decide(FTab{J.JCons{J.JObj{J.rev_entries(row.zip(fields, J.rev_items(prev, J.JNil{}), J.JNil{}), J.JNil{})}, rev}, n, 1n+cnt, r, fields, nf, delim, first} <> more, pk, g)
 
 # S4.212, S9.144 strict: the width is checked BEFORE the values are turned into primitives (S9.109)
 def row.width(bad: Bool, +vals: List<&2, String>, num: Nat, rev: J.Json, n: Nat, cnt: Nat, r: Nat, fields: List<&2, Field>, +nf: Nat, delim: U32, first: Nat, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
@@ -1150,12 +1155,14 @@ def eat(l: Line, pk: Peek, frames: List<&2, Frame>, g: G) -> Step:
   match l frames g:
     case Line{num, depth, content} Nil{} g0:
       SErr{"internal: a line with nothing open"}
-    case Line{num, depth, +content} Con{FObj{rev, d, item, key, q}, more} G{strict, blanks, last, spec}:
-      eat.kv(header(content), content, pk, rev, d, item, more, G{strict, blanks, num, spec})
-    case Line{num, depth, content} Con{FTab{rev, n, cnt, r, fields, nf, +delim, first}, more} G{strict, blanks, last, spec}:
-      eat.row(split(content, delim), num, rev, n, cnt, r, fields, nf, delim, first, more, pk, G{strict, blanks, num, spec})
-    case Line{+num, depth, content} Con{FList{rev, n, cnt, +t, +first}, more} G{strict, blanks, last, spec}:
-      eat.item(item.rest(content), FList{rev, n, cnt, t, Bool.pick(Nat, Nat.is_eq(first, 0n), num, first)}, more, t, pk, G{strict, blanks, num, spec})
+    case Line{+num, depth, +content} Con{FObj{rev, d, item, key, q}, more} G{strict, +blanks, last, spec}:
+      eat.kv(header(content), content, pk, rev, d, item, more, G{strict, blank.drop(blanks, blank.lt(blanks, num), num), num, spec})
+    case Line{+num, depth, content} Con{FTab{rev, n, cnt, r, fields, nf, +delim, first}, more} G{strict, +blanks, last, spec}:
+      +pb = blank.drop(blanks, blank.lt(blanks, num), num)
+      eat.row(split(content, delim), num, rev, n, cnt, r, fields, nf, delim, blank.start(first, pb), more, pk, G{strict, pb, num, spec})
+    case Line{+num, depth, content} Con{FList{rev, n, cnt, +t, first}, more} G{strict, +blanks, last, spec}:
+      +pb = blank.drop(blanks, blank.lt(blanks, num), num)
+      eat.item(item.rest(content), FList{rev, n, cnt, t, blank.start(first, pb)}, more, t, pk, G{strict, pb, num, spec})
 
 # S4.200 (4) the outcome of decoding
 type DR is Data:
@@ -1266,9 +1273,9 @@ def decode(text: String, +strict: Bool, unit: Nat, spec: Bool) -> DR:
 
 # ---------------------------------------------------------------- S4.240–S4.249 safe path expansion
 #
-# Objects under construction are entry chains kept newest first; J.obj.put replaces a value at its
-# position or appends (S6.42). The depth counter c of S4.248 is carried as `left` = 256 - c: a step may
-# run only while left >= 1.
+# An object under construction is an XObj: its keys in insertion order beside a map from key to value
+# (S6.42, S6.43). The depth counter c of S4.248 is carried as `left` = 256 - c: a step may run only
+# while left >= 1.
 
 # S4.240 a value (or, inside the walks, a chain), or the message of the first failure
 type ER is Data:
@@ -1289,50 +1296,186 @@ def ty(v: J.Json) -> String:
     case other:
       "primitive"
 
-# S4.243, S4.244 what an object under construction holds under a key: nothing, an object (its entries
-# in order), or something else (its type name)
-type LK is Data:
-  LNone{}
-  LObj{entries: J.Json}
-  LOther{ty: String}
+# S6.42 an object under construction, and the map it keeps. ONE self-recursive type (Bend has no
+# mutually recursive types): XLeaf a finished value; XObj an object being built: its keys newest first
+# (the ORDER carrier, S6.42) beside a map from key to value (the LOOKUP carrier: the original uses a
+# hash map; a search along the entries made expansion quadratic in round 6's probes); XTLeaf / XTNode
+# the map, a binary trie over the low 16 bits of T.key_hash; XBNil / XBCons a trie leaf's bucket.
+type XV is Data:
+  XLeaf{v: J.Json}
+  XObj{keys: List<&2, String>, map: XV}
+  XTLeaf{bucket: XV}
+  XTNode{zero: XV, one: XV}
+  XBNil{}
+  XBCons{key: String, val: XV, tail: XV}
 
-# S4.244 classify a held value
-def lk.of(v: J.Json) -> LK:
-  match v:
-    case J.JObj{entries}:
-      LObj{entries}
-    case J.JArr{n, items}:
-      LOther{"array"}
-    case other:
-      LOther{"primitive"}
+# S4.242 the new object starts empty
+def xv.empty() -> XV:
+  XObj{Nil{}, XTLeaf{XBNil{}}}
 
-# S4.244 keys are unique in an object under construction, so at most one entry answers
-def lk.pick(same: Bool, v: J.Json, acc: LK) -> LK:
+# S6.42 an object under construction, or the message of the first failure
+type XR is Data:
+  XOk{x: XV}
+  XErr{msg: String}
+
+# S6.43 keys are unique in a bucket, so at most one entry answers
+def xb.pick(same: Bool, val: XV, acc: Maybe<&2, XV>) -> Maybe<&2, XV>:
   match same:
     case True{}:
-      lk.of(v)
+      Some{val}
     case False{}:
       acc
 
-# S4.244 the loop of lk
-def lk.go(c: J.Json, +k: String, acc: LK) -> LK:
-  match c:
-    case J.JECons{key, q, v, t}:
-      lk.go(t, k, lk.pick(T.str_eq(key, k), v, acc))
+# S6.43 the value a bucket holds under a key
+def xb.get(b: XV, +k: String, acc: Maybe<&2, XV>) -> Maybe<&2, XV>:
+  match b:
+    case XBCons{key, val, tail}:
+      xb.get(tail, k, xb.pick(T.str_eq(key, k), val, acc))
     case other:
       acc
 
-# S4.244 look a key up in an object under construction
-def lk(c: J.Json, k: String) -> LK:
-  lk.go(c, k, LNone{})
+# S6.43 the entry whose key matches takes the pending value; every other entry keeps its own
+def xb.take(same: Bool, old: XV, v: Maybe<&2, XV>) -> XV:
+  match same v:
+    case True{} Some{nv}:
+      nv
+    case _ _:
+      old
 
-# S4.244 what to do with the first entry of a source chain against a target under construction
+# S6.43 once placed, the value is no longer pending
+def xb.rest(same: Bool, v: Maybe<&2, XV>) -> Maybe<&2, XV>:
+  match same:
+    case True{}:
+      None{}
+    case False{}:
+      v
+
+# S6.43 a value that was not placed joins the bucket
+def xb.end(v: Maybe<&2, XV>, k: String, acc: XV) -> XV:
+  match v:
+    case Some{nv}:
+      XBCons{k, nv, acc}
+    case None{}:
+      acc
+
+# S6.43 set a key in a bucket (order inside a bucket carries nothing)
+def xb.set(b: XV, +k: String, +v: Maybe<&2, XV>, acc: XV) -> XV:
+  match b:
+    case XBCons{+key, val, tail}:
+      +same = T.str_eq(key, k)
+      xb.set(tail, k, xb.rest(same, v), XBCons{key, xb.take(same, val, v), acc})
+    case other:
+      xb.end(v, k, acc)
+
+# S6.43 the value the map holds under a key: d counts the hash bits still to follow
+def xm.get.go(d: Nat, odd: Bool, t: XV, +h: U32, k: String) -> Maybe<&2, XV>:
+  match d odd t:
+    case 0n _ XTLeaf{b}:
+      xb.get(b, k, None{})
+    case 1n+p False{} XTNode{z, o}:
+      xm.get.go(p, T.kt.odd((h >> 1n : U32)), z, (h >> 1n : U32), k)
+    case 1n+p True{} XTNode{z, o}:
+      xm.get.go(p, T.kt.odd((h >> 1n : U32)), o, (h >> 1n : U32), k)
+    case _ _ other:
+      None{}
+
+# S6.43 look a key up in a map
+def xm.get.at(t: XV, +h: U32, k: String) -> Maybe<&2, XV>:
+  xm.get.go(16n, T.kt.odd(h), t, h, k)
+
+# S6.43 look a key up in a map
+def xm.get(t: XV, +k: String) -> Maybe<&2, XV>:
+  xm.get.at(t, T.key_hash(k), k)
+
+# S6.43 set a key in a map: a leaf above depth 0 is an empty region and is split on the way down
+def xm.set.go(d: Nat, odd: Bool, t: XV, +h: U32, k: String, v: XV) -> XV:
+  match d odd t:
+    case 0n _ XTLeaf{b}:
+      XTLeaf{xb.set(b, k, Some{v}, XBNil{})}
+    case 1n+p False{} XTLeaf{b}:
+      XTNode{xm.set.go(p, T.kt.odd((h >> 1n : U32)), XTLeaf{XBNil{}}, (h >> 1n : U32), k, v), XTLeaf{b}}
+    case 1n+p True{} XTLeaf{b}:
+      XTNode{XTLeaf{b}, xm.set.go(p, T.kt.odd((h >> 1n : U32)), XTLeaf{XBNil{}}, (h >> 1n : U32), k, v)}
+    case 1n+p False{} XTNode{z, o}:
+      XTNode{xm.set.go(p, T.kt.odd((h >> 1n : U32)), z, (h >> 1n : U32), k, v), o}
+    case 1n+p True{} XTNode{z, o}:
+      XTNode{z, xm.set.go(p, T.kt.odd((h >> 1n : U32)), o, (h >> 1n : U32), k, v)}
+    case _ _ other:
+      other
+
+# S6.43 set a key in a map
+def xm.set.at(t: XV, +h: U32, k: String, v: XV) -> XV:
+  xm.set.go(16n, T.kt.odd(h), t, h, k, v)
+
+# S6.43 set a key in a map
+def xm.set(t: XV, +k: String, v: XV) -> XV:
+  xm.set.at(t, T.key_hash(k), k, v)
+
+# S6.42 set a key of an object under construction: a fresh key is appended to the order, an existing
+# one keeps the position of its first insertion
+def xo.set(obj: XV, +k: String, fresh: Bool, v: XV) -> XV:
+  match obj fresh:
+    case XObj{keys, map} True{}:
+      XObj{k <> keys, xm.set(map, k, v)}
+    case XObj{keys, map} False{}:
+      XObj{keys, xm.set(map, k, v)}
+    case other _:
+      other
+
+# S4.245 a finished object (its keys are unique, S3.28) opened for merging
+def xv.open(c: J.Json, keys: List<&2, String>, map: XV) -> XV:
+  match c:
+    case J.JECons{+k, q, v, t}:
+      xv.open(t, k <> keys, xm.set(map, k, XLeaf{v}))
+    case other:
+      XObj{keys, map}
+
+# S4.243, S4.244 what an object under construction holds under a key: nothing, an object (opened), or
+# something else (its type name)
+type LK is Data:
+  LNone{}
+  LObj{x: XV}
+  LOther{ty: String}
+
+# S4.244 classify a held value
+def lk.of(x: XV) -> LK:
+  match x:
+    case XObj{keys, map}:
+      LObj{XObj{keys, map}}
+    case XLeaf{J.JObj{entries}}:
+      LObj{xv.open(entries, Nil{}, XTLeaf{XBNil{}})}
+    case XLeaf{J.JArr{n, items}}:
+      LOther{"array"}
+    case XLeaf{other}:
+      LOther{"primitive"}
+    case other:
+      LNone{}
+
+# S4.244 from the map's answer
+def lk.found(m: Maybe<&2, XV>) -> LK:
+  match m:
+    case None{}:
+      LNone{}
+    case Some{x}:
+      lk.of(x)
+
+# S4.244 look a key up in an object under construction
+def lk(obj: XV, k: String) -> LK:
+  match obj:
+    case XObj{keys, map}:
+      lk.found(xm.get(map, k))
+    case other:
+      LNone{}
+
+# S4.244 what to do with the first entry of a source chain against a target under construction: nothing
+# (no entry left, or the target already failed), the cap, place the value (fresh: the key is new),
+# a conflict, or a deep merge into the existing object
 type Act is Data:
   ANone{}
   ACap{}
-  APut{}
+  APut{fresh: Bool}
   AConf{msg: String}
-  AMerge{ex: J.Json}
+  AMerge{ex: XV}
 
 # S9.116 strict: a conflict names the key, the type of the EXISTING value, then the type of the new
 # one; lenient: the new value overwrites in place
@@ -1341,13 +1484,13 @@ def plan.conf(strict: Bool, k: String, x: String, y: String) -> Act:
     case True{}:
       AConf{T.cat(["Path expansion conflict at key \"", k, "\": cannot merge ", x, " with ", y])}
     case False{}:
-      APut{}
+      APut{False{}}
 
 # S4.244 no entry: append; two objects: deep merge; anything else: conflict or overwrite
 def plan.head(l: LK, v: J.Json, strict: Bool, k: String) -> Act:
   match l v:
     case LNone{} _:
-      APut{}
+      APut{True{}}
     case LObj{ex} J.JObj{ve}:
       AMerge{ex}
     case LObj{ex} other:
@@ -1357,94 +1500,95 @@ def plan.head(l: LK, v: J.Json, strict: Bool, k: String) -> Act:
 
 # S4.248 a merge or a literal insertion may not run with c >= 256; a target that already failed, or a
 # source with nothing left, plans nothing
-def plan(left: Nat, tgt: ER, src: J.Json, strict: Bool) -> Act:
+def plan(left: Nat, tgt: XR, src: J.Json, strict: Bool) -> Act:
   match left tgt src:
     case 0n _ _:
       ACap{}
-    case 1n+p EErr{m} _:
+    case 1n+p XErr{m} _:
       ANone{}
-    case 1n+p EOk{rev} J.JECons{+k, q, v, t}:
-      plan.head(lk(rev, k), v, strict, k)
-    case 1n+p EOk{rev} other:
+    case 1n+p XOk{obj} J.JECons{+k, q, v, t}:
+      plan.head(lk(obj, k), v, strict, k)
+    case 1n+p XOk{obj} other:
       ANone{}
 
 # S4.244 place a value
-def merge.put(rev: J.Json, k: String, v: J.Json) -> ER:
-  EOk{J.obj.put(rev, k, v)}
+def merge.put(obj: XV, k: String, fresh: Bool, v: J.Json) -> XR:
+  XOk{xo.set(obj, k, fresh, XLeaf{v})}
 
-# S4.245 place the result of a nested merge (a chain, newest first) as an object
-def merge.sub(rev: J.Json, k: String, sub: ER) -> ER:
+# S4.245 place the result of a nested merge; the key keeps its position
+def merge.sub(obj: XV, k: String, sub: XR) -> XR:
   match sub:
-    case EErr{m}:
-      EErr{m}
-    case EOk{srev}:
-      EOk{J.obj.put(rev, k, J.JObj{J.rev_entries(srev, J.JNil{})})}
+    case XErr{m}:
+      XErr{m}
+    case XOk{sx}:
+      XOk{xo.set(obj, k, False{}, sx)}
 
 # S4.244, S4.245 insert the entries of a source chain, in order, into a target under construction, at
 # counter 256 - left; `act` is the plan for the FIRST entry of `src` (computed by the caller). A nested
 # merge runs one counter higher. ONE def: the recursion is on the source, whose nested objects are its
 # own subterms.
-def merge(src: J.Json, act: Act, tgt: ER, +strict: Bool, +left: Nat) -> ER:
+def merge(src: J.Json, act: Act, tgt: XR, +strict: Bool, +left: Nat) -> XR:
   match src act tgt:
     case s ACap{} t:
-      EErr{cap_msg()}
+      XErr{cap_msg()}
     case s AConf{msg} t:
-      EErr{msg}
+      XErr{msg}
     case s ANone{} t:
       t
-    case J.JECons{k, q, v, +rest} APut{} EOk{rev}:
-      +t2 = merge.put(rev, k, v)
+    case J.JECons{k, q, v, +rest} APut{fresh} XOk{obj}:
+      +t2 = merge.put(obj, k, fresh, v)
       merge(rest, plan(left, t2, rest, strict), t2, strict, left)
-    case J.JECons{k, q, J.JObj{+ve}, +rest} AMerge{ex} EOk{rev}:
-      +rx = J.rev_entries(ex, J.JNil{})
-      +t2 = merge.sub(rev, k, merge(ve, plan(Nat.sub(left, 1n), EOk{rx}, ve, strict), EOk{rx}, strict, Nat.sub(left, 1n)))
+    case J.JECons{k, q, J.JObj{+ve}, +rest} AMerge{+ex} XOk{obj}:
+      +t2 = merge.sub(obj, k, merge(ve, plan(Nat.sub(left, 1n), XOk{ex}, ve, strict), XOk{ex}, strict, Nat.sub(left, 1n)))
       merge(rest, plan(left, t2, rest, strict), t2, strict, left)
     case s a t:
       t
 
 # S4.245 merge a whole source chain into a target under construction at counter 256 - left
-def merge.all(+src: J.Json, +rev: J.Json, +strict: Bool, +left: Nat) -> ER:
-  merge(src, plan(left, EOk{rev}, src, strict), EOk{rev}, strict, left)
+def merge.all(+src: J.Json, +obj: XV, +strict: Bool, +left: Nat) -> XR:
+  merge(src, plan(left, XOk{obj}, src, strict), XOk{obj}, strict, left)
 
 # S4.244 the literal insertion of (k, v) at counter 256 - left: a merge of the one-entry source
-def lit.ins(rev: J.Json, k: String, v: J.Json, strict: Bool, left: Nat) -> ER:
-  merge.all(J.JECons{k, False{}, v, J.JNil{}}, rev, strict, left)
+def lit.ins(obj: XV, k: String, v: J.Json, strict: Bool, left: Nat) -> XR:
+  merge.all(J.JECons{k, False{}, v, J.JNil{}}, obj, strict, left)
 
 # S4.243 what the object under construction holds under the FIRST of the remaining segments
-def lk.head(segs: List<&2, String>, rev: J.Json) -> LK:
+def lk.head(segs: List<&2, String>, obj: XV) -> LK:
   match segs:
     case Nil{}:
       LNone{}
     case Con{s, more}:
-      lk(rev, s)
+      lk(obj, s)
 
-# S4.243 the object reached through a segment goes back under that segment, at its position
-def path.put(rev: J.Json, s: String, sub: ER) -> ER:
+# S4.243 the object reached through a segment goes back under that segment
+def path.put(obj: XV, s: String, fresh: Bool, sub: XR) -> XR:
   match sub:
-    case EErr{m}:
-      EErr{m}
-    case EOk{srev}:
-      EOk{J.obj.put(rev, s, J.JObj{J.rev_entries(srev, J.JNil{})})}
+    case XErr{m}:
+      XErr{m}
+    case XOk{sx}:
+      XOk{xo.set(obj, s, fresh, sx)}
 
 # S4.243 insert a path into an object under construction. Each call is one step of the walk, at
 # counter 256 - left; `look` is what the object holds under the first remaining segment. An object is
-# entered; nothing there, or (lenient) something that is not an object, becomes an empty object; strict:
-# S9.117. The last segment is a literal insertion one counter higher.
-def path.ins(segs: List<&2, String>, look: LK, left: Nat, strict: Bool, +rev: J.Json, v: J.Json) -> ER:
+# entered; nothing there becomes a new empty object at the END of the order; (lenient) something that is
+# not an object becomes an empty object AT ITS POSITION; strict: S9.117. The last segment is a literal
+# insertion one counter higher.
+def path.ins(segs: List<&2, String>, look: LK, left: Nat, strict: Bool, obj: XV, v: J.Json) -> XR:
   match segs look left strict:
     case _ _ 0n _:
-      EErr{cap_msg()}
+      XErr{cap_msg()}
     case Nil{} _ 1n+p _:
-      EOk{rev}
+      XOk{obj}
     case Con{s, Nil{}} _ 1n+p +st:
-      lit.ins(rev, s, v, st, p)
-    case Con{s, +more} LObj{ex} 1n+p +st:
-      +rx = J.rev_entries(ex, J.JNil{})
-      path.put(rev, s, path.ins(more, lk.head(more, rx), p, st, rx, v))
+      lit.ins(obj, s, v, st, p)
+    case Con{s, +more} LObj{+ex} 1n+p +st:
+      path.put(obj, s, False{}, path.ins(more, lk.head(more, ex), p, st, ex, v))
     case Con{s, more} LOther{t} 1n+p True{}:
-      EErr{T.cat(["Path expansion conflict at segment \"", s, "\": expected object but found ", t])}
-    case Con{s, more} l0 1n+p +st:
-      path.put(rev, s, path.ins(more, LNone{}, p, st, J.JNil{}, v))
+      XErr{T.cat(["Path expansion conflict at segment \"", s, "\": expected object but found ", t])}
+    case Con{s, +more} LOther{t} 1n+p False{}:
+      path.put(obj, s, False{}, path.ins(more, LNone{}, p, False{}, xv.empty(), v))
+    case Con{s, +more} LNone{} 1n+p +st:
+      path.put(obj, s, True{}, path.ins(more, LNone{}, p, st, xv.empty(), v))
 
 # S4.241 splitter state: the current piece (reversed) and the finished pieces (newest first)
 type DT is Data:
@@ -1486,30 +1630,17 @@ def idents.go(segs: List<&2, String>, ok: Bool) -> Bool:
     case Con{s, rest} True{}:
       idents.go(rest, T.is_ident(s, False{}))
 
-# S3.26 the loop of in_set: stops at the first hit
-def in_set.go(qs: List<&2, String>, +k: String, hit: Bool) -> Bool:
-  match qs hit:
-    case _ True{}:
-      True{}
-    case Nil{} False{}:
-      False{}
-    case Con{x, rest} False{}:
-      in_set.go(rest, k, T.str_eq(x, k))
-
-# S3.26 whether a key string is in the object's quoted-key set
-def in_set(qs: List<&2, String>, k: String) -> Bool:
-  in_set.go(qs, k, False{})
-
 # S3.25 one entry's contribution to the quoted-key set
-def qset.add(q: Bool, k: String, acc: List<&2, String>) -> List<&2, String>:
+def qset.add(q: Bool, k: String, acc: T.KT) -> T.KT:
   match q:
     case True{}:
-      k <> acc
+      T.kt.put(acc, k)
     case False{}:
       acc
 
 # S3.25, S3.26 the quoted-key set of an object: the key STRINGS that occur quoted at least once in it
-def qset(c: J.Json, acc: List<&2, String>) -> List<&2, String>:
+# (S6.43: only membership is ever asked)
+def qset(c: J.Json, acc: T.KT) -> T.KT:
   match c:
     case J.JECons{k, q, v, t}:
       qset(t, qset.add(q, k, acc))
@@ -1517,29 +1648,29 @@ def qset(c: J.Json, acc: List<&2, String>) -> List<&2, String>:
       acc
 
 # S4.243 the walk starts at the object itself
-def field.path(+segs: List<&2, String>, +rev: J.Json, v: J.Json, strict: Bool, left: Nat) -> ER:
-  path.ins(segs, lk.head(segs, rev), left, strict, rev, v)
+def field.path(+segs: List<&2, String>, +obj: XV, v: J.Json, strict: Bool, left: Nat) -> XR:
+  path.ins(segs, lk.head(segs, obj), left, strict, obj, v)
 
 # S4.242 a key that is a path (S4.241: it has a dot, its string is not in the quoted-key set, every
 # piece is an identifier segment) is inserted by S4.243; any other key literally, by S4.244. Both run
 # at the counter of the object's entry values (S4.248: c + 2).
-def field.key(path: Bool, rev: J.Json, +k: String, v: J.Json, strict: Bool, left: Nat) -> ER:
+def field.key(path: Bool, obj: XV, +k: String, v: J.Json, strict: Bool, left: Nat) -> XR:
   match path:
     case False{}:
-      lit.ins(rev, k, v, strict, left)
+      lit.ins(obj, k, v, strict, left)
     case True{}:
-      field.path(dots(k), rev, v, strict, left)
+      field.path(dots(k), obj, v, strict, left)
 
 # S4.242 FIRST the entry's value is expanded, THEN its key is inserted: a failure among the earlier
 # entries wins, then a failure inside the value, then the insertion's own
-def field.ins(acc: ER, +k: String, +qs: List<&2, String>, v: ER, strict: Bool, left: Nat) -> ER:
+def field.ins(acc: XR, +k: String, qs: T.KT, v: ER, strict: Bool, left: Nat) -> XR:
   match acc v:
-    case EErr{m} _:
-      EErr{m}
-    case EOk{rev} EErr{m}:
-      EErr{m}
-    case EOk{rev} EOk{nv}:
-      field.key(Bool.and(T.has_char(k, 46), Bool.and(Bool.not(in_set(qs, k)), idents.go(dots(k), True{}))), rev, k, nv, strict, left)
+    case XErr{m} _:
+      XErr{m}
+    case XOk{obj} EErr{m}:
+      XErr{m}
+    case XOk{obj} EOk{nv}:
+      field.key(Bool.and(T.has_char(k, 46), Bool.and(Bool.not(T.kt.has(qs, k)), idents.go(dots(k), True{}))), obj, k, nv, strict, left)
 
 # S4.240 one more expanded item of an array (newest first)
 def item.push(acc: ER, v: ER) -> ER:
@@ -1559,20 +1690,62 @@ def arr.fin(n: Nat, r: ER) -> ER:
     case EOk{rev}:
       EOk{J.JArr{n, J.rev_items(rev, J.JNil{})}}
 
+# S3.28 the value a finished map holds under a key of its own order list
+def x.value(m: Maybe<&2, XV>) -> J.Json:
+  match m:
+    case Some{XLeaf{v}}:
+      v
+    case other:
+      J.JNull{}
+
+# S6.42 the entries of a finished object: the keys come newest first, so consing them gives the order
+# of first insertion
+def x.entries(keys: List<&2, String>, +map: XV, acc: J.Json) -> J.Json:
+  match keys:
+    case Nil{}:
+      acc
+    case Con{+k, rest}:
+      x.entries(rest, map, J.JECons{k, False{}, x.value(xm.get(map, k)), acc})
+
+# S3.28 finish an object under construction: every object inside it first (structural recursion over
+# the ONE type: the map's nodes, its buckets, the values), then its own entries in order
+def x.norm(x: XV) -> XV:
+  match x:
+    case XLeaf{v}:
+      XLeaf{v}
+    case XObj{keys, map}:
+      XLeaf{J.JObj{x.entries(keys, x.norm(map), J.JNil{})}}
+    case XTLeaf{b}:
+      XTLeaf{x.norm(b)}
+    case XTNode{z, o}:
+      XTNode{x.norm(z), x.norm(o)}
+    case XBNil{}:
+      XBNil{}
+    case XBCons{k, val, tail}:
+      XBCons{k, x.norm(val), x.norm(tail)}
+
+# S3.28 the finished value
+def x.json(x: XV) -> J.Json:
+  match x:
+    case XLeaf{v}:
+      v
+    case other:
+      J.JNull{}
+
 # S3.28 an expanded object: unique keys, in the order of S6.42
-def obj.fin(r: ER) -> ER:
+def obj.fin(r: XR) -> ER:
   match r:
-    case EErr{m}:
+    case XErr{m}:
       EErr{m}
-    case EOk{rev}:
-      EOk{J.JObj{J.rev_entries(rev, J.JNil{})}}
+    case XOk{x}:
+      EOk{x.json(x.norm(x))}
 
 # S4.240 how `expand` treats the node it is given. `left` = 256 - c for the value, the items or the
 # entry values; qs is the object's quoted-key set; acc is the container under construction
 type XC is Data:
   XVal{left: Nat}
   XItems{left: Nat, acc: ER}
-  XFields{left: Nat, qs: List<&2, String>, acc: ER}
+  XFields{left: Nat, qs: T.KT, acc: XR}
 
 # S4.240, S4.248 expansion, depth-first in document order. ONE def over Json (values and their chains):
 # a value may run while c < 256; an array's items have c + 1; an object is rebuilt at c + 1 and its
@@ -1586,7 +1759,7 @@ def expand(j: J.Json, cx: XC, +strict: Bool) -> ER:
     case J.JObj{entries} XVal{1n+0n}:
       EErr{cap_msg()}
     case J.JObj{+entries} XVal{2n+q}:
-      obj.fin(expand(entries, XFields{q, qset(entries, Nil{}), EOk{J.JNil{}}}, strict))
+      expand(entries, XFields{q, qset(entries, T.kt.empty()), XOk{xv.empty()}}, strict)
     case J.JCons{h, t} XItems{+p, acc}:
       expand(t, XItems{p, item.push(acc, expand(h, XVal{p}, strict))}, strict)
     case J.JECons{k, q, v, t} XFields{+p, +qs, acc}:
@@ -1594,7 +1767,7 @@ def expand(j: J.Json, cx: XC, +strict: Bool) -> ER:
     case other XItems{p, acc}:
       acc
     case other XFields{p, qs, acc}:
-      acc
+      obj.fin(acc)
     case v XVal{1n+p}:
       EOk{v}
 
@@ -1617,3 +1790,11 @@ def decode.x(r: DR, strict: Bool) -> DR:
 # S4.200 (5) the value of a TOON text under `--expand-paths safe`
 def decode_expanded(text: String, +strict: Bool, unit: Nat, spec: Bool) -> DR:
   decode.x(decode(text, strict, unit, spec), strict)
+
+# S4.249 whether a decode outcome is a value (laws ask this of large results)
+def dr.ok(r: DR) -> Bool:
+  match r:
+    case DOk{v}:
+      True{}
+    case DErr{m}:
+      False{}

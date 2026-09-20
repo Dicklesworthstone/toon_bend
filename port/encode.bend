@@ -167,13 +167,29 @@ def all_obj.go(c: J.Json, ok: Bool) -> Bool:
 def all_obj(c: J.Json) -> Bool:
   all_obj.go(c, True{})
 
-# S6.35 the keys of an entry chain (order is irrelevant to the "any equals" tests that use it)
+# S6.35 the keys of an entry chain, newest first
 def keys.go(c: J.Json, acc: List<&2, String>) -> List<&2, String>:
   match c:
     case J.JECons{k, q, v, t}:
       keys.go(t, k <> acc)
     case other:
       acc
+
+# S6.35 the keys of an entry chain as a SET (S4.69 only asks membership; order never comes from it)
+def keys.kt.go(c: J.Json, acc: T.KT) -> T.KT:
+  match c:
+    case J.JECons{k, q, v, t}:
+      keys.kt.go(t, T.kt.put(acc, k))
+    case other:
+      acc
+
+# S4.69 the sibling set of an object body; nobody asks it when folding is off, so it is not built then
+def keys.kt(on: Bool, c: J.Json) -> T.KT:
+  match on:
+    case False{}:
+      T.kt.empty()
+    case True{}:
+      keys.kt.go(c, T.kt.empty())
 
 # S6.31 the keys of an entry chain in field order (the tabular header comes from the FIRST row's order)
 def keys(c: J.Json) -> List<&2, String>:
@@ -207,15 +223,15 @@ def has_prim.go(c: J.Json, +k: String, hit: Bool, prim: Bool) -> Bool:
 def has_prim(c: J.Json, k: String) -> Bool:
   has_prim.go(c, k, False{}, False{})
 
-# S4.36 the loop over the header keys for one row
-def row_keys.go(hdr: List<&2, String>, +entries: J.Json, ok: Bool) -> Bool:
+# S4.36 the loop over the header keys for one row, against the row's key map
+def row_keys.go(hdr: List<&2, String>, +km: J.KM, ok: Bool) -> Bool:
   match hdr ok:
     case _ False{}:
       False{}
     case Nil{} True{}:
       True{}
-    case Con{k, rest} True{}:
-      row_keys.go(rest, entries, has_prim(entries, k))
+    case Con{+k, rest} True{}:
+      row_keys.go(rest, km, has_prim(J.km.bucket(km, k), k))
 
 # S4.36 the number of fields of a row
 def count.go(c: J.Json, n: Nat) -> Nat:
@@ -225,12 +241,39 @@ def count.go(c: J.Json, n: Nat) -> Nat:
     case other:
       n
 
-# S4.36 one row: (a) an object, (b) exactly as many fields as the header, (c)+(d) every header key
-# present with a primitive value. Key ORDER in the row is free.
+# S4.36 a row whose keys come in HEADER order is judged in one lockstep walk: 0 the orders differ (or
+# the counts do), so the per-key search decides; 1 same keys, same order, every value primitive;
+# 2 same keys and order but a value that is not primitive. `same` is the verdict on the previous pair.
+def row.lock(hdr: List<&2, String>, c: J.Json, same: Bool, prim: Bool) -> Nat:
+  match hdr c same:
+    case _ _ False{}:
+      0n
+    case Nil{} J.JECons{key, q, v, t} True{}:
+      0n
+    case Nil{} other True{}:
+      Bool.pick(Nat, prim, 1n, 2n)
+    case Con{k, rest} J.JECons{key, q, v, t} True{}:
+      row.lock(rest, t, T.str_eq(k, key), Bool.and(prim, is_prim(v)))
+    case Con{k, rest} other True{}:
+      0n
+
+# S4.36 the lockstep verdict, or the general test: (b) exactly as many fields as the header, (c)+(d)
+# every header key present with a primitive value. Key ORDER in the row is free, so the general test
+# asks a key map of the row (S6.31), not the entries one by one.
+def row_ok.of(lock: Nat, +entries: J.Json, +hdr: List<&2, String>, hn: Nat) -> Bool:
+  match lock:
+    case 1n:
+      True{}
+    case 2n:
+      False{}
+    case _:
+      Bool.and(Nat.is_eq(count.go(entries, 0n), hn), row_keys.go(hdr, J.km.of(entries, J.KMLeaf{J.JNil{}}), True{}))
+
+# S4.36 one row: (a) an object, then S4.36 (b)-(d)
 def row_ok(row: J.Json, +hdr: List<&2, String>, hn: Nat) -> Bool:
   match row:
     case J.JObj{+entries}:
-      Bool.and(Nat.is_eq(count.go(entries, 0n), hn), row_keys.go(hdr, entries, True{}))
+      row_ok.of(row.lock(hdr, entries, True{}, True{}), entries, hdr, hn)
     case other:
       False{}
 
@@ -359,23 +402,41 @@ def put.join(c: J.Json, +delim: U32, +spec: Bool, first: Bool, acc: String) -> S
     case _ _:
       acc
 
-# S4.37 the cells of one row, taken in HEADER order (not in the row's own key order)
-def put.cells(hdr: List<&2, String>, +entries: J.Json, +delim: U32, +spec: Bool, first: Bool, acc: String) -> String:
+# S4.37 the cells of one row, taken in HEADER order (not in the row's own key order) from its key map
+def put.cells(hdr: List<&2, String>, +km: J.KM, +delim: U32, +spec: Bool, first: Bool, acc: String) -> String:
   match hdr first:
     case Nil{} _:
       acc
-    case Con{k, rest} True{}:
-      put.cells(rest, entries, delim, spec, False{}, put.prim(lookup(entries, k), delim, spec, acc))
-    case Con{k, rest} False{}:
-      put.cells(rest, entries, delim, spec, False{}, put.prim(lookup(entries, k), delim, spec, SCon{Chr{delim}, acc}))
+    case Con{+k, rest} True{}:
+      put.cells(rest, km, delim, spec, False{}, put.prim(lookup(J.km.bucket(km, k), k), delim, spec, acc))
+    case Con{+k, rest} False{}:
+      put.cells(rest, km, delim, spec, False{}, put.prim(lookup(J.km.bucket(km, k), k), delim, spec, SCon{Chr{delim}, acc}))
+
+# S4.37 the cells of a row whose keys come in header order: its own values, in its own order
+def put.cells.seq(c: J.Json, +delim: U32, +spec: Bool, first: Bool, acc: String) -> String:
+  match c first:
+    case J.JECons{k, q, v, t} True{}:
+      put.cells.seq(t, delim, spec, False{}, put.prim(v, delim, spec, acc))
+    case J.JECons{k, q, v, t} False{}:
+      put.cells.seq(t, delim, spec, False{}, put.prim(v, delim, spec, SCon{Chr{delim}, acc}))
+    case _ _:
+      acc
+
+# S4.37 header order by lockstep when the row has it, by its key map otherwise: the same cells either way
+def put.row(lock: Nat, hdr: List<&2, String>, entries: J.Json, delim: U32, spec: Bool, acc: String) -> String:
+  match lock:
+    case 0n:
+      put.cells(hdr, J.km.of(entries, J.KMLeaf{J.JNil{}}), delim, spec, True{}, acc)
+    case _:
+      put.cells.seq(entries, delim, spec, True{}, acc)
 
 # S4.37 one row line at depth d: no marker, no keys
-def row.line(row: J.Json, hdr: List<&2, String>, d: Nat, +opt: Opts) -> String:
+def row.line(row: J.Json, +hdr: List<&2, String>, d: Nat, +opt: Opts) -> String:
   match row opt:
-    case J.JObj{entries} Opts{indent, delim, fo, budget, spec}:
-      String.reverse(put.cells(hdr, entries, delim, spec, True{}, ln(d, False{}, opt)))
+    case J.JObj{+entries} Opts{indent, delim, fo, budget, spec}:
+      String.reverse(put.row(row.lock(hdr, entries, True{}, True{}), hdr, entries, delim, spec, ln(d, False{}, opt)))
     case _ _:
-      String.reverse(ln(d, False{}, opt))
+      SNil{}
 
 # S4.37 the row lines of a tabular array, in item order (a loop over the rows; the Phase 5 seam, S11.2)
 def rows(c: J.Json, +hdr: List<&2, String>, +d: Nat, +opt: Opts, acc: List<&2, String>) -> List<&2, String>:
@@ -391,7 +452,7 @@ def rows(c: J.Json, +hdr: List<&2, String>, +d: Nat, +opt: Opts, acc: List<&2, S
 # S4.70–S4.78 what a body knows about folding: whether folding is on, the budget, the root-literal
 # set (present only below the root object, absent inside list items, S4.73), and the path prefix
 type FCtx is Data:
-  FCtx{on: Bool, budget: Nat, has_set: Bool, set: List<&2, String>, has_pre: Bool, pre: String}
+  FCtx{on: Bool, budget: Nat, has_set: Bool, set: T.KT, has_pre: Bool, pre: String}
 
 # S4.65 the chain walk: while there is room and the value is an object with EXACTLY one field, take that
 # field's key and enter its value. Segments are collected newest first. Arrays are never entered.
@@ -437,20 +498,6 @@ def join_segs(segs: List<&2, String>, acc: String) -> String:
       join_segs(rest, join_segs.one(s, acc))
 
 
-# S4.69 the loop of any_eq: exact string equality against a list, stopping at the first hit
-def any_eq.go(xs: List<&2, String>, +k: String, hit: Bool) -> Bool:
-  match xs hit:
-    case _ True{}:
-      True{}
-    case Nil{} False{}:
-      False{}
-    case Con{x, rest} False{}:
-      any_eq.go(rest, k, T.str_eq(x, k))
-
-# S4.69, S4.72 membership by exact string equality (S6.34, S6.35: never iterated into output)
-def any_eq(xs: List<&2, String>, k: String) -> Bool:
-  any_eq.go(xs, k, False{})
-
 # S4.71 a path: the prefix, a dot, the key; the key alone when there is no prefix
 def path(has_pre: Bool, pre: String, k: String) -> String:
   match has_pre:
@@ -473,12 +520,18 @@ def fold.check(two: Bool, idents: Bool, sib: Bool, lit: Bool, n: Nat, fkey: Stri
       Fold{0n, SNil{}}
 
 # S4.68–S4.72 judge the collected segments
-def fold.go(fc: FCtx, +segs: List<&2, String>, sibs: List<&2, String>) -> Fold:
+def fold.go(fc: FCtx, +segs: List<&2, String>, sibs: T.KT) -> Fold:
   match fc:
     case FCtx{on, budget, has_set, set, has_pre, pre}:
       +n = T.llen(&2, String, segs, 0n)
       +fkey = join_segs(segs, SNil{})
-      fold.check(Nat.is_ge(n, 2n), segs_ok.go(segs, True{}), any_eq(sibs, fkey), Bool.and(has_set, any_eq(set, path(has_pre, pre, fkey))), n, fkey)
+      fold.check(Nat.is_ge(n, 2n), segs_ok.go(segs, True{}), T.kt.has(sibs, fkey), Bool.and(has_set, T.kt.has(set, path(has_pre, pre, fkey))), n, fkey)
+
+# S4.64 whether folding is on
+def fc.on(fc: FCtx) -> Bool:
+  match fc:
+    case FCtx{on, budget, has_set, set, has_pre, pre}:
+      on
 
 # S4.64 the preconditions that do not depend on the value: folding is on and the budget is at least 2
 def fc.can(fc: FCtx) -> Bool:
@@ -495,7 +548,7 @@ def fc.room(fc: FCtx) -> Nat:
       0n
 
 # S4.64 attempt or not
-def fold.if(can: Bool, segs: List<&2, String>, fc: FCtx, sibs: List<&2, String>) -> Fold:
+def fold.if(can: Bool, segs: List<&2, String>, fc: FCtx, sibs: T.KT) -> Fold:
   match can:
     case False{}:
       Fold{0n, SNil{}}
@@ -503,7 +556,7 @@ def fold.if(can: Bool, segs: List<&2, String>, fc: FCtx, sibs: List<&2, String>)
       fold.go(fc, segs, sibs)
 
 # S4.63 the fold attempt of one field of an object body
-def fold(k: String, +v: J.Json, +fc: FCtx, sibs: List<&2, String>) -> Fold:
+def fold(k: String, +v: J.Json, +fc: FCtx, sibs: T.KT) -> Fold:
   fold.if(Bool.and(fc.can(fc), is_obj(v)), walk(v, fc.room(fc), k <> Nil{}), fc, sibs)
 
 # S4.78 the body under a NON-folded object field: the same budget, the prefix extended by the raw key
@@ -522,32 +575,39 @@ def fctx.rem(fc: FCtx, segs: Nat, fkey: String) -> FCtx:
 def fctx.item(opt: Opts) -> FCtx:
   match opt:
     case Opts{indent, delim, fo, budget, spec}:
-      FCtx{fo, budget, False{}, Nil{}, False{}, SNil{}}
+      FCtx{fo, budget, False{}, T.kt.empty(), False{}, SNil{}}
 
 # S4.70 add a root key to the set when it contains a dot
-def dotted.add(has: Bool, k: String, acc: List<&2, String>) -> List<&2, String>:
+def dotted.add(has: Bool, k: String, acc: T.KT) -> T.KT:
   match has:
     case True{}:
-      k <> acc
+      T.kt.put(acc, k)
     case False{}:
       acc
 
 # S4.70 the root keys that contain a dot anywhere
-def dotted.go(c: J.Json, acc: List<&2, String>) -> List<&2, String>:
+def dotted.go(c: J.Json, acc: T.KT) -> T.KT:
   match c:
     case J.JECons{+k, q, v, t}:
       dotted.go(t, dotted.add(T.has_char(k, 46), k, acc))
     case other:
       acc
 
+# S4.70 the root-literal set; nobody asks it when folding is off, so it is not built then
+def dotted.set(on: Bool, c: J.Json) -> T.KT:
+  match on:
+    case False{}:
+      T.kt.empty()
+    case True{}:
+      dotted.go(c, T.kt.empty())
 
 # S4.70 the fold context of the root object's body: the root-literal set, no prefix, the full budget
 def fctx.root(opt: Opts, j: J.Json) -> FCtx:
   match opt j:
-    case Opts{indent, delim, fo, budget, spec} J.JObj{entries}:
-      FCtx{fo, budget, True{}, dotted.go(entries, Nil{}), False{}, SNil{}}
+    case Opts{indent, delim, +fo, budget, spec} J.JObj{entries}:
+      FCtx{fo, budget, True{}, dotted.set(fo, entries), False{}, SNil{}}
     case Opts{indent, delim, fo, budget, spec} other:
-      FCtx{fo, budget, False{}, Nil{}, False{}, SNil{}}
+      FCtx{fo, budget, False{}, T.kt.empty(), False{}, SNil{}}
 
 # ---------------------------------------------------------------- S4.40–S4.62 the emitter
 
@@ -565,7 +625,7 @@ type Ctx is Data:
   CObjRoot{fc: FCtx}
   CObjItem{d: Nat}
   CDesc{n: Nat, leaf: Ctx}
-  CFields{d: Nat, fc: FCtx, sibs: List<&2, String>}
+  CFields{d: Nat, fc: FCtx, sibs: T.KT}
   CItems{d: Nat}
 
 # S4.44 a non-empty object without a key: the root object's body, or a list item whose first field
@@ -608,7 +668,7 @@ def ctx.field.of(f: Fold, +k: String, +v: J.Json, +d: Nat, +fc: FCtx) -> Ctx:
       CDesc{Nat.sub(m, 1n), ctx.vk(vkind(leaf_of(v, m), True{}), True{}, fkey, d, False{}, 1n+d, fctx.rem(fc, 1n+m, fkey))}
 
 # S4.63 the context of one field of an object body at depth d
-def ctx.field(+k: String, +v: J.Json, d: Nat, +fc: FCtx, sibs: List<&2, String>) -> Ctx:
+def ctx.field(+k: String, +v: J.Json, d: Nat, +fc: FCtx, sibs: T.KT) -> Ctx:
   ctx.field.of(fold(k, v, fc, sibs), k, v, d, fc)
 
 # S4.44–S4.51 the first field of a list-item object at depth d: on the hyphen line, never folded, what
@@ -629,6 +689,12 @@ def opt.delim(opt: Opts) -> U32:
   match opt:
     case Opts{indent, delim, fo, budget, spec}:
       delim
+
+# S3.9 whether key folding is on
+def opt.fold(opt: Opts) -> Bool:
+  match opt:
+    case Opts{indent, delim, fo, budget, spec}:
+      fo
 
 # S4.130 the numeric kill-switch (TOON_SPEC=1)
 def opt.spec(opt: Opts) -> Bool:
@@ -686,12 +752,12 @@ def emit(j: J.Json, cx: Ctx, +opt: Opts, acc: List<&2, String>) -> List<&2, Stri
       emit(items, CItems{dc}, opt, line.hdr(hk, key, n, Nil{}, d, hy, opt) <> acc)
     case v CObj0{hk, key, d, hy}:
       lines.obj0(hk, hy, key, d, opt, acc)
-    case J.JObj{+entries} CObjK{key, d, hy, dc, fc}:
-      emit(entries, CFields{dc, fc, keys.go(entries, Nil{})}, opt, line.key(key, d, hy, opt) <> acc)
-    case J.JObj{+entries} CObjRoot{fc}:
-      emit(entries, CFields{0n, fc, keys.go(entries, Nil{})}, opt, acc)
+    case J.JObj{+entries} CObjK{key, d, hy, dc, +fc}:
+      emit(entries, CFields{dc, fc, keys.kt(fc.on(fc), entries)}, opt, line.key(key, d, hy, opt) <> acc)
+    case J.JObj{+entries} CObjRoot{+fc}:
+      emit(entries, CFields{0n, fc, keys.kt(fc.on(fc), entries)}, opt, acc)
     case J.JObj{J.JECons{k, q, +v, +rest}} CObjItem{+d}:
-      emit(rest, CFields{1n+d, fctx.item(opt), keys.go(rest, Nil{})}, opt, emit(v, ctx.first(k, v, d, opt), opt, acc))
+      emit(rest, CFields{1n+d, fctx.item(opt), keys.kt(opt.fold(opt), rest)}, opt, emit(v, ctx.first(k, v, d, opt), opt, acc))
     case J.JObj{J.JECons{k, q, v, t}} CDesc{0n, leaf}:
       emit(v, leaf, opt, acc)
     case J.JObj{J.JECons{k, q, v, t}} CDesc{1n+p, leaf}:

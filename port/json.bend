@@ -101,7 +101,7 @@ def obj.put(+rev: Json, +k: String, v: Json) -> Json:
 # for an object the key whose value is awaited
 type Frame is Data:
   FArr{rev: Json, n: Nat}
-  FObj{rev: Json, key: String}
+  FObj{rev: Json, key: String, idx: T.KT}
 
 # S2.8 a number token being read: phase (0 after '-', 1 integer part is 0, 2 integer digits, 3 after '.',
 # 4 fraction digits, 5 after e/E, 6 after the exponent sign, 7 exponent digits, 8 skipping the digits of
@@ -139,6 +139,16 @@ type St is Data:
 def fail(msg: String, +l: Nat, +c: Nat) -> St:
   St{MErr{msg, l, c}, Nil{}, 0n, l, c, None{}}
 
+# S2.28, S2.29 a member joins its object: a new key is one step on the chain and one insertion into the
+# key set; a repeated key keeps the POSITION of its first appearance and takes the VALUE of its last
+# (a walk over the chain, paid only by documents that repeat keys)
+def obj.member(dup: Bool, rev: Json, +key: String, v: Json, idx: T.KT) -> Frame:
+  match dup:
+    case False{}:
+      FObj{JECons{key, False{}, v, rev}, SNil{}, T.kt.put(idx, key)}
+    case True{}:
+      FObj{rev_entries(obj.replace(rev, key, Some{v}, JNil{}), JNil{}), SNil{}, idx}
+
 # S2.25, S2.27 a finished value goes to the root, to the open array, or under the pending key
 def push(v: Json, stack: List<&2, Frame>, depth: Nat, l: Nat, c: Nat, root: Maybe<&2, Json>) -> St:
   match stack:
@@ -146,8 +156,8 @@ def push(v: Json, stack: List<&2, Frame>, depth: Nat, l: Nat, c: Nat, root: Mayb
       St{MAfter{}, Nil{}, depth, l, c, Some{v}}
     case Con{FArr{rev, n}, rest}:
       St{MAfter{}, FArr{JCons{v, rev}, 1n+n} <> rest, depth, l, c, root}
-    case Con{FObj{rev, key}, rest}:
-      St{MAfter{}, FObj{obj.put(rev, key, v), SNil{}} <> rest, depth, l, c, root}
+    case Con{FObj{rev, +key, +idx}, rest}:
+      St{MAfter{}, obj.member(T.kt.has(idx, key), rev, key, v, idx) <> rest, depth, l, c, root}
 
 # S2.25 ']' closes the innermost array (the caller has seen that it is an array)
 def close_arr(stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:
@@ -160,7 +170,7 @@ def close_arr(stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<
 # S2.27 '}' closes the innermost object
 def close_obj(stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:
   match stack:
-    case Con{FObj{rev, key}, rest}:
+    case Con{FObj{rev, key, idx}, rest}:
       push(JObj{rev_entries(rev, JNil{})}, rest, Nat.sub(depth, 1n), l, c, root)
     case other:
       fail("key must be a string", l, c)
@@ -190,12 +200,12 @@ def after.arr(k: Nat, rev: Json, n: Nat, rest: List<&2, Frame>, depth: Nat, +l: 
       fail("expected `,` or `]`", l, c)
 
 # S2.27 after an object member: whitespace, ',' or '}'; anything else is S9.56 (k is the byte class)
-def after.obj(k: Nat, rev: Json, key: String, rest: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:
+def after.obj(k: Nat, rev: Json, key: String, idx: T.KT, rest: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:
   match k:
     case 1n:
-      St{MAfter{}, FObj{rev, key} <> rest, depth, l, c, root}
+      St{MAfter{}, FObj{rev, key, idx} <> rest, depth, l, c, root}
     case 2n:
-      St{MKey{False{}}, FObj{rev, key} <> rest, depth, l, c, root}
+      St{MKey{False{}}, FObj{rev, key, idx} <> rest, depth, l, c, root}
     case 4n:
       push(JObj{rev_entries(rev, JNil{})}, rest, Nat.sub(depth, 1n), l, c, root)
     case _:
@@ -216,8 +226,8 @@ def after(stack: List<&2, Frame>, depth: Nat, l: Nat, c: Nat, root: Maybe<&2, Js
       after.root(k, depth, l, c, root)
     case Con{FArr{rev, n}, rest}:
       after.arr(k, rev, n, rest, depth, l, c, root)
-    case Con{FObj{rev, key}, rest}:
-      after.obj(k, rev, key, rest, depth, l, c, root)
+    case Con{FObj{rev, key, idx}, rest}:
+      after.obj(k, rev, key, idx, rest, depth, l, c, root)
 
 # S2.32 a container at depth 128 is refused when its bracket is met, before anything inside it
 def open.if(deep: Bool, arr: Bool, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:
@@ -227,7 +237,7 @@ def open.if(deep: Bool, arr: Bool, stack: List<&2, Frame>, depth: Nat, +l: Nat, 
     case False{} True{}:
       St{MVal{1n}, FArr{JNil{}, 0n} <> stack, 1n+depth, l, c, root}
     case False{} False{}:
-      St{MKey{True{}}, FObj{JNil{}, SNil{}} <> stack, 1n+depth, l, c, root}
+      St{MKey{True{}}, FObj{JNil{}, SNil{}, T.kt.empty()} <> stack, 1n+depth, l, c, root}
 
 # S2.32 open an array or an object
 def open(arr: Bool, stack: List<&2, Frame>, +depth: Nat, l: Nat, c: Nat, root: Maybe<&2, Json>) -> St:
@@ -325,8 +335,8 @@ def str.end(key: Bool, rev: String, stack: List<&2, Frame>, depth: Nat, +l: Nat,
   match key stack:
     case False{} _:
       push(JStr{String.reverse(rev)}, stack, depth, l, c, root)
-    case True{} Con{FObj{r, old}, rest}:
-      St{MColon{}, FObj{r, String.reverse(rev)} <> rest, depth, l, c, root}
+    case True{} Con{FObj{r, old, idx}, rest}:
+      St{MColon{}, FObj{r, String.reverse(rev), idx} <> rest, depth, l, c, root}
     case True{} _:
       fail("key must be a string", l, c)
 
@@ -671,7 +681,7 @@ def eof.open(stack: List<&2, Frame>, root: Maybe<&2, Json>, l: Nat, c: Nat) -> P
       PErr{"EOF while parsing a value", l, c}
     case Con{FArr{rev, n}, rest} _:
       PErr{"EOF while parsing a list", l, c}
-    case Con{FObj{rev, key}, rest} _:
+    case Con{FObj{rev, key, idx}, rest} _:
       PErr{"EOF while parsing an object", l, c}
 
 # S2.42 after that push the enclosing container may still be open
@@ -911,3 +921,63 @@ def write(j: Json, n: Nat, tab_b: Bool, spec: Bool) -> String:
 # recurse to the depth of the whole text)
 def write_ln(j: Json, n: Nat, tab_b: Bool, spec: Bool) -> String:
   String.reverse(SCon{Chr{10}, w(j, True{}, n, tab_b, 0n, spec, SNil{})})
+
+# ---------------------------------------------------------------- S6.31 a map from key to value, for one object
+#
+# The tabular test and the row writer ask an object for the value under each HEADER key. When the row's
+# own order is not the header's, a search along the entries per key is quadratic in the field count;
+# KM is a binary trie over the low 16 bits of T.key_hash with the entries themselves in the leaf
+# buckets (entry chains). Order never comes from here.
+
+# S6.31 the map: an empty region or a bucket (an entry chain), or a fork on the next hash bit
+type KM is Data:
+  KMLeaf{bucket: Json}
+  KMNode{zero: KM, one: KM}
+
+# S6.31 insertion: d counts the hash bits still to follow; a leaf above depth 0 is an empty region
+def km.put.go(d: Nat, odd: Bool, t: KM, +h: U32, k: String, v: Json) -> KM:
+  match d odd t:
+    case 0n _ KMLeaf{b}:
+      KMLeaf{JECons{k, False{}, v, b}}
+    case 0n _ KMNode{z, o}:
+      KMNode{z, o}
+    case 1n+p False{} KMLeaf{b}:
+      KMNode{km.put.go(p, T.kt.odd((h >> 1n : U32)), KMLeaf{JNil{}}, (h >> 1n : U32), k, v), KMLeaf{b}}
+    case 1n+p True{} KMLeaf{b}:
+      KMNode{KMLeaf{b}, km.put.go(p, T.kt.odd((h >> 1n : U32)), KMLeaf{JNil{}}, (h >> 1n : U32), k, v)}
+    case 1n+p False{} KMNode{z, o}:
+      KMNode{km.put.go(p, T.kt.odd((h >> 1n : U32)), z, (h >> 1n : U32), k, v), o}
+    case 1n+p True{} KMNode{z, o}:
+      KMNode{z, km.put.go(p, T.kt.odd((h >> 1n : U32)), o, (h >> 1n : U32), k, v)}
+
+# S6.31 insertion from the key's hash
+def km.put.at(t: KM, +h: U32, k: String, v: Json) -> KM:
+  km.put.go(16n, T.kt.odd(h), t, h, k, v)
+
+# S6.31 the map of an entry chain (its keys are unique: the reader saw to that, S2.29)
+def km.of(c: Json, acc: KM) -> KM:
+  match c:
+    case JECons{+k, q, v, t}:
+      km.of(t, km.put.at(acc, T.key_hash(k), k, v))
+    case other:
+      acc
+
+# S6.31 the bucket that would hold a key
+def km.bucket.go(d: Nat, odd: Bool, t: KM, +h: U32) -> Json:
+  match d odd t:
+    case 0n _ KMLeaf{b}:
+      b
+    case 1n+p False{} KMNode{z, o}:
+      km.bucket.go(p, T.kt.odd((h >> 1n : U32)), z, (h >> 1n : U32))
+    case 1n+p True{} KMNode{z, o}:
+      km.bucket.go(p, T.kt.odd((h >> 1n : U32)), o, (h >> 1n : U32))
+    case _ _ other:
+      JNil{}
+
+# S6.31 from the key's hash
+def km.bucket.at(t: KM, +h: U32) -> Json:
+  km.bucket.go(16n, T.kt.odd(h), t, h)
+
+# S6.31 the bucket that would hold a key (an entry chain to search with the key itself)
+def km.bucket(t: KM, k: String) -> Json:
+  km.bucket.at(t, T.key_hash(k))

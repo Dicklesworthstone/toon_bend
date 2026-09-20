@@ -37,7 +37,10 @@ if [[ -n "$file" && $emit -eq 0 && ${#cli[@]} -gt 0 ]]; then
     [[ "$first" =~ ^All\ terms\ check,\ with\ [1-9][0-9]*\ unsafe\ annotations?\.$ ]] && note="$first"
   fi
 fi
-"$@" 2>"$TMP/err"; ec=$?
+# stderr goes through a PIPE, as on every other lane and as at capture time. A plain file here
+# changes what `-o /dev/stderr` means: the program's second open of the file starts at offset 0
+# and the two writers overwrite each other (the pinned original does the same under `2>file`).
+{ "$@" 2>&1 >&4 4>&- | cat >"$TMP/err"; ec=${PIPESTATUS[0]}; } 4>&1
 if [[ -n "$note" && "$(head -1 "$TMP/err")" == "$note" ]]; then
   { printf '%s\n' "$note" >&3; } 2>/dev/null || true
   tail -n +2 "$TMP/err" >&2

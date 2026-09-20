@@ -282,3 +282,91 @@ def nat_of(s: String, acc: Nat) -> Nat:
       acc
     case SCon{Chr{c}, rest}:
       nat_of(rest, Nat.add(Nat.mul(acc, 10n), U32.to_nat((c - 48 : U32))))
+
+# ---------------------------------------------------------------- S6.10 a set of key strings
+#
+# The original keeps object keys in hash maps; a linear search per key is quadratic in the number of
+# keys of one object (round 6: 8000 keys took 5 s). KT is a binary trie over the low 16 bits of an
+# FNV-1a hash of the key, with the keys themselves in the leaf buckets: membership and insertion are
+# 16 steps plus the bucket. Order never comes from here: it stays in the entry chain beside the set.
+
+# S6.10 FNV-1a over the scalar values of a key (U32 arithmetic wraps, which is the algorithm)
+def key_hash.go(s: String, +h: U32) -> U32:
+  match s:
+    case SNil{}:
+      h
+    case SCon{Chr{c}, rest}:
+      key_hash.go(rest, ((h .^. c) * 16777619 : U32))
+
+# S6.10 the hash of a key
+def key_hash(s: String) -> U32:
+  key_hash.go(s, 2166136261)
+
+# S6.10 the set: an empty region or a bucket of keys, or a fork on the next hash bit
+type KT is Data:
+  KLeaf{keys: List<&2, String>}
+  KNode{zero: KT, one: KT}
+
+# S6.10 the empty set
+def kt.empty() -> KT:
+  KLeaf{Nil{}}
+
+# S6.10 whether the lowest bit of a hash is set
+def kt.odd(h: U32) -> Bool:
+  U32.is_eq((h .&. 1 : U32), 1)
+
+# S6.10 the loop of kt.bucket_has: stops at the first hit
+def kt.bucket_has.go(ks: List<&2, String>, +k: String, hit: Bool) -> Bool:
+  match ks hit:
+    case _ True{}:
+      True{}
+    case Nil{} False{}:
+      False{}
+    case Con{x, rest} False{}:
+      kt.bucket_has.go(rest, k, str_eq(x, k))
+
+# S6.10 membership: d counts the hash bits still to follow, odd is the current bit
+def kt.has.go(d: Nat, odd: Bool, t: KT, +h: U32, k: String) -> Bool:
+  match d odd t:
+    case 0n _ KLeaf{ks}:
+      kt.bucket_has.go(ks, k, False{})
+    case 0n _ KNode{z, o}:
+      False{}
+    case 1n+p _ KLeaf{ks}:
+      False{}
+    case 1n+p False{} KNode{z, o}:
+      kt.has.go(p, kt.odd((h >> 1n : U32)), z, (h >> 1n : U32), k)
+    case 1n+p True{} KNode{z, o}:
+      kt.has.go(p, kt.odd((h >> 1n : U32)), o, (h >> 1n : U32), k)
+
+# S6.10 membership from the key's hash
+def kt.has.at(t: KT, +h: U32, k: String) -> Bool:
+  kt.has.go(16n, kt.odd(h), t, h, k)
+
+# S6.10 whether a key is in the set
+def kt.has(t: KT, +k: String) -> Bool:
+  kt.has.at(t, key_hash(k), k)
+
+# S6.10 insertion: a leaf above depth 0 is an empty region and is split on the way down
+def kt.put.go(d: Nat, odd: Bool, t: KT, +h: U32, k: String) -> KT:
+  match d odd t:
+    case 0n _ KLeaf{ks}:
+      KLeaf{k <> ks}
+    case 0n _ KNode{z, o}:
+      KNode{z, o}
+    case 1n+p False{} KLeaf{ks}:
+      KNode{kt.put.go(p, kt.odd((h >> 1n : U32)), KLeaf{Nil{}}, (h >> 1n : U32), k), KLeaf{ks}}
+    case 1n+p True{} KLeaf{ks}:
+      KNode{KLeaf{ks}, kt.put.go(p, kt.odd((h >> 1n : U32)), KLeaf{Nil{}}, (h >> 1n : U32), k)}
+    case 1n+p False{} KNode{z, o}:
+      KNode{kt.put.go(p, kt.odd((h >> 1n : U32)), z, (h >> 1n : U32), k), o}
+    case 1n+p True{} KNode{z, o}:
+      KNode{z, kt.put.go(p, kt.odd((h >> 1n : U32)), o, (h >> 1n : U32), k)}
+
+# S6.10 insertion from the key's hash
+def kt.put.at(t: KT, +h: U32, k: String) -> KT:
+  kt.put.go(16n, kt.odd(h), t, h, k)
+
+# S6.10 add a key to the set (the caller asks kt.has first when duplicates matter)
+def kt.put(t: KT, +k: String) -> KT:
+  kt.put.at(t, key_hash(k), k)

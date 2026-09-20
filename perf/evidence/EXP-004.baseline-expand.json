@@ -1,0 +1,1 @@
+{"tag": "EXP-004-baseline", "binary": "commit 3751630", "argv": ["-d", "--expand-paths", "safe", "perf/inputs/expand_lines_40000.toon"], "budget_s": 60, "exit": "TIMEOUT", "seconds": 60.0}

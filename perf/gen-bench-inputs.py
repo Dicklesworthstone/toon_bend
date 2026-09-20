@@ -2,7 +2,7 @@
 """Regenerate the performance inputs of perf/EXPERIMENTS.md (deterministic, no randomness).
 
 usage: python3 perf/gen-bench-inputs.py [--check]
-Writes perf/inputs/*.json; the TOON twins used by the decode captures are made by the pinned
+Writes perf/inputs/*.json (and the one hand-shaped .toon of EXP-004); the TOON twins used by the decode captures are made by the pinned
 original: ./oracle/toon --encode perf/inputs/<name>.json -o perf/inputs/<name>.toon
 """
 import json
@@ -15,6 +15,11 @@ DOCS = {
     "ints_24000.json": json.dumps(list(range(100000, 100000 + 24000))),
     "decimals1_9000.json": json.dumps([round(i * 3.7, 1) for i in range(9000)]),
     "strings_7000.json": json.dumps(["user%d@example.com" % i for i in range(7000)]),
+    # EXP-004: one large dimension each (keys of one object, folded keys, expanded paths, fields of a row)
+    "wide_object_16000.json": json.dumps({"k%d" % i: i for i in range(16000)}),
+    "fold_keys_30000.json": json.dumps({"k%d" % i: {"a": {"b": "v"}} for i in range(30000)}),
+    "expand_lines_40000.toon": "".join("a.k%d.c: v\n" % i for i in range(40000)),
+    "wide_rows_1200.json": json.dumps([{"f%d" % j: "v" for j in range(1200)} for _ in range(20)]),
 }
 
 

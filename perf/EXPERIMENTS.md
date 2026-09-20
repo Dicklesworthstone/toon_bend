@@ -172,3 +172,86 @@ scripts/incumbent-bench.sh --runs 5 --max-cv 5 --timeout 60 --tag EXP-004 --orig
 ```
 (and the same with `-e --key-folding safe perf/inputs/fold_keys_30000.json`, `-d --expand-paths safe perf/inputs/expand_lines_40000.toon`,
 `-e perf/inputs/wide_rows_1200.json`)
+
+## Third profile (2026-09-20, after round 8's R8-3 / DISC-013; the build of `4c3cccc`, 1 thread)
+
+Instrumented build of the emitted C (`clang -std=c11 -O2 -pg -fno-inline-functions`), calls per Bend def (`gprof -b -p`, specializations
+summed). Uninstrumented wall time on the same inputs: port 1.19 s and 1.31 s, the original under 0.01 s each (one run, a shared host:
+orientation, not evidence). The profile ran on two scratch inputs made with Python's `random` (seed 88); the captures will run on their
+deterministic equivalents `perf/inputs/doubles_20000.json` and `perf/inputs/sci_5000.json` (`perf/gen-bench-inputs.py`, no `random` module).
+
+- `--encode` of 20000 random doubles (421 KB, 15 to 17 significant digits each): 89.9 M def calls; `BN.cmp` 29.3%, `F.dg.digit` 11.1%,
+  `BN.sub` 10.1%, `BN.is_ge` + `BN.is_lt` 15.4%, `BN.mul_small` 7.0%, `F.dg.step` 3.8%, `F.dg.sub_if` 3.6%; the JSON reader's own steps are
+  under 2%. The shortest-digit generator finds each digit by compare-and-subtract: about 500 `F.dg.digit` calls per number.
+- `--encode` of 5000 numbers `d.dddddde±XXX` with exponents up to 250 (67 KB): 72.3 M def calls; `BN.mul_small` 39.0%, `BN.cmp` 27.3%,
+  `BN.sub` 9.6%, `BN.pow10` 3.5% (2.5 M calls: about 500 per number). Every number rebuilds 10^k by k multiplications by ten, one limb pass each.
+
+## EXP-005 — powers of ten in steps of 10^4
+
+| field | value |
+|---|---|
+| experiment_id | EXP-005 |
+| program / def | `port/bignat.bend` / `pow10` (a fast twin `pow10.by4`; callers in `port/f64.bend`) |
+| created (UTC) | 2026-09-20 |
+| agent | Claude (Claude Code session, author) |
+| graveyard sweep | `rg -i 'pow10\|power of ten\|mul_small' perf/NEGATIVE-EVIDENCE.md` → only NE-003 (the DIVISION by a power of ten; its do-not-retry does not cover building the power) |
+| status | PROPOSED (not started: a code change restarts the lanes run and the review rounds, and the parity gate had not converged when this card was written) |
+| precommitted | true |
+
+### Hypothesis
+10^k built with ⌊k/4⌋ single-limb multiplications by 10000 and one by 10^(k mod 4) equals k multiplications by 10 (a 16-bit limb times
+10000 plus a carry stays below 2^32), and lowers the median wall time of `--encode` on the 5000-number scientific-notation input at 1 thread
+by at least 25%.
+
+### Motivation
+The third profile: `BN.mul_small` is 39% of all def calls on that input, nearly all of them under `BN.pow10`. DISC-013 (306 times the
+original on scientific notation) names this path.
+
+### Lever (one)
+`pow10.by4(k)` beside `pow10(k)`, selected through the existing gate `F.twin.on(spec, ok)` (the kill-switch `TOON_SPEC=1` keeps `pow10`).
+Laws: closed instances `pow10.by4(k) == pow10(k)` for k = 0..9, 22, 23, 308, 309, 1100; hand mutants (the step constant, the remainder arm)
+added to `scripts/hand-mutants.py`. Beside the laws: `scripts/diff-fuzz.py numbers --switch TOON_SPEC=1` and `lanes.sh`.
+
+### Precommitted gate
+≥ 25% below the baseline artifact (the build of `4c3cccc`) on `perf/inputs/sci_5000.json` at `--threads 1`; cv ≤ 5% both arms; A/A null ratio
+in [1/1.05, 1.05]; identical stdout; `bend PROOF.bend` → `All terms check.`; lanes PASS with `TOON_SPEC` unset and set; no input of
+EXP-001..004 slower by more than 5%.
+
+### One-line invocation
+```bash
+scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-005 --original <baseline binary> --threads 1 -- -e perf/inputs/sci_5000.json --port <lever binary> --threads 1 -- -e perf/inputs/sci_5000.json
+```
+
+## EXP-006 — a quotient estimate per digit in the shortest-digit generator
+
+| field | value |
+|---|---|
+| experiment_id | EXP-006 |
+| program / def | `port/f64.bend` / `dg.digit`, `dg.sub_if` (a fast twin of the digit step) |
+| created (UTC) | 2026-09-20 |
+| agent | Claude (Claude Code session, author) |
+| graveyard sweep | `rg -i 'digit\|shortest\|dragon\|quotient' perf/NEGATIVE-EVIDENCE.md` → NE-001 (integers print their own digits: a different path, kept) |
+| status | PROPOSED (not started, for the reason on EXP-005's card) |
+| precommitted | true |
+
+### Hypothesis
+The next digit of R/S (0 ≤ R < 10·S) is ⌊R/S⌋; an estimate from the two most significant limbs of R and S is off by at most one, so one
+single-limb multiplication, one subtraction and one comparison replace up to nine compare-and-subtract rounds, and the median wall time of
+`--encode` on 20000 random doubles at 1 thread falls by at least 30%.
+
+### Motivation
+The third profile: `BN.cmp`, `BN.sub`, `BN.is_ge`, `BN.is_lt` and `F.dg.*` are 75% of all def calls on that input. DISC-013 (113 times
+the original on random doubles).
+
+### Lever (one)
+A fast twin of the digit step behind `F.twin.on`. Laws: the shortest-digit generator does not normalize in the checker (ARCH §11 A7), so
+the twin is bound by closed laws on the DIGIT STEP alone (R, S pairs at the estimate's two failure boundaries) and by
+`scripts/diff-fuzz.py numbers --switch TOON_SPEC=1` at ≥ 10^6 numbers; that weaker binding is stated on the ledger row, as for NE-001..003.
+
+### Precommitted gate
+≥ 30% below the baseline artifact on `perf/inputs/doubles_20000.json` at `--threads 1`; the other conditions of EXP-005.
+
+### One-line invocation
+```bash
+scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-006 --original <baseline binary> --threads 1 -- -e perf/inputs/doubles_20000.json --port <lever binary> --threads 1 -- -e perf/inputs/doubles_20000.json
+```

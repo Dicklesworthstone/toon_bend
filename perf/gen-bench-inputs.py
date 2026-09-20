@@ -10,6 +10,25 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _lcg(i):
+    """A fixed 48-bit linear congruence (the constants of POSIX drand48), seeded by the index."""
+    x = (i * 2862933555777941757 + 3037000493) & ((1 << 64) - 1)
+    for _ in range(3):
+        x = (x * 0x5DEECE66D + 0xB) & ((1 << 48) - 1)
+    return x
+
+
+def _double(i):
+    """17 significant digits and a decimal exponent in -10..9, written the way json.dumps writes a float."""
+    x = _lcg(i)
+    return repr(((x >> 4) % 10 ** 17) / 10 ** 17 * 10 ** (x % 20 - 10))
+
+
+def _sci(i):
+    x = _lcg(i + 1000003)
+    return "%d.%06de%+d" % (x % 9 + 1, (x >> 8) % 10 ** 6, (x >> 30) % 501 - 250)
 OUT = os.path.join(HERE, "inputs")
 DOCS = {
     "ints_24000.json": json.dumps(list(range(100000, 100000 + 24000))),
@@ -20,6 +39,10 @@ DOCS = {
     "fold_keys_30000.json": json.dumps({"k%d" % i: {"a": {"b": "v"}} for i in range(30000)}),
     "expand_lines_40000.toon": "".join("a.k%d.c: v\n" % i for i in range(40000)),
     "wide_rows_1200.json": json.dumps([{"f%d" % j: "v" for j in range(1200)} for _ in range(20)]),
+    # EXP-005 / EXP-006 (DISC-013): numbers that are not small integers. A fixed linear congruence, no random module:
+    # the same bytes on every Python.
+    "doubles_20000.json": "[" + ",".join(_double(i) for i in range(20000)) + "]",
+    "sci_5000.json": "[" + ",".join(_sci(i) for i in range(5000)) + "]",
 }
 
 

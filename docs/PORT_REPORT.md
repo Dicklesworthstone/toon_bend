@@ -10,7 +10,7 @@
 HOLD. The port is complete and every lane is green; ONE constant fails, and one number is missing:
 
 1. **Convergence met for the tier: fails.** `converge.sh`: `NOT_CONVERGED` (T2 needs the last two rounds clean; the five non-author rounds, 6 to 10, found 6, 11, 8, 3 and 10 findings: 2 HIGH in round 7 on stdin, 1 HIGH in round 10 on cited commits that did not build from the public history, 0 behavioral differences in rounds 9 and 10; their reports are in `docs/reviews/`). Owner: the author, with a fresh non-author subagent per round. Flips after two consecutive rounds with fewer than 3 new genuine findings.
-2. **Every performance claim has a pin, cv ≤ 5%, identical sha: holds for what is claimed.** Nothing is claimed against the original on ordinary inputs, because all six captures were REFUSED_CV on the loaded host. Owner: the author, on a quiet host. This is a missing number, not a failing one; it blocks only a speed sentence.
+2. **Every performance claim has a pin, cv ≤ 5%, identical sha: holds for what is claimed.** Three captures against the original on ordinary inputs are MEASURED and five are REFUSED_CV (nothing is claimed for those). Owner: the author, on a quiet host. These are missing numbers, not failing ones; they block only a speed sentence for those inputs.
 
 The DISC register is complete since 2026-09-20: the repository owner delegated the rulings to the author ("You decide on everything. I approve whatever you want to do."), twelve entries are ACCEPTED with a scoped contract each (DISC-014 was found and ruled on after the delegation, by the same delegation), two are RESOLVED by repairs, and the port's one custom effect `Stdin.open` stays.
 
@@ -49,8 +49,11 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 - 1.67× / 1.56× / 2.12× against the port's own build of `4bfecef` (EXP-001 tabular encode, EXP-002 tabular decode, EXP-003 9000 decimals; 18 samples per arm in AB/BA pairs; cv ≤ 1.5%; A/A 1.001 / 0.995 / 1.004; stdout sha equal; AMD EPYC-Milan 8 cores, Linux, 1 thread; 2026-09-20); PROVISIONAL, not WIN (NE-001..003)
 - against the original (`toon 0.2.4` @ `f955c67`, release build, 1 thread each): 0.25× on one object of 16000 keys, 1.27× on 20 rows of 1200 fields, 3.06× on 40000 expanded lines (cv ≤ 4.7%; stdout sha equal; `perf/evidence/EXP-004.*-vs-original.json`), measured on the build of `1230a0d`
 
+- against the original (`toon 0.2.4` @ `f955c67`, release; the port's build of `4c3cccc`, 1 thread, 15 AB/BA pairs): 0.114× on the 1500-row table encode, 0.404× on its decode, 0.0066× on 20000 doubles (cv ≤ 4.7%; `perf/evidence/INCUMBENT.tabular-enc.json`, `.tabular-dec.json`, `.doubles.json`); five more captures of that run were REFUSED_CV and claim nothing
+- EXP-003 alone (one lever per artifact): 2.05× against the all-twins-off arm of the current code (cv 2.7% / 3.9%; A/A 1.019; `perf/evidence/EXP-003.one-lever.ab.json`)
+
 ### Not claimed
-- any ratio against the original on ordinary inputs: six captures REFUSED_CV (`perf/evidence/INCUMBENT.*.json`); predicate: a quiet host, `--runs 15`
+- a ratio against the original for integers, one-decimal numbers, strings, scientific notation and startup: REFUSED_CV three times (`perf/evidence/INCUMBENT.*.json`); predicate: a quiet host and inputs ten times larger
 - the folding input's ratio: NE-004 (REFUSED_CV twice)
 - a WIN for EXP-001..003: NE-001..003 (closed laws only; one artifact carries three levers)
 - exclusions, each classed in PLAN §3: async streaming, WebAssembly bindings, the `EncodeReplacer` callback, library-only behavior no CLI path reaches, shell completions / tracing / build metadata, native Windows

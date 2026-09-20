@@ -87,6 +87,7 @@ Outcome taxonomy (closed set):
 - Disposition: kept behind `TOON_SPEC`; NOT promoted to PERF-LEDGER
 - Why provisional and not WIN: (1) the binding `fast == spec` is ONE quantified gate law plus CLOSED instance laws plus differential runs; no universally quantified equivalence law exists for this twin (the checker's normalizer overflows on bodies with 10^5-scale `Nat` literals); (2) the `3751630` binary carries EXP-001, EXP-002 and EXP-003 together, so this capture does not isolate one lever: the input was chosen to exercise this lever, and the other two also run on it
 - Killing metric: wall on this host at 1 thread
+- One lever per artifact (2026-09-20, the second reason above, for THIS lever): a scratch variant of the current code with the other two twins switched off at their gates (`twin.on(True{}, …)`), against the all-twins-off arm of the current binary (`TOON_SPEC=1`): 312.3 ms → 152.5 ms, 2.05×, cv 2.7% / 3.9%, A/A 1.019, MEASURED (`perf/evidence/EXP-003.one-lever.ab.json`, `.aa.json`). The same captures for EXP-001 and EXP-002 were REFUSED_CV (5.5% to 12.9%) while a reviewer's builds ran; their files are in `perf/evidence/` and claim nothing
 - **Promote to WIN when:** a quantified `fast == spec` law for the twin checks, OR the owner accepts closed laws + differential runs as the binding in writing; AND the capture is repeated with one lever per artifact
 - Tally: W0/L0/N0 (provisional)
 - Agent: Claude (author session)
@@ -96,12 +97,12 @@ Outcome taxonomy (closed set):
 - Provenance: as NE-001
 - Exact command: `scripts/incumbent-bench.sh --runs 7 --max-cv 5 --timeout 60 --tag EXP-004 --original ./oracle/toon -e --key-folding safe perf/inputs/fold_keys_30000.json --port <binary of 1230a0d> --threads 1 -- -e --key-folding safe perf/inputs/fold_keys_30000.json`
 - Kill-switch: none (a carrier of the spec twins)
-- Measured: REFUSED_CV twice (port arm cv 5.2% with 5 pairs, then 6.8% with 7 pairs; the original's arm 2.1%). No ratio is claimed. What the refused captures still show without a ratio: the previous port binary (`3751630`) did not finish this input in its 60 s budget (`perf/evidence/EXP-004.baseline-fold.json`), the merged binary's medians were 307 ms and 303 ms, and stdout was byte-identical to the original's in every sample
+- Measured: REFUSED_CV twice (port arm cv 5.2% with 5 pairs, then 6.8% with 7 pairs; the original's arm 2.1%). No ratio is claimed. What the refused captures still show without a ratio: the previous port binary (`3751630`) did not finish this input in its 60 s budget (`perf/evidence/EXP-004.baseline-fold.json`), the merged binary's medians were 307 ms and 303 ms, and stdout was byte-identical to the original's in every sample A THIRD capture (15 pairs, load about 3) was refused too: cv 7.5% / 5.6% (original / port), medians 668 ms and 452 ms.
 - Correctness: as the PERF-LEDGER rows of EXP-004
 - Disposition: the carrier is kept (it is the spec twin); the RATIO is not ledgered
 - Killing metric: wall on this host at 1 thread
 - **Do-not-retry unless:** the host is quiet (no other agent's build; load below 1) and `--runs 15`; a second refusal under those conditions means the input's allocation pattern is noisy at this size: then capture at 60000 keys
-- Tally: W0/L0/N1
+- Tally: W0/L0/N3
 - Agent: Claude (author session)
 
 ### NE-005 — EXP-004, hashed key carriers, on three scale inputs   [2026-09-20 | PROVISIONAL_LOCAL_WIN]

@@ -1,0 +1,5 @@
+error: unexpected value '1' for '--encode' found; no more were expected
+
+Usage: toon --encode [INPUT]
+
+For more information, try '--help'.

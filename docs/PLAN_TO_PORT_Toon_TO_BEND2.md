@@ -34,7 +34,7 @@ so no bang is placed (GPU-PORTS "Is the original a GPU port at all?": no).
 | run command | `./oracle/toon` from the project root (case argv appended; stdin from the case's file or `/dev/null`) |
 | threads / parallelism it uses | single-threaded (the `async-stream` feature is off in the pinned build and excluded, §3) |
 | nondeterminism floor | `scripts/floor.sh` over 3 runs: 678 stable / 0 unstable: `{"repeat":3,"stable":678,"unstable":[],"inconclusive":[],"oracle_identity_checked":true,"verdict":"STABLE"}` (2026-09-20) |
-| goldens | `goldens/cases.tsv` (678 cases: 329 hand-designed from `cases/gen-hand-cases.py`, 349 from the vendored TOON spec fixtures via `cases/gen-fixture-cases.py`; 507 exit 0, 139 exit 1, 32 exit 2 in the current capture), `goldens/MANIFEST.txt` recorded at each capture. Re-captures: 2026-09-20 `--repin` OQ-001/OQ-002 (+9 cases, 0 prior hashes changed). The fixtures' own `expected` fields are the upstream TypeScript reference's and are not goldens. |
+| goldens | `goldens/cases.tsv` (1005 cases after the Phase 1 re-capture; at Phase 0: 678 cases: 329 hand-designed from `cases/gen-hand-cases.py`, 349 from the vendored TOON spec fixtures via `cases/gen-fixture-cases.py`; 507 exit 0, 139 exit 1, 32 exit 2 in the current capture), `goldens/MANIFEST.txt` recorded at each capture. Re-captures: 2026-09-20 `--repin` OQ-001/OQ-002 (+9 cases, 0 prior hashes changed); 2026-09-20 `--repin` Phase 1 extractor proposals (+327 cases, 0 prior hashes changed, floor STABLE 1005/1005; exit codes now 662 / 236 / 107). The fixtures' own `expected` fields are the upstream TypeScript reference's and are not goldens. |
 | rigor tier | **T2** (a tool with a data format: ~350 spec behaviors, 12 flags, ~60 error paths). Convergence: ≥ 5 rounds, last 2 clean, ≥ 1 non-author round. |
 
 ### 2b. Bend, pinned (VERSION-DRIFT)
@@ -75,7 +75,8 @@ so no bang is placed (GPU-PORTS "Is the original a GPU port at all?": no).
 | async streaming encode/decode (`async-stream` feature, `asupersync`) | off in the pinned build; not reachable from the CLI; Bend has no async runtime to mirror, and the synchronous event stream carries the same semantics | out-of-scope | no |
 | WebAssembly bindings (`wasm` feature, `src/wasm.rs`) | a packaging of the same library for JS hosts; Bend's own JS lane (`bend x.bend -o x.js`) is the counterpart and is one of the conformance lanes | out-of-scope | no |
 | `EncodeReplacer` callback | a library-only closure hook with no CLI spelling, so no golden can be captured for it through the oracle binary; ported as a Bend higher-order def only if a Rust driver is added to capture stage goldens | out-of-scope | yes |
-| clap's "a similar argument exists" suggestion and its context-built `Usage:` line for a suggested flag | a string-similarity engine inside clap; the plain unexpected-argument error, the `--` tip and the fixed `Usage:` lines are in scope | external-dependency | yes |
+| ~~clap's "a similar argument exists" suggestion and its context-built `Usage:` line~~ | withdrawn 2026-09-20 (OQ-A1, OQ-A2): the CLI extractor pinned the similarity rule as a closed formula (566 of 566 oracle runs) and showed the plain text cannot be chosen without it; the tips and the context-built usage lines are **in scope** | n/a | no |
+| library-only behavior no CLI path reaches: the streaming writer on malformed event sequences, the value builder's messages, `toon_to_json` / `json_to_toon`, the `Failed to stringify JSON` wrapper (OQ-B3) | no golden can be captured through the oracle binary; a Rust driver would be needed for stage goldens | out-of-scope | yes |
 | shell completions, `tracing` logs, `chrono`, `vergen` build metadata | dependencies of the crate that no CLI path of the pinned build reaches | out-of-scope | no |
 | native Windows paths and line endings | Bend 2 has no native Windows target | platform | no |
 | a bare `--help`, `--threads N`, `--gpu X` given to the compiled Bend binary **before** `--` | the Bend runtime consumes its own flags ahead of the program; the harness and the shipped launcher pass `--` first, so every golden holds; recorded as DISC-001 (Platform) | platform | no |
@@ -92,7 +93,7 @@ so no bang is placed (GPU-PORTS "Is the original a GPU port at all?": no).
 
 | criterion | target | gate |
 |---|---|---|
-| conformance | 100% of 678 cases (more as OQs add them) on interpreter, C 1T, C 8T, JS; no bang, so gpu is MISSING with that reason | `scripts/lanes.sh` PASS |
+| conformance | 100% of the corpus (1005 cases after Phase 1; more as OQs add them) on interpreter, C 1T, C 8T, JS; no bang, so gpu is MISSING with that reason | `scripts/lanes.sh` PASS |
 | proofs | `All terms check.` with 0 `@unsafe`; template instances stated beside the verdict | `bend port/PROOF.bend` |
 | parity board | FULL (or DEBT with every exclusion listed above) | `scripts/parity-board.sh` |
 | discrepancies | every divergence a DISC entry with a kill-switch | `docs/DISCREPANCIES.md` |

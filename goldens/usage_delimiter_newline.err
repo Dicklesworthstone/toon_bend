@@ -1,0 +1,5 @@
+error: invalid value 'a
+b' for '--delimiter <DELIMITER>': Invalid delimiter "a
+b". Valid delimiters are: comma (,), tab (\t), pipe (|)
+
+For more information, try '--help'.

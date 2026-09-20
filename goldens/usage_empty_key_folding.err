@@ -1,0 +1,4 @@
+error: a value is required for '--key-folding <KEY_FOLDING>' but none was supplied
+  [possible values: off, safe]
+
+For more information, try '--help'.

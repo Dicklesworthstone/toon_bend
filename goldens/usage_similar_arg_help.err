@@ -1,0 +1,7 @@
+error: unexpected argument '--e' found
+
+  tip: a similar argument exists: '--help'
+
+Usage: toon --help [INPUT]
+
+For more information, try '--help'.

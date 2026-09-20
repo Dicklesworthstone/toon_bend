@@ -1,0 +1,5 @@
+error: unexpected value 'x' for '--help' found; no more were expected
+
+Usage: toon --help [INPUT]
+
+For more information, try '--help'.

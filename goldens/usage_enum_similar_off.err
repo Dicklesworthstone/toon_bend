@@ -1,0 +1,6 @@
+error: invalid value 'of' for '--key-folding <KEY_FOLDING>'
+  [possible values: off, safe]
+
+  tip: a similar value exists: 'off'
+
+For more information, try '--help'.

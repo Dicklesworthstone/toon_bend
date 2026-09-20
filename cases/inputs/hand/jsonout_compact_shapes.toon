@@ -1,0 +1,8 @@
+a: 1
+b[2]: x,y
+c: "q\"z"
+d:
+e[0]:
+f: null
+g: true
+h: false

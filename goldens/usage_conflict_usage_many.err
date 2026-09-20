@@ -1,0 +1,5 @@
+error: the argument '--decode' cannot be used with '--encode'
+
+Usage: toon --decode --stats --indent <INDENT> --output <FILE> <INPUT>
+
+For more information, try '--help'.

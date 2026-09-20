@@ -1,0 +1,4 @@
+name: Alice
+age: 30
+tags[2]: a,b
+Encoded `stdin` → `/dev/stderr`

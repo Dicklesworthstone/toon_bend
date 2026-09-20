@@ -1,0 +1,5 @@
+error: the argument '--encode' cannot be used with '--decode'
+
+Usage: toon --encode <INPUT>
+
+For more information, try '--help'.

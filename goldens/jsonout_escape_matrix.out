@@ -1,0 +1,25 @@
+{
+  "q": "a\"b",
+  "bs": "a\\b",
+  "n": "a\nb",
+  "r": "a\rb",
+  "t": "a\tb",
+  "nul": "a\u0000b",
+  "us": "a\u001fb",
+  "bel": "a\u0007b",
+  "bsp": "a\bb",
+  "vt": "a\u000bb",
+  "ff": "a\fb",
+  "del": "ab",
+  "pad": "ab",
+  "nel": "ab",
+  "apc": "ab",
+  "nbsp": "a b",
+  "shy": "a­b",
+  "ls": "a b",
+  "ps": "a b",
+  "bom": "a﻿b",
+  "slash": "a/b",
+  "emoji": "a😀b",
+  "max": "a􏿿b"
+}

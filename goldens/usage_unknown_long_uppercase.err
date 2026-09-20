@@ -1,0 +1,7 @@
+error: unexpected argument '--HELP' found
+
+  tip: to pass '--HELP' as a value, use '-- --HELP'
+
+Usage: toon [OPTIONS] [INPUT]
+
+For more information, try '--help'.

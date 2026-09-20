@@ -1,0 +1,5 @@
+error: unexpected value 'yes' for '--stats' found; no more were expected
+
+Usage: toon <INPUT|--output <FILE>|--encode|--decode|--delimiter <DELIMITER>|--indent <INDENT>|--no-strict|--key-folding <KEY_FOLDING>|--flatten-depth <N>|--expand-paths <EXPAND_PATHS>|--stats>
+
+For more information, try '--help'.

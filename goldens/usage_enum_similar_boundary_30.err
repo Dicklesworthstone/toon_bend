@@ -1,0 +1,6 @@
+error: invalid value 'offxxxxxxxxxxxxxxxxxxxxxxxxxxx' for '--expand-paths <EXPAND_PATHS>'
+  [possible values: off, safe]
+
+  tip: a similar value exists: 'off'
+
+For more information, try '--help'.

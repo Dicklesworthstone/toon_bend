@@ -1,0 +1,7 @@
+error: unexpected argument '--d' found
+
+  tip: a similar argument exists: '--indent'
+
+Usage: toon --indent <INDENT> [INPUT]
+
+For more information, try '--help'.

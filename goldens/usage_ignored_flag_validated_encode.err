@@ -1,0 +1,4 @@
+error: invalid value 'maybe' for '--expand-paths <EXPAND_PATHS>'
+  [possible values: off, safe]
+
+For more information, try '--help'.

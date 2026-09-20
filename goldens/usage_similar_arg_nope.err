@@ -1,0 +1,7 @@
+error: unexpected argument '--nope' found
+
+  tip: a similar argument exists: '--encode'
+
+Usage: toon --encode [INPUT]
+
+For more information, try '--help'.

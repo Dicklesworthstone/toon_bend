@@ -328,3 +328,330 @@ large_tabular_1500	["--encode"]	cases/inputs/hand/large_tabular_1500.json	large
 large_tabular_1500_pipe_folded	["--encode", "--delimiter", "|", "--key-folding", "safe"]	cases/inputs/hand/large_tabular_1500_pipe_folded.json	large	
 determinism_a	["--encode"]	cases/inputs/hand/determinism_a.json	determinism	
 determinism_a_again	["--encode"]	cases/inputs/hand/determinism_a_again.json	determinism	
+usage_help_first_wins	["--help", "--indent", "99"]	-	usage	help text, exit 0
+usage_version_first_wins	["--version", "--help"]	-	usage	toon 0.2.4
+usage_help_before_version	["--help", "--version"]	-	usage	help text
+usage_cluster_hV	["-hV"]	-	usage	help text
+usage_cluster_Vh	["-Vh"]	-	usage	version
+usage_bad_value_beats_conflict	["-e", "-d", "--indent", "99"]	cases/inputs/hand/usage_bad_value_beats_conflict.txt	usage	invalid value 99
+usage_unknown_long_beats_conflict	["-e", "-d", "--bogus"]	cases/inputs/hand/usage_unknown_long_beats_conflict.txt	usage	Usage: toon --encode --decode [INPUT]
+usage_unknown_long_first	["--bogus", "-e", "-d"]	cases/inputs/hand/usage_unknown_long_first.txt	usage	fixed usage line
+usage_conflict_beaten_by_help	["-e", "-d", "--help"]	-	usage	help text, exit 0
+usage_unknown_long_swallows_bad_value	["--indent", "99", "--bogus"]	-	usage	unknown --bogus; Usage: toon --indent <INDENT> [INPUT]
+usage_unknown_short_swallows_bad_value	["--indent", "99", "-x"]	-	usage	unknown -x
+usage_extra_positional_swallows_bad_value	["a.json", "--indent", "99", "b.json"]	-	usage	unexpected b.json
+usage_bad_value_before_extra_positional	["--indent", "99", "a.json", "b.json"]	-	usage	invalid value 99
+usage_missing_value_swallowed	["--indent", "--bogus"]	-	usage	unknown --bogus, fixed usage line
+usage_missing_value_before_flag	["--indent", "--encode"]	-	usage	a value is required for --indent
+usage_missing_value_before_double_dash	["--indent", "--", "5"]	-	usage	a value is required for --indent
+usage_missing_value_after_flag	["-e", "-o"]	-	usage	a value is required for --output
+usage_twice_beats_bad_value	["--indent", "2", "--indent", "99"]	-	usage	multiple times
+usage_missing_beats_twice	["--indent", "2", "--indent"]	-	usage	a value is required
+usage_attached_bad_value_first	["--indent=99", "--indent=2"]	-	usage	invalid value 99
+usage_attached_twice	["--indent=2", "--indent=99"]	-	usage	multiple times
+usage_twice_swallowed_removes	["--indent", "2", "-e", "--stats", "--indent", "4", "--bogus"]	-	usage	Usage: toon --encode --stats [INPUT]
+usage_empty_input_beats_help	["", "--help"]	-	usage	a value is required for [INPUT]
+usage_input_then_help	["a.json", "--help"]	-	usage	help text
+usage_unknown_long_after_input	["a.json", "--bogus"]	-	usage	Usage: toon <INPUT>
+usage_conflict_with_input	["-e", "-d", "a.json"]	-	usage	Usage: toon --encode <INPUT>
+usage_conflict_usage_many	["-d", "--stats", "-e", "--indent", "4", "-o", "x.out", "a.json"]	-	usage	Usage: toon --decode --stats --indent <INDENT> --output <FILE> <INPUT>
+usage_conflict_stats_first	["--stats", "-d", "-e", "a.json"]	-	usage	Usage: toon --stats --decode <INPUT>
+usage_flag_with_value	["--encode=1"]	-	usage	Usage: toon --encode [INPUT]
+usage_help_with_value	["--help=x"]	-	usage	Usage: toon --help [INPUT]
+usage_flag_with_value_after_commit	["-e", "--stats=yes"]	-	usage	group usage line G
+usage_flag_with_value_after_attached	["--indent=4", "--stats=yes"]	-	usage	group usage line G
+usage_flag_with_value_after_pending	["--indent", "4", "--stats=yes"]	-	usage	Usage: toon --stats [INPUT]
+usage_cluster_conflict	["-ed"]	-	usage	conflict
+usage_cluster_unknown_after_flag	["-ex"]	-	usage	unknown -x
+usage_cluster_digit	["-e5"]	-	usage	unknown -5
+usage_cluster_equals	["-e=x"]	-	usage	unknown -=
+usage_negative_number_word	["--indent", "-1"]	-	usage	unknown -1
+usage_negative_cluster_first_char	["--indent", "-129"]	-	usage	unknown -1
+usage_output_value_flaglike	["-o", "-x"]	-	usage	unknown -x
+usage_output_value_longlike	["--output", "--weird"]	-	usage	unknown --weird, fixed usage line
+usage_unknown_long_with_value	["--bogus=1"]	-	usage	reports --bogus
+usage_unknown_long_empty_name	["--=x"]	-	usage	reports --
+usage_unknown_triple_dash	["---x"]	-	usage	reports ---x
+usage_unknown_long_uppercase	["--HELP"]	-	usage	no similar name
+usage_unknown_short_uppercase	["-E"]	-	usage	unknown -E
+usage_double_dash_help_is_path	["--", "--help"]	-	usage	Failed to read file '--help', exit 1
+usage_double_dash_extra	["--", "a", "b"]	-	usage	unexpected b, no tip
+usage_double_dash_extra_flaglike	["--", "a", "--bogus"]	-	usage	unexpected --bogus, no tip
+usage_extra_positional_dash	["a", "-"]	-	usage	unexpected -
+usage_three_positionals	["a", "b", "c"]	-	usage	unexpected b
+usage_value_then_positional	["--indent", "4", "5"]	-	usage	Failed to read file '5', exit 1
+usage_word_help_is_a_path	["help"]	-	usage	Failed to read file 'help', exit 1
+usage_encode_short_and_long	["-e", "--encode"]	-	usage	multiple times
+usage_output_twice	["-o", "a", "-o", "b"]	-	usage	multiple times --output <FILE>
+usage_stats_twice	["--stats", "--stats"]	-	usage	multiple times --stats
+usage_empty_output	["-o", ""]	-	usage	a value is required for --output <FILE>
+usage_empty_output_equals	["--output="]	-	usage	same
+usage_empty_output_short_equals	["-o="]	-	usage	same
+usage_empty_key_folding	["--key-folding", ""]	-	usage	value required + possible values line
+usage_empty_flatten_depth	["--flatten-depth", ""]	-	usage	cannot parse integer from empty string
+usage_indent_i64_max	["--indent", "9223372036854775807"]	-	usage	9223372036854775807 is not in 0..=16
+usage_indent_i64_overflow	["--indent", "9223372036854775808"]	-	usage	number too large to fit in target type
+usage_indent_i64_underflow	["--indent=-9223372036854775809"]	-	usage	number too small to fit in target type
+usage_indent_canonical_echo	["--indent", "+017"]	-	usage	17 is not in 0..=16, value echoed as +017
+usage_indent_minus_zero	["--encode", "--indent=-0"]	cases/inputs/hand/usage_indent_minus_zero.txt	usage	accepted as 0: a:\nb: 1
+usage_indent_space	["--indent", " 4"]	-	usage	invalid digit found in string
+usage_indent_arabic_digit	["--indent", "١"]	-	usage	invalid digit found in string
+usage_flatten_depth_plus	["--encode", "--key-folding", "safe", "--flatten-depth", "+2"]	cases/inputs/hand/usage_flatten_depth_plus.txt	usage	accepted: a.b: 1
+usage_delimiter_upper	["--delimiter", "TAB"]	-	usage	invalid delimiter
+usage_delimiter_backslash_pipe	["--delimiter", "\\|"]	-	usage	invalid delimiter
+usage_delimiter_newline	["--delimiter", "a\nb"]	-	usage	word echoed raw with its LF
+usage_ignored_flag_validated_decode	["-d", "--delimiter", "x"]	cases/inputs/hand/usage_ignored_flag_validated_decode.txt	usage	exit 2
+usage_ignored_flag_validated_encode	["-e", "--expand-paths", "maybe"]	cases/inputs/hand/usage_ignored_flag_validated_encode.txt	usage	exit 2
+usage_enum_similar_case	["--key-folding", "Safe"]	-	usage	tip safe
+usage_enum_similar_prefix	["--key-folding", "saf"]	-	usage	tip safe
+usage_enum_similar_off	["--key-folding", "of"]	-	usage	tip off
+usage_enum_not_similar	["--key-folding", "on"]	-	usage	no tip
+usage_enum_similar_picks_best	["--key-folding", "sofa"]	-	usage	tip off
+usage_enum_similar_tie	["--key-folding", "ofae"]	-	usage	tip safe (later candidate wins)
+usage_enum_similar_boundary_30	["--expand-paths", "offxxxxxxxxxxxxxxxxxxxxxxxxxxx"]	-	usage	tip off (exactly 7/10)
+usage_enum_similar_boundary_31	["--expand-paths", "offxxxxxxxxxxxxxxxxxxxxxxxxxxxx"]	-	usage	no tip
+usage_similar_arg	["--encod"]	-	usage	tip --encode; Usage: toon --encode [INPUT]
+usage_similar_arg_help	["--e"]	-	usage	tip --help; Usage: toon --help [INPUT]
+usage_similar_arg_nope	["--nope"]	-	usage	tip --encode
+usage_similar_arg_tie	["--d"]	-	usage	tip --indent (later candidate wins over decode)
+usage_similar_arg_after_commit	["--stats", "-e", "plain", "--nope"]	-	usage	Usage: toon --stats --encode <INPUT>
+flag_cluster_eo	["-eo", "/dev/stdout"]	cases/inputs/hand/flag_cluster_eo.txt	flagform	
+flag_cluster_eo_attached	["-eo/dev/stdout"]	cases/inputs/hand/flag_cluster_eo_attached.txt	flagform	
+flag_output_short_equals	["-o=/dev/stdout"]	cases/inputs/hand/flag_output_short_equals.txt	flagform	one leading = is dropped
+flag_cluster_do	["-do", "/dev/stdout"]	cases/inputs/hand/flag_cluster_do.txt	flagform	Decoded line
+flag_double_dash_only	["--"]	cases/inputs/hand/flag_double_dash_only.txt	flagform	stdin, encode
+flag_double_dash_stdin	["--", "-"]	cases/inputs/hand/flag_double_dash_stdin.txt	flagform	stdin, encode
+flag_output_with_dash_input	["-o", "/dev/stdout", "-"]	cases/inputs/hand/flag_output_with_dash_input.txt	flagform	label stdin
+flag_output_dev_null	["-e", "-o", "/dev/null"]	cases/inputs/hand/flag_output_dev_null.txt	flagform	stdout empty, success line
+flag_output_dev_stderr	["-e", "-o", "/dev/stderr"]	cases/inputs/hand/flag_output_dev_stderr.txt	flagform	TOON then success line on stderr
+flag_indent_plus_nested	["--encode", "--indent", "+4"]	cases/inputs/hand/flag_indent_plus_nested.txt	flagform	4 spaces visible
+flag_decode_indent_0	["-d", "--indent", "0"]	cases/inputs/hand/flag_decode_indent_0.txt	flagform	compact JSON
+flag_decode_indent_4	["-d", "--indent", "4"]	cases/inputs/hand/flag_decode_indent_4.txt	flagform	
+flag_all_encode_only_on_decode	["-d", "--key-folding", "safe", "--flatten-depth", "1", "--delimiter", "pipe", "--stats"]	cases/inputs/hand/flag_all_encode_only_on_decode.txt	flagform	all ignored
+flag_all_decode_only_on_encode	["-e", "--no-strict", "--expand-paths", "safe"]	cases/inputs/hand/flag_all_decode_only_on_encode.txt	flagform	all ignored
+auto_mixed_case_json	["cases/inputs/hand/files/mixed.jSoN"]	-	autodetect	
+auto_toon_json	["cases/inputs/hand/files/x.toon.json"]	-	autodetect	last dot wins: encode
+auto_trailing_dot	["cases/inputs/hand/files/trailing."]	-	autodetect	empty extension: encode
+auto_dotfile_toon	["cases/inputs/hand/files/.toon"]	-	autodetect	no extension: encode, JSON error
+auto_hidden_toon	["cases/inputs/hand/files/.hidden.toon"]	-	autodetect	decode
+auto_double_dot_toon	["cases/inputs/hand/files/..toon"]	-	autodetect	decode
+auto_ext_trailing_space	["cases/inputs/hand/files/space.toon "]	-	autodetect	encode, JSON error
+auto_dir_with_toon_ext	["cases/inputs/hand/files/dir.toon/inner"]	-	autodetect	encode, JSON error
+auto_fullwidth_ext	["cases/inputs/hand/files/fw.ｔｏｏｎ"]	-	autodetect	encode, JSON error
+auto_empty_json_file	["cases/inputs/hand/files/empty.json"]	-	autodetect	EOF while parsing a value at line 1 column 0
+auto_empty_toon_file	["cases/inputs/hand/files/empty.toon"]	-	autodetect	{}
+auto_dev_stdin_path	["/dev/stdin"]	cases/inputs/hand/auto_dev_stdin_path.txt	autodetect	a path, no extension: encode
+stats_tie_to_even_down	["--encode", "--stats"]	cases/inputs/hand/stats_tie_to_even_down.txt	stats	16 -> 15: 6.25 prints -6.2%
+stats_tie_to_even_up	["--encode", "--stats"]	cases/inputs/hand/stats_tie_to_even_up.txt	stats	16 -> 13: 18.75 prints -18.8%
+stats_f64_below_tie	["--encode", "--stats"]	cases/inputs/hand/stats_f64_below_tie.txt	stats	80 -> 57: prints -28.7%
+stats_f64_above_tie	["--encode", "--stats"]	cases/inputs/hand/stats_f64_above_tie.txt	stats	80 -> 31: prints -61.3%
+stats_percent_100	["--encode", "--stats"]	cases/inputs/hand/stats_percent_100.txt	stats	4000 -> 2: prints -100.0%
+stats_root_string	["--encode", "--stats"]	cases/inputs/hand/stats_root_string.txt	stats	2 -> 1: -50.0%
+stats_root_null	["--encode", "--stats"]	cases/inputs/hand/stats_root_null.txt	stats	1 -> 1
+stats_root_empty_array	["--encode", "--stats"]	cases/inputs/hand/stats_root_empty_array.txt	stats	1 -> 1
+stats_toon_larger	["--encode", "--stats"]	cases/inputs/hand/stats_toon_larger.txt	stats	5 -> 6, no Saved line
+stats_pretty_json_words	["--encode", "--stats"]	cases/inputs/hand/stats_pretty_json_words.txt	stats	17 -> 6: -64.7%
+stats_leading_trailing_ws_json	["--encode", "--stats"]	cases/inputs/hand/stats_leading_trailing_ws_json.txt	stats	3 -> 2: -33.3%
+stats_supplementary_chars	["--encode", "--stats"]	cases/inputs/hand/stats_supplementary_chars.txt	stats	7 -> 6: scalar values, not bytes
+stats_ws_each	["--encode", "--stats"]	cases/inputs/hand/stats_ws_each.txt	stats	21 -> 24: every White_Space code point once
+stats_ws_lookalikes_a	["--encode", "--stats"]	cases/inputs/hand/stats_ws_lookalikes_a.txt	stats	8 -> 4; c is a multiple of 4 in both texts
+stats_ws_lookalikes_b	["--encode", "--stats"]	cases/inputs/hand/stats_ws_lookalikes_b.txt	stats	8 -> 4
+stats_json_error	["--encode", "--stats"]	cases/inputs/hand/stats_json_error.txt	stats	only the JSON error
+stats_output_bad_dir	["--encode", "--stats", "-o", "cases/inputs/hand/no-such-dir/out.toon"]	cases/inputs/hand/stats_output_bad_dir.txt	stats	only the create error
+stats_output_dev_null	["--encode", "--stats", "-o", "/dev/null"]	cases/inputs/hand/stats_output_dev_null.txt	stats	1 -> 2, then success line
+io_output_is_dir	["--encode", "-o", "cases/inputs/hand/files"]	cases/inputs/hand/io_output_is_dir.txt	usage	Is a directory (os error 21)
+io_input_trailing_slash	["cases/inputs/hand/files/plain.json/"]	-	usage	Not a directory (os error 20)
+io_utf8_error_beats_json_error	["--encode"]	cases/inputs/hand/io_utf8_error_beats_json_error.txt	json-error	UTF-8 message, not the JSON one
+io_json_error_beats_bad_output	["--encode", "-o", "cases/inputs/hand/no-such-dir/out.toon"]	cases/inputs/hand/io_json_error_beats_bad_output.txt	json-error	JSON message, not the create one
+io_bom_json_file	["cases/inputs/hand/files/bom.json"]	-	json-error	expected value at line 1 column 1
+io_output_dev_full_8192	["-e", "-o", "/dev/full"]	cases/inputs/hand/io_output_dev_full_8192.txt	usage	LINUX: exit 0 and success line (S10.3)
+io_output_dev_full_8193	["-e", "-o", "/dev/full"]	cases/inputs/hand/io_output_dev_full_8193.txt	usage	LINUX: Failed to write to file '/dev/full': No space left on device (os error 28)
+io_output_dev_full_stats	["-e", "--stats", "-o", "/dev/full"]	cases/inputs/hand/io_output_dev_full_stats.txt	usage	LINUX: write error even for 5 bytes
+jsonerr_eof_after_comma_arr	["--encode"]	cases/inputs/hand/jsonerr_eof_after_comma_arr.json	json-error	EOF after a comma is 'a value', not 'a list'
+jsonerr_eof_after_comma_obj	["--encode"]	cases/inputs/hand/jsonerr_eof_after_comma_obj.json	json-error	EOF after a comma in an object; column counts bytes after the last LF
+jsonerr_eof_in_array_newline	["--encode"]	cases/inputs/hand/jsonerr_eof_in_array_newline.json	json-error	EOF position after a trailing LF is column 0 of the next line
+jsonerr_exp_sign_end	["--encode"]	cases/inputs/hand/jsonerr_exp_sign_end.json	json-error	EOF after an exponent sign
+jsonerr_eof_after_backslash	["--encode"]	cases/inputs/hand/jsonerr_eof_after_backslash.json	json-error	EOF right after a backslash
+jsonerr_eof_after_high_surrogate	["--encode"]	cases/inputs/hand/jsonerr_eof_after_high_surrogate.json	json-error	EOF where the low-surrogate escape must start
+jsonerr_eof_after_high_surrogate_backslash	["--encode"]	cases/inputs/hand/jsonerr_eof_after_high_surrogate_backslash.json	json-error	EOF after the backslash of the second escape
+jsonerr_ident_newline	["--encode"]	cases/inputs/hand/jsonerr_ident_newline.json	json-error	the mismatching byte is LF: line 2 column 0 (contrast jsonerr_bad_true)
+jsonerr_ident_multibyte	["--encode"]	cases/inputs/hand/jsonerr_ident_multibyte.json	json-error	column lands inside a multi-byte character
+jsonerr_ident_then_more	["--encode"]	cases/inputs/hand/jsonerr_ident_then_more.json	json-error	a complete literal followed by a letter is 'trailing characters'
+jsonerr_short_hex_newline	["--encode"]	cases/inputs/hand/jsonerr_short_hex_newline.json	json-error	four bytes exist after \u (they span the quote and the LF): invalid escape at line 2 column 0 (contrast jsonerr_short_hex)
+jsonerr_escape_newline	["--encode"]	cases/inputs/hand/jsonerr_escape_newline.json	json-error	the escape character is LF
+jsonerr_escape_multibyte	["--encode"]	cases/inputs/hand/jsonerr_escape_multibyte.json	json-error	the escape character is the first byte of a multi-byte character
+jsonerr_escape_upper_u	["--encode"]	cases/inputs/hand/jsonerr_escape_upper_u.json	json-error	escape letters are case-sensitive
+jsonerr_hex_multibyte	["--encode"]	cases/inputs/hand/jsonerr_hex_multibyte.json	json-error	the four bytes after \u are taken blindly
+jsonerr_dot_nondigit	["--encode"]	cases/inputs/hand/jsonerr_dot_nondigit.json	json-error	a fraction needs a digit: invalid number at the offending byte
+jsonerr_dot_newline	["--encode"]	cases/inputs/hand/jsonerr_dot_newline.json	json-error	the offending byte is LF (contrast jsonerr_dot_end)
+jsonerr_exp_nondigit	["--encode"]	cases/inputs/hand/jsonerr_exp_nondigit.json	json-error	an exponent needs a digit
+jsonerr_exp_double_sign	["--encode"]	cases/inputs/hand/jsonerr_exp_double_sign.json	json-error	only one sign
+jsonerr_minus_newline	["--encode"]	cases/inputs/hand/jsonerr_minus_newline.json	json-error	minus followed by LF
+jsonerr_neg_leading_zero	["--encode"]	cases/inputs/hand/jsonerr_neg_leading_zero.json	json-error	leading zero after a minus
+jsonerr_minus_infinity	["--encode"]	cases/inputs/hand/jsonerr_minus_infinity.json	json-error	a minus commits to a number
+jsonerr_number_then_letter	["--encode"]	cases/inputs/hand/jsonerr_number_then_letter.json	json-error	a number ends at the first byte that cannot continue it
+jsonerr_hex_number	["--encode"]	cases/inputs/hand/jsonerr_hex_number.json	json-error	trailing characters after 0
+jsonerr_out_of_range_long_int	["--encode"]	cases/inputs/hand/jsonerr_out_of_range_long_int.json	json-error	309 integer digits overflow; column is the end of the digits
+jsonerr_out_of_range_then_more	["--encode"]	cases/inputs/hand/jsonerr_out_of_range_then_more.json	json-error	position is the end of the number token
+jsonerr_raw_nul_in_string	["--encode"]	cases/inputs/hand/jsonerr_raw_nul_in_string.json	json-error	U+0000 raw
+jsonerr_raw_us_in_string	["--encode"]	cases/inputs/hand/jsonerr_raw_us_in_string.json	json-error	U+001F raw is the last rejected byte
+jsonerr_raw_cr_in_string	["--encode"]	cases/inputs/hand/jsonerr_raw_cr_in_string.json	json-error	CR raw: rejected, and CR does not start a new line for positions
+jsonerr_key_not_string_after_comma	["--encode"]	cases/inputs/hand/jsonerr_key_not_string_after_comma.json	json-error	second key position
+jsonerr_obj_comma_then_bracket	["--encode"]	cases/inputs/hand/jsonerr_obj_comma_then_bracket.json	json-error	after a comma only a quote, a closing brace or EOF have their own outcome
+jsonerr_obj_leading_comma	["--encode"]	cases/inputs/hand/jsonerr_obj_leading_comma.json	json-error	first key position
+jsonerr_arr_leading_comma	["--encode"]	cases/inputs/hand/jsonerr_arr_leading_comma.json	json-error	first element position
+jsonerr_arr_double_comma	["--encode"]	cases/inputs/hand/jsonerr_arr_double_comma.json	json-error	
+jsonerr_arr_comma_then_brace	["--encode"]	cases/inputs/hand/jsonerr_arr_comma_then_brace.json	json-error	
+jsonerr_high_then_escape	["--encode"]	cases/inputs/hand/jsonerr_high_then_escape.json	json-error	backslash then a byte other than u
+jsonerr_high_then_newline	["--encode"]	cases/inputs/hand/jsonerr_high_then_newline.json	json-error	the byte after the high surrogate is LF
+jsonerr_high_then_bad_hex	["--encode"]	cases/inputs/hand/jsonerr_high_then_bad_hex.json	json-error	second escape has bad hex digits
+jsonerr_high_then_high	["--encode"]	cases/inputs/hand/jsonerr_high_then_high.json	json-error	
+jsonerr_trailing_comma_newline	["--encode"]	cases/inputs/hand/jsonerr_trailing_comma_newline.json	json-error	position of the closing bracket on the next line
+jsonerr_trailing_second_line	["--encode"]	cases/inputs/hand/jsonerr_trailing_second_line.json	json-error	
+jsonerr_trailing_close	["--encode"]	cases/inputs/hand/jsonerr_trailing_close.json	json-error	
+jsonerr_trailing_nul	["--encode"]	cases/inputs/hand/jsonerr_trailing_nul.json	json-error	a real NUL byte is not end of input
+jsonerr_vt_ws	["--encode"]	cases/inputs/hand/jsonerr_vt_ws.json	json-error	VT is not whitespace
+jsonerr_ls_ws	["--encode"]	cases/inputs/hand/jsonerr_ls_ws.json	json-error	U+2028 is not whitespace
+jsonerr_cr_not_newline	["--encode"]	cases/inputs/hand/jsonerr_cr_not_newline.json	json-error	CR counts as a column byte
+jsonerr_colon_multibyte	["--encode"]	cases/inputs/hand/jsonerr_colon_multibyte.json	json-error	
+jsonerr_deep_mixed_128	["--encode"]	cases/inputs/hand/jsonerr_deep_mixed_128.json	json-error	arrays and objects share one depth counter
+jsonerr_deep_128_second_line	["--encode"]	cases/inputs/hand/jsonerr_deep_128_second_line.json	json-error	position of the 128th opening bracket
+jsonerr_deep_sibling_127	["--encode"]	cases/inputs/hand/jsonerr_deep_sibling_127.json	json-error	depth is given back when a container closes
+jsonerr_error_before_limit	["--encode"]	cases/inputs/hand/jsonerr_error_before_limit.json	json-error	an error at depth 127 is reported normally
+jsonerr_utf8_after_syntax_error	["--encode"]	cases/inputs/hand/jsonerr_utf8_after_syntax_error.json	json-error	the UTF-8 check covers the whole input before any JSON parsing
+jsonerr_utf8_surrogate	["--encode"]	cases/inputs/hand/jsonerr_utf8_surrogate.json	json-error	a UTF-8-encoded surrogate is invalid UTF-8
+jsonerr_utf8_above_max	["--encode"]	cases/inputs/hand/jsonerr_utf8_above_max.json	json-error	above U+10FFFF
+enc_deep_arrays_127	["--encode"]	cases/inputs/hand/enc_deep_arrays_127.json	enc-string	deepest accepted nesting
+enc_deep_objects_127	["--encode"]	cases/inputs/hand/enc_deep_objects_127.json	enc-string	deepest accepted nesting, objects
+enc_deep_siblings_126	["--encode"]	cases/inputs/hand/enc_deep_siblings_126.json	enc-string	two siblings each reaching depth 127
+encstr_escapes_in_all	["--encode"]	cases/inputs/hand/encstr_escapes_in_all.json	enc-string	every escape, both hex cases, surrogate-pair extremes
+encstr_raw_del_in	["--encode"]	cases/inputs/hand/encstr_raw_del_in.json	enc-string	raw DEL, C1 and U+2028 are accepted inside strings
+encstr_duplicate_keys_escaped	["--encode"]	cases/inputs/hand/encstr_duplicate_keys_escaped.json	enc-string	keys are compared after unescaping
+encstr_duplicate_keys_replace_container	["--encode"]	cases/inputs/hand/encstr_duplicate_keys_replace_container.json	enc-string	a duplicate replaces the whole value, no merging
+encstr_key_order	["--encode"]	cases/inputs/hand/encstr_key_order.json	enc-string	input order, no sorting
+encstr_magic_keys	["--encode"]	cases/inputs/hand/encstr_magic_keys.json	enc-string	no special keys in the pinned feature set
+encstr_ws_everywhere	["--encode"]	cases/inputs/hand/encstr_ws_everywhere.json	enc-string	all four whitespace bytes in every gap
+jsonout_compact_shapes	["--decode", "--indent", "0"]	cases/inputs/hand/jsonout_compact_shapes.toon	json-out	compact form, streaming writer
+jsonout_compact_shapes_expand	["--decode", "--indent", "0", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_compact_shapes_expand.toon	json-out	compact form, second writer
+jsonout_compact_nested_expand	["--decode", "--indent", "0", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_compact_nested_expand.toon	json-out	nested containers in compact form
+jsonout_root_array_compact_ok	["--decode", "--indent", "0"]	cases/inputs/hand/jsonout_root_array_compact_ok.toon	json-out	root array, compact, streaming writer
+jsonout_root_array_compact_expand	["--decode", "--indent", "0", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_root_array_compact_expand.toon	json-out	root array, compact, second writer
+jsonout_root_string_expand	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_root_string_expand.toon	json-out	root primitive through the second writer
+jsonout_root_number_expand	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_root_number_expand.toon	json-out	root number through the second writer
+jsonout_root_empty_doc_expand	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_root_empty_doc_expand.toon	json-out	empty document through the second writer
+jsonout_root_empty_array_expand	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_root_empty_array_expand.toon	json-out	root empty array through the second writer
+jsonout_indent_1_ok	["--decode", "--indent", "1"]	cases/inputs/hand/jsonout_indent_1_ok.toon	json-out	the JOUT document re-indented with a 1-space unit
+jsonout_expand_indent_1_ok	["--decode", "--indent", "1", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_expand_indent_1_ok.toon	json-out	same, second writer
+jsonout_indent_4_ok	["--decode", "--indent", "4"]	cases/inputs/hand/jsonout_indent_4_ok.toon	json-out	the JOUT document re-indented with a 4-space unit
+jsonout_expand_indent_4_ok	["--decode", "--indent", "4", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_expand_indent_4_ok.toon	json-out	same, second writer
+jsonout_empty_in_array	["--decode"]	cases/inputs/hand/jsonout_empty_in_array.toon	json-out	empty object and empty array as array elements
+jsonout_empty_in_array_expand	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_empty_in_array_expand.toon	json-out	same, second writer
+jsonout_escape_matrix	["--decode"]	cases/inputs/hand/jsonout_escape_matrix.toon	json-out	streaming writer: every escape class in values
+jsonout_escape_matrix_expand	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_escape_matrix_expand.toon	json-out	second writer: every escape class in values
+jsonout_escape_keys	["--decode"]	cases/inputs/hand/jsonout_escape_keys.toon	json-out	streaming writer: keys are escaped like values
+jsonout_escape_keys_expand	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_escape_keys_expand.toon	json-out	second writer: keys are escaped like values
+jsonout_deep_200	["--decode"]	cases/inputs/hand/jsonout_deep_200.toon	json-out	writer A has no depth limit: 201 nested objects are printed (and cannot be read back by --encode)
+encnum_mixed_digits_ok	["--encode"]	cases/inputs/hand/encnum_mixed_digits_ok.json	enc-number	OQ-002: the literals masked by the error in encnum_mixed_digits
+encnum_max_finite_edge_ok	["--encode"]	cases/inputs/hand/encnum_max_finite_edge_ok.json	enc-number	accepted spellings of the largest finite value
+encnum_max_finite_edge_err	["--encode"]	cases/inputs/hand/encnum_max_finite_edge_err.json	enc-number	same value, rejected: F0 x P(290) overflows
+encnum_tie_up_1	["--encode"]	cases/inputs/hand/encnum_tie_up_1.json	enc-number	Display tie -> up
+encnum_tie_up_2	["--encode"]	cases/inputs/hand/encnum_tie_up_2.json	enc-number	Display tie -> up
+decfmt_tie_even_1	["--decode", "--indent", "0"]	cases/inputs/hand/decfmt_tie_even_1.toon	dec-number	zmij tie -> even
+decfmt_tie_even_2	["--decode", "--indent", "0"]	cases/inputs/hand/decfmt_tie_even_2.toon	dec-number	zmij tie -> even
+encnum_display_ties	["--encode"]	cases/inputs/hand/encnum_display_ties.json	enc-number	tie -> up; near-ties -> nearer
+decfmt_shortest_ties	["--decode"]	cases/inputs/hand/decfmt_shortest_ties.toon	dec-number	tie -> even; near-ties -> nearer
+encnum_longint_then_fraction	["--encode"]	cases/inputs/hand/encnum_longint_then_fraction.json	enc-number	fraction digit accepted after dropped integer digits
+encnum_twentieth_digit	["--encode"]	cases/inputs/hand/encnum_twentieth_digit.json	enc-number	20-digit significands below 2^64
+encnum_pow10_inexact	["--encode"]	cases/inputs/hand/encnum_pow10_inexact.json	enc-number	rounded P(k), two roundings
+encnum_two_step_division	["--encode"]	cases/inputs/hand/encnum_two_step_division.json	enc-number	T < -308
+encnum_text_changes	["--encode"]	cases/inputs/hand/encnum_text_changes.json	enc-number	zmij-printed text that the JSON reader does not reproduce
+encnum_u64_round_ties	["--encode"]	cases/inputs/hand/encnum_u64_round_ties.json	enc-number	u64 -> f64 ties to even
+encnum_exponent_forms	["--encode"]	cases/inputs/hand/encnum_exponent_forms.json	enc-number	exponent accumulator edges that are not errors
+encnum_exp_i32_edge	["--encode"]	cases/inputs/hand/encnum_exp_i32_edge.json	enc-number	no digit overflow; rejected by T > 308 at the last byte (column 17)
+encnum_exp_overflow_multiline	["--encode"]	cases/inputs/hand/encnum_exp_overflow_multiline.json	enc-number	line 3 column 14
+encnum_error_column_bytes	["--encode"]	cases/inputs/hand/encnum_error_column_bytes.json	enc-number	column counts bytes: 11
+encnum_long_integer_out_of_range	["--encode"]	cases/inputs/hand/encnum_long_integer_out_of_range.json	enc-number	310-digit integer: S = 10^19, T = 290, infinite product (S4.113)
+encnum_long_integer_308	["--encode"]	cases/inputs/hand/encnum_long_integer_308.json	enc-number	309-digit integer 1e308 is accepted
+decnum_finite_edge	["--decode"]	cases/inputs/hand/decnum_finite_edge.toon	dec-number	exact overflow and underflow thresholds of the correctly rounded reader
+decnum_exact_halfway	["--decode"]	cases/inputs/hand/decnum_exact_halfway.toon	dec-number	exact midpoints go to even; one more digit tips them
+decnum_trim_unicode	["--decode"]	cases/inputs/hand/decnum_trim_unicode.toon	dec-number	Unicode White_Space is trimmed, U+200B is not
+encstr_numeric_like_forms	["--encode"]	cases/inputs/hand/encstr_numeric_like_forms.json	enc-string	is_numeric_like grammar, early acceptance on leading zeros
+toonedge_length_forms	["--decode"]	cases/inputs/hand/toonedge_length_forms.toon	toon-edge	usize parse of [N]
+toonerr_length_u64_max	["--decode"]	cases/inputs/hand/toonerr_length_u64_max.toon	toon-error	largest parsable length hits the cap
+toonerr_length_leading_zero_over_cap	["--decode"]	cases/inputs/hand/toonerr_length_leading_zero_over_cap.toon	toon-error	message prints the parsed value, not the text
+enc_fold_list_item_first_field	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_list_item_first_field.json	enc-string	first field of a list item is never folded; the rest is
+enc_fold_list_item_dup_key	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_list_item_dup_key.json	enc-string	S10.61: sibling check ignores the first field -> duplicate key c.d
+enc_fold_list_item_rest_collision	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_list_item_rest_collision.json	enc-string	sibling check among remaining fields works
+enc_fold_root_literal_nested	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_root_literal_nested.json	enc-string	root-literal check through a path prefix
+enc_fold_nested_literal_not_root	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_nested_literal_not_root.json	enc-string	S10.62: nested dotted literals are not in the root set
+enc_fold_partial_prefix_literal	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_partial_prefix_literal.json	enc-string	prefix after a partial fold is the folded key
+enc_fold_root_literal_ignored_in_list	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_root_literal_ignored_in_list.json	enc-string	no root-literal set inside list items
+enc_fold_dotted_parent_path	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_dotted_parent_path.json	enc-string	S10.76: raw dot-join of the path
+enc_fold_literal_words	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_literal_words.json	enc-string	identifier segments: true/null/_ fold; empty, non-ASCII, digit-first do not
+enc_fold_budget_threading_5	["--encode", "--key-folding", "safe", "--flatten-depth", "5"]	cases/inputs/hand/enc_fold_budget_threading_5.json	enc-string	budget 5-2=3 passed into the remainder
+enc_fold_budget_threading_4	["--encode", "--key-folding", "safe", "--flatten-depth", "4"]	cases/inputs/hand/enc_fold_budget_threading_4.json	enc-string	budget 4-2=2, then 0
+enc_fold_budget_not_consumed	["--encode", "--key-folding", "safe", "--flatten-depth", "2"]	cases/inputs/hand/enc_fold_budget_not_consumed.json	enc-string	a non-folded parent passes the budget unchanged
+enc_fold_budget_reset_in_list	["--encode", "--key-folding", "safe", "--flatten-depth", "2"]	cases/inputs/hand/enc_fold_budget_reset_in_list.json	enc-string	S10.63: budget restarts inside list items
+enc_fold_budget_sibling	["--encode", "--key-folding", "safe", "--flatten-depth", "2"]	cases/inputs/hand/enc_fold_budget_sibling.json	enc-string	the budget creates a sibling collision
+enc_fold_unlimited_refuses	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_unlimited_refuses.json	enc-string	S10.66 pair: unlimited budget refuses the whole chain
+enc_fold_depth2_enables_fold	["--encode", "--key-folding", "safe", "--flatten-depth", "2"]	cases/inputs/hand/enc_fold_depth2_enables_fold.json	enc-string	S10.66 pair: budget 2 folds a.b
+enc_list_first_field_shapes	["--encode"]	cases/inputs/hand/enc_list_first_field_shapes.json	enc-string	every first-field shape, depth i+1 vs i+2
+enc_list_first_field_shapes_pipe_indent3	["--encode", "--delimiter", "|", "--indent", "3"]	cases/inputs/hand/enc_list_first_field_shapes_pipe_indent3.json	enc-string	same under pipe and indent 3 (S10.68)
+enc_tabular_corners	["--encode"]	cases/inputs/hand/enc_tabular_corners.json	enc-string	tabular detection corner by corner
+enc_aoa_corners	["--encode"]	cases/inputs/hand/enc_aoa_corners.json	enc-string	arrays of arrays with empties; S10.64 (h is not tabular)
+enc_tabular_quoting_comma	["--encode"]	cases/inputs/hand/enc_tabular_quoting_comma.json	enc-string	cells that need quotes, comma
+enc_tabular_quoting_pipe	["--encode", "--delimiter", "pipe"]	cases/inputs/hand/enc_tabular_quoting_pipe.json	enc-string	same, pipe
+enc_tabular_quoting_tab	["--encode", "--delimiter", "\\t"]	cases/inputs/hand/enc_tabular_quoting_tab.json	enc-string	same, tab
+enc_tabular_field_names_comma	["--encode"]	cases/inputs/hand/enc_tabular_field_names_comma.json	enc-string	field names under the key rule
+enc_tabular_field_names_pipe	["--encode", "--delimiter", "|"]	cases/inputs/hand/enc_tabular_field_names_pipe.json	enc-string	same, pipe
+enc_tabular_field_names_tab	["--encode", "--delimiter", "tab"]	cases/inputs/hand/enc_tabular_field_names_tab.json	enc-string	same, tab
+enc_empty_headers_tab	["--encode", "--delimiter", "tab"]	cases/inputs/hand/enc_empty_headers_tab.json	enc-string	[0<TAB>]: in every header position
+enc_empty_headers_pipe_folded	["--encode", "--delimiter", "|", "--key-folding", "safe"]	cases/inputs/hand/enc_empty_headers_pipe_folded.json	enc-string	[0|]: and a folded empty array e.f[0|]:
+encstr_ws_edge_sweep	["--encode"]	cases/inputs/hand/encstr_ws_edge_sweep.json	enc-string	all 25 White_Space code points at both edges (quoted) and 7 near-misses (bare)
+encstr_ws_only	["--encode"]	cases/inputs/hand/encstr_ws_only.json	enc-string	whitespace-only and control-only strings
+encstr_numeric_like	["--encode"]	cases/inputs/hand/encstr_numeric_like.json	enc-string	numeric-like pattern and the leading-zero shortcut (S10.65)
+encstr_keys_literals	["--encode"]	cases/inputs/hand/encstr_keys_literals.json	enc-string	keys that look like literals, numbers, or hold control characters
+encstr_root_delim_pipe	["--encode", "--delimiter", "pipe"]	cases/inputs/hand/encstr_root_delim_pipe.json	enc-string	the active delimiter also governs a root string
+toonerr_scan_error_beats_parse_error	["--decode"]	cases/inputs/hand/toonerr_scan_error_beats_parse_error.toon	toon-error	S2.111: line-3 indentation error wins over Missing colon on line 2
+toonedge_blank_line_with_tab_ok	["--decode"]	cases/inputs/hand/toonedge_blank_line_with_tab_ok.toon	toon-edge	S2.105: blank lines are exempt from the strict tab check
+toonedge_unicode_ws_blank	["--decode"]	cases/inputs/hand/toonedge_unicode_ws_blank.toon	toon-edge	S2.106: White_Space-only lines are blank
+toonedge_crlf_bare_dash	["--decode"]	cases/inputs/hand/toonedge_crlf_bare_dash.toon	toon-edge	S2.113: '-\r' is not a list item -> Expected 1 list array items, but got 0
+toonedge_bom_root_array	["--decode"]	cases/inputs/hand/toonedge_bom_root_array.toon	toon-edge	S2.114: BOM defeats the root-array test -> object with key U+FEFF
+toonerr_tab_delim_empty_first_cell	["--decode"]	cases/inputs/hand/toonerr_tab_delim_empty_first_cell.toon	toon-error	S10.94: leading tab cell hits the strict tab check
+toonedge_header_ignored_text	["--decode"]	cases/inputs/hand/toonedge_header_ignored_text.toon	toon-edge	S2.133: text between ] and { or : is ignored
+toonedge_header_key_with_colon	["--decode"]	cases/inputs/hand/toonedge_header_key_with_colon.toon	toon-edge	S2.134: key is everything before '[' -> {"a:":["x"]}
+toonedge_header_in_quoted_value	["--decode"]	cases/inputs/hand/toonedge_header_in_quoted_value.toon	toon-edge	S10.83: bracket inside a quoted value is taken as a header
+toonerr_cap_in_quoted_value	["--decode"]	cases/inputs/hand/toonerr_cap_in_quoted_value.toon	toon-error	S10.84: the cap fires inside a quoted value
+toonedge_length_plus_and_zero	["--decode"]	cases/inputs/hand/toonedge_length_plus_and_zero.toon	toon-edge	S2.135: '+2' and '02' are lengths, ' 2' is not
+toonedge_length_u64_overflow	["--decode"]	cases/inputs/hand/toonedge_length_u64_overflow.toon	toon-edge	S2.135: 2^64 does not parse -> plain key
+toonerr_length_u64_max_list	["--decode"]	cases/inputs/hand/toonerr_length_u64_max_list.toon	toon-error	S2.136: 2^64-1 parses -> cap message with the full number (list-header variant of toonerr_length_u64_max)
+toonerr_escape_beats_bad_length	["--decode"]	cases/inputs/hand/toonerr_escape_beats_bad_length.toon	toon-error	S2.139: key escape error before the bracket content is judged
+toonedge_inline_beats_fields	["--decode"]	cases/inputs/hand/toonedge_inline_beats_fields.toon	toon-edge	S4.210: inline values win over the fields segment
+toonedge_fields_space_only	["--decode"]	cases/inputs/hand/toonedge_fields_space_only.toon	toon-edge	S2.137: '{ }' is one field named '' -> [{"":"- 1"}]
+toonedge_root_array_trailing_ignored	["--decode"]	cases/inputs/hand/toonedge_root_array_trailing_ignored.toon	toon-edge	S4.202: lines after a root array are ignored
+toonedge_rest_dropped_after_overindent	["--decode"]	cases/inputs/hand/toonedge_rest_dropped_after_overindent.toon	toon-edge	S4.204/S10.80: everything after the over-indented line is dropped -> {"a":{"b":1.0}}
+toonlenient_leftover_rows_drop_rest	["--decode", "--no-strict"]	cases/inputs/hand/toonlenient_leftover_rows_drop_rest.toon	toon-edge	S4.217: leftover row ends the document, k is lost
+toonedge_root_vs_item_keyvalue	["--decode"]	cases/inputs/hand/toonedge_root_vs_item_keyvalue.toon	toon-edge	S4.203: root rule ignores quotes -> object
+toonedge_item_quote_hides_colon	["--decode"]	cases/inputs/hand/toonedge_item_quote_hides_colon.toon	toon-edge	S4.224: list-item rule is quote-aware -> string
+toonlenient_tab_quoted_key	["--decode", "--no-strict"]	cases/inputs/hand/toonlenient_tab_quoted_key.toon	toon-edge	S10.90: key keeps its quotes
+toonedge_list_item_two_spaces_quoted_key	["--decode"]	cases/inputs/hand/toonedge_list_item_two_spaces_quoted_key.toon	toon-edge	S10.90: strict mode, key keeps its quotes
+toonedge_nested_129_no_expand	["--decode"]	cases/inputs/hand/toonedge_nested_129_no_expand.toon	toon-edge	S2.150: no nesting limit without expansion
+toonerr_tabular_rows_too_few	["--decode"]	cases/inputs/hand/toonerr_tabular_rows_too_few.toon	toon-error	S9.110: Expected 2 tabular rows, but got 1
+toonerr_row_width_beats_bad_quote	["--decode"]	cases/inputs/hand/toonerr_row_width_beats_bad_quote.toon	toon-error	S9.144: strict width check before token parsing
+toonlenient_row_bad_quote_in_surplus_cell	["--decode", "--no-strict"]	cases/inputs/hand/toonlenient_row_bad_quote_in_surplus_cell.toon	toon-edge	S4.212: surplus cells are still parsed -> Unterminated string
+toonedge_data_row_test	["--decode"]	cases/inputs/hand/toonedge_data_row_test.toon	toon-edge	S4.214: colon before delimiter -> not a data row, accepted (and dropped)
+toonerr_data_row_delim_first	["--decode"]	cases/inputs/hand/toonerr_data_row_delim_first.toon	toon-error	S4.214: delimiter before colon -> found more
+toonerr_count_beats_blank	["--decode"]	cases/inputs/hand/toonerr_count_beats_blank.toon	toon-error	S9.145: count message before the blank-line message
+toonerr_blank_inside_multiline_item	["--decode"]	cases/inputs/hand/toonerr_blank_inside_multiline_item.toon	toon-error	S4.215: range ends at the last consumed line -> Line 3
+toonerr_extra_bare_dash_undetected	["--decode"]	cases/inputs/hand/toonerr_extra_bare_dash_undetected.toon	toon-error	S10.85: surplus bare '-' is not reported, exit 0
+toonedge_list_first_field_list_depth	["--decode"]	cases/inputs/hand/toonedge_list_first_field_list_depth.toon	toon-edge	S4.224: items of a first-field list sit at item depth + 2
+toonerr_list_first_field_list_shallow	["--decode"]	cases/inputs/hand/toonerr_list_first_field_list_shallow.toon	toon-error	S4.224/S10.86: items at + 1 -> Expected 2 list array items, but got 0
+toonerr_sibling_bare_dash	["--decode"]	cases/inputs/hand/toonerr_sibling_bare_dash.toon	toon-error	S4.225: bare '-' sibling is read as a key -> Missing colon after key
+toonedge_expand_quoted_unquoted_same_key	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_quoted_unquoted_same_key.toon	toon-edge	S3.26: both count as quoted -> conflict at key "a.b"
+toonedge_expand_quoted_unquoted_same_key_lenient	["--decode", "--expand-paths", "safe", "--no-strict"]	cases/inputs/hand/toonedge_expand_quoted_unquoted_same_key_lenient.toon	toon-edge	S3.26: -> {"a.b":2.0}
+toonerr_expand_value_error_first	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_value_error_first.toon	toon-error	S4.242: inner conflict (key x) before the conflict at a
+toonerr_decode_beats_expand	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_decode_beats_expand.toon	toon-error	S4.249: decode error on line 3 before the expansion conflict
+toonedge_expand_segments_253	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_segments_253.toon	toon-edge	S4.248: accepted
+toonerr_expand_segments_254	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_segments_254.toon	toon-error	S4.248: rejected
+toonedge_expand_nested_127	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_nested_127.toon	toon-edge	S4.248: 127 objects accepted
+toonerr_expand_nested_128	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_nested_128.toon	toon-error	S4.248: 128 objects rejected

@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""Regenerate the performance inputs of perf/EXPERIMENTS.md (deterministic, no randomness).
+
+usage: python3 perf/gen-bench-inputs.py [--check]
+Writes perf/inputs/*.json; the TOON twins used by the decode captures are made by the pinned
+original: ./oracle/toon --encode perf/inputs/<name>.json -o perf/inputs/<name>.toon
+"""
+import json
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(HERE, "inputs")
+DOCS = {
+    "ints_24000.json": json.dumps(list(range(100000, 100000 + 24000))),
+    "decimals1_9000.json": json.dumps([round(i * 3.7, 1) for i in range(9000)]),
+    "strings_7000.json": json.dumps(["user%d@example.com" % i for i in range(7000)]),
+}
+
+
+def _read_text(path):
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def main():
+    check = "--check" in sys.argv[1:]
+    drift = []
+    os.makedirs(OUT, exist_ok=True)
+    for name, text in DOCS.items():
+        path = os.path.join(OUT, name)
+        if check:
+            if not os.path.exists(path) or _read_text(path) != text:
+                drift.append(name)
+        else:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+    print(json.dumps({"inputs": len(DOCS), "drift": drift, "verdict": "OK" if not drift else ("DRIFT" if check else "WRITTEN")}))
+    return 1 if drift and check else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

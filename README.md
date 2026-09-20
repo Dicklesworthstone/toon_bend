@@ -1,0 +1,321 @@
+# toon_bend - TOON in Bend 2
+
+<div align="center">
+
+[![Bend 2](https://img.shields.io/badge/bend-2.0.16-7c3aed.svg)](https://github.com/bendlang/bend)
+[![Original](https://img.shields.io/badge/port%20of-toon__rust%200.2.4-orange.svg)](https://github.com/Dicklesworthstone/toon_rust)
+[![TOON Spec](https://img.shields.io/badge/spec-v3.0-fef3c0)](https://github.com/toon-format/spec)
+
+</div>
+
+<div align="center">
+
+**[The original: toon_rust](https://github.com/Dicklesworthstone/toon_rust)** | **[The TOON project](https://github.com/toon-format/toon)** | **[TOON Specification](https://github.com/toon-format/spec)**
+
+</div>
+
+A byte-for-byte port of the `toon` command line tool (`toon_rust` 0.2.4) to [Bend 2](https://github.com/bendlang/bend): the same stdout, the same stderr and the same exit code as the pinned original on every captured case, on every Bend executor lane, with the properties that hold for every input stated as laws and checked by Bend's proof checker.
+
+> **Credit:** `toon_rust` is a Rust port of the original [TOON TypeScript implementation](https://github.com/toon-format/toon) by the [toon-format](https://github.com/toon-format) team; the format specification is maintained at [toon-format/spec](https://github.com/toon-format/spec). This repository ports the Rust tool's observable behavior, oddities included, and changes nothing about the format.
+
+<div align="center">
+<h3>Quick Build</h3>
+
+```bash
+git clone https://github.com/bendlang/bend /tmp/bend && git -C /tmp/bend checkout --detach 15ae0c8
+export BEND_NO_TELEMETRY=1
+bun /tmp/bend/bend2/main.ts port/main.bend -o toon      # bun >= 1.4, clang >= 14
+echo '{"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}' | ./toon -- --encode
+```
+
+<p><em>Linux and macOS. No package, no installer: one Bend build.</em></p>
+</div>
+
+---
+
+## TL;DR
+
+### The Problem
+A port is only as good as the evidence that it behaves like the original. "The tests pass" says little when the tests were typed by the porter, and "it is the same algorithm" says nothing about the forty places where the original does something its own README does not mention.
+
+### The Solution
+`toon_bend` is built with the *porting-to-bend2* method: the original is pinned and RUN as an oracle (never read while implementing), its behavior is written down as a numbered specification (703 clauses), the Bend code is written from that specification, and it is judged against 1053 captured cases on four executor lanes. Two equivalences are kept apart:
+
+1. **original == spec** is *golden-tested*: `goldens/` holds what the pinned binary printed; a case passes when stdout, stderr and the exit code match byte for byte on the interpreter, the native binary at 1 and 8 threads, and the JavaScript build.
+2. **spec == fast** is *law-proved*: properties that hold for every input are laws in `port/LAWS.bend`, proved in `port/PROOF.bend` (`All terms check.`).
+
+### Why Use `toon_bend`?
+
+| Feature | Why it matters |
+| --- | --- |
+| Byte-for-byte parity, measured | stdout, stderr and the exit code match the pinned original byte for byte on 1053 captured cases; see **Status** below for the lanes and the commit each line was produced on |
+| Bug-compatible by default | decoded integers print as `1.0`, JSON number input is not correctly rounded, the two JSON writers escape differently: all reproduced, all listed for the owner in `docs/DISCREPANCIES.md` |
+| Exact numbers without an `f64` | Bend has no binary64: the port carries a software binary64 over big naturals and reproduces three different number algorithms of the original bit for bit |
+| Proved properties | 206 laws checked by Bend (`All terms check.`, unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16): what holds for every input (the first failure ends a pass, lenient mode never reports a body check, `--encode` beats every extension, no expansion step runs at depth 256, the kill-switch closes every fast path) and 171 closed instances computed by the checker itself |
+| One pure core, a thin shell | `run_pure(argv, bytes) -> (exit code, stdout, stderr)` is a value; `main.bend` is the only file with `IO` in its types |
+| No unsafe code, no dependencies | `import Base` only; 0 `@unsafe`, 0 template instances (bend 2.0.16) |
+
+---
+
+## Status
+
+Every line names its command, its lanes and its commit. Dates: 2026-09-20. Bend: 2.0.16 at `15ae0c8`. Original: `toon_rust` `f955c67` (`toon 0.2.4`).
+
+- **Golden-tested, 1053 cases:** `scripts/conform.sh` → PASS 1053/1053 on the native binary at 1 thread, at 8 threads, and on the JavaScript build, with `TOON_SPEC` unset and with `TOON_SPEC=1` (commit `3751630`). MANIFEST: 3159 hashes, captured from `./oracle/toon`; floor STABLE (the original against itself, 3 repeats).
+- **Interpreter lane:** see `docs/PORT_STATE.md` for the last complete `scripts/lanes.sh` line. A lane difference is a bug here, never a tolerance, so this README does not round the interpreter lane up.
+- **Proved:** `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.`, 206 laws, unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16.
+- **Parity board:** `scripts/parity-board.sh docs/FEATURE_PARITY.md` → 27 in-scope rows, 6 classed exclusions.
+- **Verdict:** HOLD, not SHIP. What holds it: six OPEN platform divergences need the owner's approval, and the convergence rule needs them closed (`scripts/converge.sh docs/PORT_STATE.md`). `docs/PORT_REPORT.md` has the constants.
+
+---
+
+## What is TOON?
+
+TOON (Token-Oriented Object Notation) is a human-readable serialization of JSON data that spends fewer LLM tokens: indentation instead of braces, array lengths in headers, and a CSV-like form for arrays of uniform objects.
+
+### TOON Format at a Glance
+
+```yaml
+# Primitives - just the value
+42
+hello
+
+# Objects - indented key-value pairs
+user:
+  id: 1
+  name: Alice
+
+# Arrays - count in brackets; primitives inline
+tags[3]: a,b,c
+
+# Tabular arrays - header declares fields, rows are CSV-like
+users[2]{id,name}:
+  1,Alice
+  2,Bob
+
+# Lists - items with a dash
+items[2]:
+  - 1
+  - k: v
+
+# Key folding - nested single-key objects collapse (--key-folding safe)
+config.database.host: localhost
+```
+
+---
+
+## Quick Example
+
+```bash
+# Encode JSON to TOON
+echo '{"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}' | ./toon -- --encode
+# users[2]{id,name}:
+#   1,Alice
+#   2,Bob
+
+# Decode TOON back to JSON (every decoded number is a binary64 and prints as one: 1.0)
+printf 'users[2]{id,name}:\n  1,Alice\n  2,Bob\n' | ./toon -- --decode --indent 0
+# {"users":[{"id":1.0,"name":"Alice"},{"id":2.0,"name":"Bob"}]}
+
+# File-based with auto-detection by extension
+./toon -- input.json -o output.toon
+./toon -- data.toon
+
+# Token estimates
+./toon -- input.json --stats
+```
+
+The `--` right after the program name is part of the contract: a compiled Bend binary consumes `--help`, `--threads N` and `--gpu X` itself when they come before `--` (DISC-001). Everything after `--` is the original's command line, unchanged.
+
+---
+
+## Performance
+
+No speed claim is made yet. A performance sentence here needs an interleaved, cv-gated capture against the pinned original (`scripts/incumbent-bench.sh --pin`), and the development host was shared (load about 5), so every number below is a **maintenance number**: medians of 9 runs, 1 thread, 2026-09-20, useful for choosing levers and for nothing else.
+
+| input | direction | original | port before the levers | port with the levers |
+| --- | --- | --- | --- | --- |
+| `large_tabular_1500.json` (167255 bytes, 1500 rows) | encode | 5.8 ms | 105 ms | 64 ms |
+| the same table as TOON (76989 bytes) | decode | 16.4 ms | 62 ms | 48 ms |
+| 24000 six-digit integers | encode | 6.4 ms | 489 ms | 57 ms |
+| 9000 one-decimal numbers | encode | 3.3 ms | 320 ms | 150 ms |
+| 7000 short strings | encode | 4.4 ms | 45 ms | 44 ms |
+
+Startup is the same as the original's (about 1 ms). The port is 8 to 45 times slower than the Rust original on these inputs, and that is the expected shape: Bend has no `f64`, so every number goes through big naturals, and every byte goes through a checked, allocation-per-step state machine. The three levers that are in (`perf/EXPERIMENTS.md` EXP-001 to EXP-003: integers print their own digits, short integer texts are built from a `Nat`, division by a power of ten is single-limb short division) sit behind the kill-switch `TOON_SPEC=1`, are bound to their specification twins by closed laws, and give identical bytes on the whole corpus on three lanes with the switch off and on. What is known to be slow and not yet touched is filed as beads (`br ready`).
+
+---
+
+## Design Philosophy
+
+1. **The original is an oracle, not a template.** It is pinned (`docs/PIN.toml`), built, and run; implementation reads `docs/EXISTING_Toon_STRUCTURE.md`. A gap in the specification is an open question answered by *running* the original on a new case.
+2. **Goldens are captured, never typed.** `goldens/<case>.out|.err|.exit` are what the pinned binary printed. Nobody edits them.
+3. **Bug-compatible by default.** A deliberate divergence exists only as a `DISC-` entry with a class, a measured impact and the owner's approval.
+4. **Two equivalences, never conflated.** A claim says whether it is *proved* (a law), *golden-tested* (the harness on named lanes) or *measured* (an interleaved, cv-gated capture). Nothing else is a claim.
+5. **Shapes the checker accepts are design rules.** One self-recursive `Json` type, pushdown machines with a stated measure, every input-length traversal a loop, dispatch on small class codes.
+
+---
+
+## Comparison
+
+| Tool | Runtime | Evidence of parity | Proofs | Notes |
+| --- | --- | --- | --- | --- |
+| `toon_bend` (this repo) | Bend 2: native C, JavaScript, interpreter | 1053 captured cases x 4 lanes, differential fuzzing against the oracle | laws checked by Bend | bug-compatible port of `toon_rust` 0.2.4 |
+| `toon` (`toon_rust`) | Native (Rust) | spec fixtures | none | the oracle of this port |
+| `toon` (reference, TS) | Node | canonical | none | defines the format |
+
+---
+
+## Installation
+
+There is no installer. The build needs `bun` >= 1.4 and `clang` >= 14, and the pinned Bend checkout:
+
+```bash
+git clone https://github.com/bendlang/bend /tmp/bend
+git -C /tmp/bend checkout --detach 15ae0c8           # bend 2.0.16, the pin in docs/PIN.toml
+export BEND_NO_TELEMETRY=1 BEND_CLI='bun /tmp/bend/bend2/main.ts'
+$BEND_CLI port/main.bend -o toon                      # native binary
+$BEND_CLI port/main.bend -- --version                 # or run on the interpreter
+```
+
+Rebuilding the oracle (only needed to re-capture goldens) uses the original's pinned toolchain; see `docs/PLAN_TO_PORT_Toon_TO_BEND2.md` §2.
+
+---
+
+## Quick Start
+
+```bash
+./toon -- --encode < data.json            # JSON -> TOON
+./toon -- --decode < data.toon            # TOON -> JSON
+./toon -- data.json --delimiter pipe --key-folding safe
+./toon -- data.toon --expand-paths safe --indent 4
+./toon -- --help
+```
+
+---
+
+## Command Reference
+
+```bash
+toon -- [OPTIONS] [INPUT]
+```
+
+Auto-detection:
+- `.json` -> encode
+- `.toon` -> decode
+- stdin (no INPUT, or `-`) defaults to encode unless `--decode` is given
+
+Flags (identical to the original's, every error text included):
+- `-o, --output <FILE>`
+- `-e, --encode`
+- `-d, --decode`
+- `--delimiter <,|\t|\||comma|tab|pipe>`
+- `--indent <0..16>` (also the indent unit expected in TOON input)
+- `--no-strict`
+- `--key-folding <off|safe>`
+- `--flatten-depth <N>`
+- `--expand-paths <off|safe>`
+- `--stats` (encode only)
+- `-h, --help`, `-V, --version`
+
+Exit codes: 0 success, 1 conversion or I/O error, 2 usage error.
+
+---
+
+## Configuration
+
+There is no config file and no environment variable that changes a conversion. `TOON_SPEC=1` is the port's kill-switch: it selects the literal specification twin wherever a faster twin exists; both are bound by a law and give identical bytes.
+
+---
+
+## How It Works
+
+```
+JSON bytes -> strict UTF-8 -> JSON reader (pushdown machine, serde_json-compatible errors) -> Json value
+           -> annotate (array strategy, key folding) -> emit -> TOON lines
+TOON bytes -> strict UTF-8 -> scanner (all lines first) -> decoder (pushdown machine over lines) -> Json value
+           -> JSON writer, escape table A                       (plain --decode)
+           -> path expansion -> JSON writer, escape table B     (--expand-paths safe)
+
+Numbers: text <-> exact software binary64 (sign, exponent, 53-bit significand over big naturals).
+Shell:   args, stdin/files as bytes, stdout/stderr, exit codes. It calls one pure function per step and prints.
+```
+
+### What Bend forces, and what it buys
+
+- **No mutual recursion, no mutually recursive types.** A JSON value is ONE self-recursive type whose item and entry chains are its own constructors; the encoder's `emit`, the writer and the path expansion are each a single structurally recursive def driven by a parent-computed context.
+- **Parsers are pushdown machines.** The JSON reader steps byte by byte over an explicit stack; the TOON decoder steps line by line, and each step either consumes a line or closes the innermost open construct - the measure the termination checker accepts.
+- **A `match` scrutinizes a parameter, never a computed value.** Every decision is a verdict computed by the caller and passed down; the recursion stays in one def.
+- **What it buys:** the checker proves, for every input, that the first failure ends a pass, that lenient mode never reports a body check, that `--encode` wins over every extension, that no expansion step runs at depth 256.
+
+---
+
+## Architecture
+
+```
+port/
+  main.bend     IO shell: argv, bytes in, text out, exit codes
+  cli.bend      clap-compatible argv model, help/version, similarity tips, mode detection, --stats, convert
+  text.bend     strict UTF-8, Unicode White_Space, trim, loop-based string and list tools
+  bignat.bend   big naturals over 16-bit limbs
+  f64.bend      software binary64: serde_json's float path, correctly rounded tokens, shortest digits, both printers
+  json.bend     the Json type, the JSON reader, the JSON writer with two escape tables
+  encode.bend   TOON encoder: quoting, headers, array strategy, list items, key folding
+  decode.bend   TOON decoder: scanner, tokens, header parser, line machine, safe path expansion
+  LAWS.bend     the laws (human-owned)
+  PROOF.bend    their proofs; `bend PROOF.bend` is the gate
+docs/           the plan, the pins, the specification, the architecture, the parity board, discrepancies, open questions
+cases/          generators of the conformance corpus
+goldens/        the captured outputs of the pinned original (never edited by hand)
+scripts/        the porting harness: capture, floor, conform, lanes, doctor, lints, bench
+perf/           the performance ledger, negative evidence, experiment cards
+```
+
+---
+
+## Troubleshooting
+
+1. **`--help` prints Bend's runtime help** - put `--` first: `./toon -- --help` (DISC-001).
+2. **`JSON error: Failed to parse JSON: ...`** - the input is not valid JSON; the message and its byte column are serde_json's.
+3. **`Validation error at line N: Tabs are not allowed in indentation in strict mode`** - replace leading tabs or pass `--no-strict`.
+4. **`Expected N list array items, but got M`** - the declared length must match in strict mode; also the symptom of items at the wrong depth.
+5. **Decoded numbers print as `1.0`** - that is the original's behavior (every decoded number is a binary64); it is reproduced, and listed as candidate C-1 for the owner.
+6. **`/tmp/bend` is gone** - it is ephemeral; re-clone and check out the pin (see Installation). Never `bend update` inside a session.
+
+---
+
+## Limitations
+
+- Not ported (classed exclusions, `docs/PLAN_TO_PORT_Toon_TO_BEND2.md` §3): the `async-stream` feature, the `wasm` bindings, the `EncodeReplacer` library callback, library-only behavior no CLI path reaches, shell completions and tracing, native Windows.
+- Platform divergences, all OPEN pending the owner's approval (`docs/DISCREPANCIES.md`): runtime flags before `--` (DISC-001), the literal program name `toon` in usage lines (DISC-002), an unwritable stderr (DISC-003), non-UTF-8 argv words (DISC-004), ANSI styling on a terminal (DISC-005), the text of a failed stdout write (DISC-006).
+- No GPU lane: the work is text with data-dependent structure; no bang is placed, so `gpu` is MISSING with that reason.
+
+---
+
+## FAQ
+
+**Q: Is this a new format?**
+A: No. It is the `toon` CLI of `toon_rust` 0.2.4, ported to Bend 2.
+
+**Q: Does it match the original?**
+A: On every captured case, byte for byte: see **Status**. Beyond the corpus, differential fuzzing against the original found three behaviors the specification had missed (all fixed, each now a clause and a case) and then ran clean: 13000 mutated documents, 16000 command lines, 8000 generated documents in both directions, 127838 generated numbers. Six platform divergences are recorded and wait for the owner (`docs/DISCREPANCIES.md`).
+
+**Q: Why reproduce the bugs?**
+A: Because a port that silently fixes things is a different program. Each oddity is reproduced, numbered in the specification (S10), and listed for the owner, who can accept a `DISC-` with a kill-switch.
+
+**Q: What is proved and what is tested?**
+A: Proved: the laws in `port/LAWS.bend` (they hold for every input, under the checker's assumptions). Golden-tested: everything else, on the captured cases and the named lanes. Measured: performance numbers, each with its capture.
+
+**Q: Why is there a software float?**
+A: Bend 2 has `F32` only. The original holds every number in an `f64`, reads JSON numbers with serde_json's default (not correctly rounded) path, reads TOON tokens correctly rounded, and prints with two shortest-digit algorithms that differ on ties. All of that is reproduced exactly over big naturals.
+
+---
+
+## About Contributions
+
+This repository follows the original's policy: outside contributions are not accepted. Issues and ideas are welcome.
+
+---
+
+## License
+
+The license of this repository has not been chosen yet by its owner. The original `toon_rust` is MIT licensed with an OpenAI/Anthropic rider; see its repository.

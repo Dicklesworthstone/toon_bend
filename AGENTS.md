@@ -252,7 +252,9 @@ toon_bend/
 │   ├── fixtures/spec/             # vendored TOON spec fixtures (toon-format/spec)
 │   └── inputs/                    # generated stdin bytes and input files
 ├── goldens/                       # cases.tsv (generated) + captured .out/.err/.exit + MANIFEST.txt — NEVER edit by hand
-├── perf/                          # PERF-LEDGER.md (wins), NEGATIVE-EVIDENCE.md (graveyard), EXPERIMENTS.md (cards)
+├── perf/                          # PERF-LEDGER.md (wins), NEGATIVE-EVIDENCE.md (graveyard), EXPERIMENTS.md (cards),
+│                                  # gen-bench-inputs.py + inputs/ (the deterministic inputs the cards name)
+├── .beads/                        # br issue tracker (issues.jsonl is tracked; the database is not)
 ├── scripts/                       # the porting harness (capture, floor, conform, lanes, doctor, lints, bench)
 ├── legacy/Toon -> /dp/toon_rust   # the original (gitignored): an oracle, never a template
 └── oracle/toon                    # the pinned release binary (gitignored; sha256 in docs/PIN.toml)
@@ -300,7 +302,7 @@ toon_bend/
 
 - **The original is a behavior oracle, not a template.** Implementation reads `docs/EXISTING_Toon_STRUCTURE.md`. A spec gap is an `OQ-` entry in `docs/OPEN_QUESTIONS.md`, resolved by *running* the original on a new case and capturing it, then amending the spec. Never open `legacy/` while implementing.
 - **Goldens are captured, never typed or edited.** Re-capture only when the contract changes (a new original commit, or an accepted `DISC-`), never to make a red case green. Every re-capture diffs `MANIFEST.txt`.
-- **Spec twin first.** Literal and sequential. Fast twins come only in Phase 5, each with a `{fast == spec}` law, behind the `TOON_SPEC=1` kill-switch read once in the shell.
+- **Spec twin first.** Literal and sequential. Fast twins come only in Phase 5, each with a `{fast == spec}` law, behind the `TOON_SPEC=1` kill-switch read once in the shell. Every numeric fast twin is a two-arm match on ONE gate, `F.twin.on(spec, ok)`; a new fast twin goes through that gate, gets a closed `fast == spec` law through `F.bits` (the checker cannot compare two biased exponents, nor unfold 100000-scale `Nat` literals over abstract arguments), and is compared natively against its spec twin and the original before it is kept.
 - **`port/LAWS.bend` is human-owned:** add laws, never weaken or delete one. A law the checker cannot prove is a finding about the code or the spec.
 - **Every def carries its clause tag** (`# S<n>.<m>`) on the line above it.
 - **Numbers are exact.** No `F32` anywhere near an output. The numeric plan is written before any arithmetic def.

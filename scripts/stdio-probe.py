@@ -148,6 +148,8 @@ def main():
     row("stdin is open WRITE-only, encode", "", wrong_mode(0, ["-e"]))
     row("stdout is open READ-only", "DISC-006", wrong_mode(1, ["-e"]))
     row("stderr is open READ-only, a success line to write", "DISC-003", wrong_mode(2, ["-e", "-o", os.path.join(work, "out2.toon")]))
+    row("INPUT is /dev/fd/9, which nobody opened", "", lambda cmd: run(cmd, ["-d", "/dev/fd/9"], stdin=subprocess.DEVNULL))
+    row("-o /dev/fd/3, which the caller did not open", "DISC-014", lambda cmd: run(cmd, ["-e", small, "-o", "/dev/fd/3"], stdin=subprocess.DEVNULL))
     row("stdin is a regular file at offset 11", "", offset(11, ["-d"]))
     row("stdin is a regular file at its end", "", offset(len(doc), ["-d"]))
     row("stdin offset is left alone when INPUT is a file", "", offset(11, ["-e", small]))

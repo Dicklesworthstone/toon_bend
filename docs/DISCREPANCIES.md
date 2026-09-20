@@ -28,7 +28,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: the compiled Bend binary parses `--threads N`, `--gpu on|off|<size>`, `--gpu-build` and `--help` ahead of `IO.args()` on the C lane, and the JS lane answers a bare `--help` with a one-line usage (RUNTIME-FACTS-FOR-PORTERS, "argv on the three engines"). A program cannot opt out.
 - Kill-switch: not applicable to a runtime property; the mitigation is the launcher `bin/toon`, which execs the binary with `--` before the user's argv, so users of the launcher see the original's behavior for every spelling. Round 8 (R8-4, R8-5) found two defects of the launcher itself, both repaired: reached through a symbolic link outside the checkout it looked for the binary beside the LINK (exit 127), and a `TOON_BEND_THREADS` the runtime refuses (`0`, `abc`, `2x`) made EVERY command exit 1, `--version` included; the launcher resolves links now and ignores a value that is not a positive decimal count
 - Affected cases: none (the harness passes `--` on every lane, so all 1053 goldens are compared unchanged; no wrapper, no re-capture)
-- Impact measured: 0 of 1053 cases; 4 argv spellings differ only when the binary is run without the launcher. Round 6 (non-author) adds: the runtime takes `--threads N` / `--gpu X` ANYWHERE before `--`, also after an INPUT word (`./toon a.json --threads 2`)
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written); 4 argv spellings differ only when the binary is run without the launcher. Round 6 (non-author) adds: the runtime takes `--threads N` / `--gpu X` ANYWHERE before `--`, also after an INPUT word (`./toon a.json --threads 2`)
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: the bare compiled binary keeps the Bend runtime's flags before `--`; the supported command line is the launcher `bin/toon`, which passes `--` first, so every word the user types reaches the port's argv. Nothing else may differ.
 
@@ -39,7 +39,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: `IO.args()` excludes argv[0] on every lane (`effs/args.c:7`) and Base has no other access to it
 - Kill-switch: not applicable to a runtime property; a renamed launcher is the only way to meet it, and it prints `toon`
 - Affected cases: none (every golden was captured from `./oracle/toon`, so the name is `toon` in all of them)
-- Impact measured: 0 of 1053 cases (0 of 1005 when written; re-counted after the Phase 4 re-capture)
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written) (0 of 1005 when written; re-counted after the Phase 4 re-capture)
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: `Usage:` lines name the program `toon` whatever the file is called; only the program-name token of clap's usage lines may differ from an original that was renamed.
 
@@ -50,7 +50,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: the runtime owns the standard streams; a program cannot intercept the failure
 - Kill-switch: not applicable; mitigation for a CLOSED or READ-ONLY stderr: the launcher `bin/toon` re-opens it from `/dev/null`, which is what the original's "ignore EBADF" amounts to (`scripts/stdio-probe.py -- ./bin/toon`: the closed-stderr and read-only-stderr rows are SAME; the access mode is read from `/proc/self/fdinfo`, so that half of the mitigation is Linux-only). A stderr that is open for writing and FAILS (`/dev/full`) stays as described
 - Affected cases: none expressible
-- Impact measured: 0 of 1053 cases; found and tabulated by the non-author round 6
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written); found and tabulated by the non-author round 6
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: only when stderr cannot be WRITTEN. Through `bin/toon` a closed or read-only stderr behaves like the original's; a stderr that is open for writing and fails (`/dev/full`) gives exit 1 instead of the original's abort or its normal exit code. stdout bytes never differ.
 
@@ -61,7 +61,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: Base's argv is `String`; there is no byte-level argv effect
 - Kill-switch: not applicable
 - Affected cases: none expressible
-- Impact measured: 0 of 1053 cases (0 of 1005 when written; re-counted after the Phase 4 re-capture)
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written) (0 of 1005 when written; re-counted after the Phase 4 re-capture)
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: only argv words that are not valid UTF-8 (paths and typed option values); the exit code is the original's (2 for the typed options), the text and the opened path may differ.
 
@@ -72,7 +72,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: Base has no terminal query; reading `CLICOLOR_FORCE`/`NO_COLOR` alone would reproduce only part of the rule
 - Kill-switch: not applicable
 - Affected cases: none (the harness captures through pipes)
-- Impact measured: 0 of 1053 cases (0 of 1005 when written; re-counted after the Phase 4 re-capture)
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written) (0 of 1005 when written; re-counted after the Phase 4 re-capture)
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: the port never styles its messages: on a terminal or under `CLICOLOR_FORCE` the original's ANSI sequences are absent; the text between them is identical.
 
@@ -83,18 +83,18 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: `IO.write` owns fd 1 and fail-stops inside the runtime; a program cannot intercept the failure. Writing through `File.open("/dev/stdout", …)` instead would return the errno, but re-opening fd 1 by path fails where the original succeeds (a socket, a descriptor inherited across a privilege change), which is a worse divergence than a differing text on a failing write. Writes to the `-o` file DO go through the File API and reproduce S9.15 byte for byte (golden-tested: `io_output_dev_full_*`).
 - Kill-switch: not applicable
 - Affected cases: none expressible (the harness captures stdout)
-- Impact measured: 0 of 1053 cases
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written)
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: only when stdout cannot be WRITTEN. Through `bin/toon` a closed or read-only stdout behaves like the original's; a failing write (`/dev/full`, a closed pipe reader, a non-blocking pipe that fills) ends with exit 1 like the original and prints the runtime's line instead of `Failed to write to stdout: …`; on the JavaScript build a non-blocking pipe is written completely. Writes to an `-o` file are the original's byte for byte.
 
 ### DISC-007 — the native binary hangs when stdin is CLOSED   [2026-09-20 | Platform | ACCEPTED]
 - Spec clause: S8.5, S9.2, S9.12 ("a process started without fd 0 sees an empty stdin")
 - Original behavior (run 2026-09-20): `toon -e <&-` → `JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 0`, exit 1; `toon -d <&-` → `{}`, exit 0
-- Port behavior: the JS lane matches the original. The NATIVE binary, as first registered (commit `1230a0d` and before), never returned (`timeout 10 ./toon -- -e <&-` → 124): with fd 0 free at startup, the Bend runtime's own wake-up pipe is given descriptor 0 (`/proc/<pid>/fd` shows 0, 3 and 4 on one pipe), so reading `/dev/stdin` read a pipe that nobody writes. SINCE the stdin effect (DISC-012) the read fails at once instead: `-e <&-` and `-d <&-` both print `Failed to read stdin: Resource temporarily unavailable (os error 11)` and exit 1, so `-e` has the original's exit code with another text and `-d` exits 1 where the original exits 0. Round 7 (R7-7) found a SECOND hang that is still there on the bare native binary: fd 0 AND fd 1 closed, an INPUT file, more than 64 KiB of output: descriptors 0 and 1 are both the runtime's pipe, the conversion's own stdout is written INTO it and blocks when it is full (`wchan` = `anon_pipe_write`); the original exits 0
+- Port behavior: the JS lane matches the original. The NATIVE binary, as first registered (commit `1230a0d` and before), never returned (`timeout 10 ./toon -- -e <&-` → 124): with fd 0 free at startup, the Bend runtime's own wake-up pipe is given descriptor 0 (`/proc/<pid>/fd` shows 0, 3 and 4 on one pipe), so reading `/dev/stdin` read a pipe that nobody writes. SINCE the stdin effect (DISC-012) the read fails at once instead: `-e <&-` and `-d <&-` both print `Failed to read stdin: Resource temporarily unavailable (os error 11)` and exit 1, so `-e` has the original's exit code with another text and `-d` exits 1 where the original exits 0. That holds only when NO INPUT is named (round 9, R9-2): on the bare binary `-d /dev/stdin <&-` (also `/dev/fd/0`, `/proc/self/fd/0`) still never returns (the original: `{}`, exit 0); `one.json -o /dev/stdout >&-` prints `bend: memory fault (machine stack overflow?)`, exit 1 (the original: the success line, exit 0); `one.json -o /dev/stderr 2>&-` exits 1 silently (the original: exit 0). Through the launcher and on the JavaScript build all nine such rows equal the original. (Do not test these states under this host's `timeout`: it re-opens closed standard descriptors itself.) Round 7 (R7-7) found a SECOND hang that is still there on the bare native binary: fd 0 AND fd 1 closed, an INPUT file, more than 64 KiB of output: descriptors 0 and 1 are both the runtime's pipe, the conversion's own stdout is written INTO it and blocks when it is full (`wchan` = `anon_pipe_write`); the original exits 0
 - Why: descriptor allocation happens inside the runtime before `main`; Bend has no effect that can tell whether fd 0 was open
 - Kill-switch: not applicable; mitigation: the launcher `bin/toon` re-opens closed descriptors 0, 1 and 2 from `/dev/null` before exec, which gives exactly the original's behavior (an empty input; EBADF on stdout and stderr ignored). `python3 scripts/stdio-probe.py -- ./bin/toon` reports every closed-descriptor row SAME; against the bare binary the two rows of this entry are KNOWN
 - Affected cases: none expressible (the harness requires stdin to be a regular file)
-- Impact measured: 0 of 1053 cases; found by the non-author round 6
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written); found by the non-author round 6
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: only the BARE native binary started with a standard descriptor closed; the supported command line is the launcher, where every closed-descriptor row of `scripts/stdio-probe.py` is SAME.
 
@@ -105,7 +105,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: the runtime's `File.open` passes the literal `0644` to `open(2)` (`bend2/effs/file_open.c:18` at the pin); Bend has no chmod effect
 - Kill-switch: not applicable
 - Affected cases: none (none of the 33 corpus cases that name an output path writes a regular file; S5.103's mode sentence is not golden-tested)
-- Impact measured: 0 of 1053 cases; found by the non-author round 6
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written); found by the non-author round 6
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: a NEW `-o` file gets mode 0644 before the umask instead of 0666; identical to the original under every umask that clears the group and other write bits (022 and above, the common default).
 
@@ -116,18 +116,18 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: as first written: "the runtime's reader polls; the program never sees EAGAIN". That cause was WRONG (round 7, R7-8, `strace`): the port opened the PATH `/dev/stdin`, a new open file description that does not carry the caller's `O_NONBLOCK`, and did one blocking `read` on it. The same root cause as DISC-012
 - Kill-switch: not applicable
 - Affected cases: none expressible
-- Impact measured: 0 of 1053 cases
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written)
 - Approver: not needed (a repair restores the original's behavior)
 - Resolution: RESOLVED 2026-09-20 by the stdin effect `Stdin.open` (`port/main.bend`, `port/stdin_open.c`, `port/stdin_open.js`): descriptor 0 itself is read, so the read fails with EAGAIN and the port prints the original's line, exit 1. Regression artifact: `python3 scripts/stdio-probe.py -- <port>` row "stdin is an empty pipe with O_NONBLOCK" → SAME on the native binary, through the launcher and on the JavaScript build
 
 ### DISC-010 — a TOON document nested about 20000 levels deep decodes instead of aborting   [2026-09-20 | Performance | ACCEPTED]
 - Spec clause: S2.150 (no nesting limit without expansion); candidate C-6 promoted to the register by round 6, because it IS a divergence
 - Original behavior: a Rust stack overflow, SIGABRT, with a thread id in stderr that varies per run (the JSON extractor's handover notes; 2000 levels decode). Measured by round 7 (R7-9; `--indent 1`, the default 8 MiB stack): 12000 levels (72 MB) decode, exit 0; 16000 levels (128 MB) abort, exit 134. The "about 20000" of this entry's title was a guess; the threshold is between 12000 and 16000
-- Port behavior: the decoder is an explicit-stack machine, so nothing in it depends on the nesting depth. That the port DECODES a 16000-level document has NOT been run (no case, no capture): at the measured 47 to 70 bytes of resident memory per input byte (DISC-011) such a document needs about 6 GB, which was not spent on a shared host
+- Port behavior: the decoder is an explicit-stack machine, so nothing in it depends on the nesting depth. Round 9 gave the port's half its first evidence at a smaller scale: under `ulimit -s 1024` a 3000-level document (`--indent 1`, 4.5 MB) aborts the original (SIGABRT, `thread 'main' has overflowed its stack`) and the port decodes it, exit 0, 9033014 bytes; at a 512 KB stack the original's threshold is between 400 and 800 levels, at 64 KB between 50 and 100; in 216 executions of that grid there is no cell where the original succeeds and the port does not. That the port DECODES a 16000-level document at the default stack has still NOT been run (no case, no capture): at the measured 47 to 70 bytes of resident memory per input byte (DISC-011) such a document needs about 6 GB, which was not spent on a shared host
 - Why: a limit the original has and the port does not; a signal exit with a varying message cannot be a golden
 - Kill-switch: not applicable
 - Affected cases: none (a signal exit is never a golden; the input is far above 1 MB)
-- Impact measured: 0 of 1060 cases; the original's half re-run by round 7, the port's half unverified (see above)
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written); the original's half re-run by round 7, the port's half unverified (see above)
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: TOON documents nested deeper than the original's stack allows (between 12000 and 16000 levels at the default 8 MiB stack); the original aborts there, the port has no depth limit of its own and is bounded by memory (DISC-011).
 
@@ -138,7 +138,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: the Bend runtime's heap reservation and scheduler are not the program's to configure; every value is a heap term (a byte of input is a list cell of a `U32`)
 - Kill-switch: not applicable; the JavaScript build is the lane for an address-space-limited environment
 - Affected cases: none expressible (the harness sets no limits)
-- Impact measured: 0 of 1060 cases; found by the non-author round 7
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written); found by the non-author round 7
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: the native binary needs an address-space limit above about 10 GiB, a data limit above about 34 GiB, one spare thread and six descriptors, and about 50 to 70 bytes of memory per input byte; under tighter limits use the JavaScript build. Bytes never differ.
 
@@ -149,7 +149,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: Base has no stdin effect (`bend2/effs/` at the pin has none)
 - Kill-switch: not applicable (a repair)
 - Affected cases: none expressible in `goldens/cases.tsv`; the regression artifact is a script
-- Impact measured: 0 of 1060 cases; 5 of 16 rows of `scripts/stdio-probe.py` on the binary of `1230a0d`
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written); 5 of 16 rows of `scripts/stdio-probe.py` on the binary of `1230a0d`
 - Approver: the repair needs none; the MEANS does: it is the port's one custom effect, which `AGENTS.md` had ruled out ("no custom effects") on the wrong premise that an effect exists on one lane only. Owner's decision, 2026-09-20, delegated to the author ("You decide on everything. I approve whatever you want to do."): the effect STAYS: without it a regular-file stdin at an offset gives wrong bytes with exit 0 and a socket stdin fails, and it costs no lane
 - Resolution: RESOLVED 2026-09-20: `Stdin.open` (`port/main.bend`) with a twin per lane, `port/stdin_open.c` (`dup(0)` as a Base `File`) and `port/stdin_open.js` (descriptor 0 as the `File`), so the interpreter, both native lanes and the JavaScript build read descriptor 0 itself. Regression artifacts: `python3 scripts/stdio-probe.py -- <port>` rows "stdin is a regular file at offset 11", "… at its end", "stdin offset is left alone when INPUT is a file", "stdin is a socket", "stdin is a descriptor of a file unreadable by path" → SAME on the native binary, through the launcher and on the JavaScript build; `scripts/lanes.sh` PASS on every lane after the change. Round 8 (R8-1) found the repair INCOMPLETE for one state: a descriptor 0 that is open WITHOUT read access (`0>/dev/null`, the write end of a pipe, an O_PATH descriptor; also INPUT spelled `-`): the original takes EBADF on stdin for the end of the input (`-d` prints `{}`, exit 0), the port printed `Failed to read stdin: Bad file descriptor (os error 9)`, exit 1. Repaired the same day: on standard input a read that fails with errno 9 ends the input (`read.failed` in `port/main.bend`); rows "stdin is open WRITE-only, decode" and "… encode" of the probe → SAME on the native binary and the JavaScript build
 
@@ -160,9 +160,20 @@ to change the contract. Keep the historical entry and its original evidence.
 - Why: Bend has no binary64. Every other number is a software float over big naturals: one correctly rounded division by a power of ten per JSON number, a shortest-digit generation per printed number, powers of ten of up to 1100 bits for large exponents
 - Kill-switch: not applicable (`TOON_SPEC=1` only selects the slower twins)
 - Affected cases: none fails (the harness has no time verdict below its 5 s per-case budget; `encnum_*` / `decnum_*` are small). `scripts/diff-fuzz.py scale` flags an input as too slow above 1 s AND 40 times the original; its inputs hold no non-integer numbers, by design of this entry
-- Impact measured: 0 of 1060 cases; found by the non-author round 8 (round 7 had measured the same factor without counting it)
+- Impact measured: 0 of 1065 cases (the corpus at `a725d10`; the zero has held at every corpus size since the entry was written); found by the non-author round 8 (round 7 had measured the same factor without counting it)
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED as the state of this release, with the work it names left open as beads (`toon_bend-ngs`, `toon_bend-p47`, `toon_bend-okl`). Scoped contract: bytes are identical; a number that is not an integer below 2^48 costs 45 to 300 times the original's time, linearly in the input.
+
+### DISC-014 — a descriptor PATH the caller did not open reaches a descriptor of the runtime   [2026-09-20 | Platform | ACCEPTED]
+- Spec clause: S8.5, S8.6, S9.4 (a named INPUT or `-o` path is opened as typed)
+- Original behavior (run by round 9, R9-1): `toon /dev/fd/3 </dev/null` (also `/dev/fd/4`, `/proc/self/fd/3`) with all three standard descriptors open and no descriptor 3 supplied → `Failed to read file '/dev/fd/3': No such file or directory (os error 2)`, exit 1, at once; `one.json -o /dev/fd/3` → `Failed to create file '/dev/fd/3': No such file or directory (os error 2)`, exit 1
+- Port behavior: the process HAS descriptors of those numbers, the runtime's own. Native binary and launcher: INPUT `/dev/fd/3` or `/dev/fd/4` never returns (the path opens the runtime's wake-up pipe: `/proc/<pid>/fd` shows 3, 4 and 5 on one pipe); `-o /dev/fd/3` or `/dev/fd/4` → `bend: memory fault (machine stack overflow?)`, exit 1. Descriptors 5 and above equal the original. JavaScript build: `/dev/fd/3`, `/dev/fd/4` → `Permission denied (os error 13)` instead of os error 2; `-d /dev/fd/5` never returns; `one.json -o /dev/fd/5` prints the `Encoded` success line and exits 0 (the bytes went into a descriptor of bun's); `-d /dev/fd/6` decodes a file bun holds open, exit 0. With the descriptor really SUPPLIED (`toon /dev/fd/3 3<one.json`) every program converts: the runtime's descriptors then take later numbers
+- Why: the Bend runtime (and bun) open descriptors of their own before `main`; a path under `/dev/fd` or `/proc/self/fd` names whatever holds that number. A program cannot tell its runtime's descriptors from the caller's, and refusing such paths would break the supplied-descriptor case, which works
+- Kill-switch: not applicable; the launcher does not repair it
+- Affected cases: none expressible (the harness supplies no extra descriptors and names none)
+- Impact measured: 0 of 1065 cases; found by the non-author round 9
+- Approver: the repository owner, 2026-09-20, by the delegation quoted under DISC-001 ("You decide on everything. I approve whatever you want to do."); the author's ruling follows under Resolution
+- Resolution: ACCEPTED. Scoped contract: only a path under `/dev/fd/` or `/proc/self/fd/` whose number the CALLER did not open (3 and 4 on the native binary, 3 to 6 on the JavaScript build); a descriptor the caller supplies behaves like the original's. Regression rows: `scripts/stdio-probe.py` "INPUT is /dev/fd/9, which nobody opened" (SAME) and "-o /dev/fd/3, which the caller did not open" (KNOWN)
 
 ### Bug-compatibility candidates C-1 to C-11 (not divergences: the port is bug-compatible with each; listed so the owner can decide)
 

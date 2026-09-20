@@ -7,7 +7,7 @@
 
 | field | value |
 |---|---|
-| phase | 4 parity gate (NOT converged: three non-author rounds in a row were dirty, with falling severity; round 9 is running; every DISC is ACCEPTED or RESOLVED since the owner's delegation) and 5 performance (three number levers PROVISIONAL, the key carriers ledgered); the reference port is complete and green on every lane |
+| phase | 4 parity gate (NOT converged: four non-author rounds in a row were not clean: 6, 11, 8 and 3 findings; every DISC is ACCEPTED or RESOLVED since the owner's delegation) and 5 performance (three number levers PROVISIONAL, the key carriers ledgered); the reference port is complete and green on every lane |
 | tier | T2 |
 | bend | `bend 2.0.16` (checkout `15ae0c8`, run as `bun /tmp/bend/bend2/main.ts`); drift vs the previous pin: none, same pin since Phase 0 (VERSION-DRIFT) |
 | last updated | 2026-09-20 by Claude (Claude Code session, author of phases −1 to 5; rounds 6 to 9 are non-author subagents) |
@@ -47,7 +47,7 @@ The repository owner delegated every open decision to the author: "You decide on
 
 | id | what | blocks | owner |
 |---|---|---|---|
-| rounds | T2 needs the last two rounds clean; rounds 6, 7 and 8 found 6, 11 and 8 (2 HIGH in round 7, 0 HIGH in round 8) | `converge.sh` | a fresh non-author subagent per round, after the previous round's repairs |
+| rounds | T2 needs the last two rounds clean; rounds 6 to 9 found 6, 11, 8 and 3 (2 HIGH in round 7, none since) | `converge.sh` | a fresh non-author subagent per round, after the previous round's repairs |
 | NE-001..004 | three PROVISIONAL levers and one refused capture | any WIN claim for them | author, on a quiet host; the owner for the binding question (bead `toon_bend-clf`) |
 | incumbent | cv-gated captures of ordinary inputs against the original | every speed sentence against the original | author, on a quiet host (bead `toon_bend-925`) |
 | `./-` and `docs/AGENTS.scaffold.md` | two stray files created in Phase 0/1 (a probe's `-o -` output; a needless copy) | nothing; deletion needs the owner's exact command (RULE 1) | the repository owner |
@@ -64,6 +64,7 @@ The repository owner delegated every open decision to the author: "You decide on
 | 6 | non-author hostile review (subagent): descriptor and platform states, inputs large in one dimension, a review of every claim in the documents (non-author) | 6 | 6 | no | 2026-09-20 |
 | 7 | non-author hostile review (subagent): the new key carriers, scale, numbers in both directions and under `TOON_SPEC=1`, argv and files, lane agreement (about 122000 compared executions) (non-author) | 11 | 11 | no | 2026-09-20 |
 | 8 | non-author hostile review (subagent): balanced buckets and the repeated-key map, stdin and descriptors beyond the probe, signals and resources, 40 random spec clauses, a fresh-seed floor (about 90000 compared executions) (non-author) | 8 | 8 | no | 2026-09-20 |
+| 9 | non-author hostile review (subagent): round trips through all 1632 option combinations, hand-made and mutated TOON, JSON error positions at every truncation, files and in-place behavior, every Unicode scalar value in 32 positions, a fresh-seed floor (947646 compared executions) (non-author) | 3 | 3 | no | 2026-09-20 |
 
 What each round found (every finding was resolved by RUNNING the original, then a clause, a case and a repair; "fixed" counts findings repaired OR registered as a DISC):
 
@@ -74,12 +75,13 @@ What each round found (every finding was resolved by RUNNING the original, then 
 - round 6 (report `scratchpad/review_R6/REPORT.md`): the native binary hung on a closed stdin (DISC-007, launcher); `-o` files get mode 0644 (DISC-008); quadratic time in the keys of one object (repaired: hashed key carriers, EXP-004); exit codes on unwritable standard streams (DISC-003, DISC-006); a non-blocking stdin (DISC-009); a spec error in S9.20. Its claims review is answered item by item in the commits `1230a0d` and `e3f5540` (law counts and wording, board citations, fuzzers in `scripts/`, ledgers, plan amendments).
 - round 7 (report `scratchpad/review_R7/REPORT.md`, 2 HIGH): stdin was re-opened by PATH: an inherited offset ignored (wrong bytes, exit 0) and a socket refused (DISC-012, repaired by the stdin effect; DISC-009 RESOLVED by the same repair); list buckets quadratic on keys that collide in the 16 hash bits, and a chain walk per repeated key (repaired: AA-tree buckets, a map of last values; 7 cases); the runtime's resource floor (DISC-011); a second closed-descriptor hang (DISC-007 amended, launcher); three DISC texts corrected.
 - round 8 (report `scratchpad/review_R8/REPORT.md`, 0 HIGH): EBADF on stdin must end the input (repaired); read-only stdout/stderr (DISC-003, DISC-006, launcher); the cost of non-integer numbers (DISC-013); two launcher defects (repaired); DISC wording for the JavaScript build; S1.81's cluster rule (amended, 5 cases); a limit of `js-lane.py` (documented).
+- round 9 (report `scratchpad/review_R9/REPORT.md`, 0 HIGH, 1 MEDIUM, 2 LOW; 0 differences in conversion content in 947646 compared executions): a path under `/dev/fd` whose number the caller did not open reaches a descriptor of the runtime (DISC-014, ACCEPTED); DISC-007's description of the bare binary was incomplete (completed); thirteen impact lines of the register carried an old corpus size (refreshed). Three findings is not fewer than three: the round is recorded as NOT clean. No code changed.
 
 Convergence (computed by `scripts/converge.sh docs/PORT_STATE.md`): T1 ≥ 3
 rounds and ≥ 1 clean at the end; T2 ≥ 5 and ≥ 2 consecutive clean at the end and ≥ 1 non-author round; T3
 ≥ 10 with the last two rounds clean; a clean round has < 3 new genuine
 findings and no unresolved finding from that round; a dirty or reopened
-round resets the clean streak. Every OQ is resolved or excluded; no OPEN DISC. Current: NOT_CONVERGED (the last three rounds are dirty; no DISC and no OQ is open).
+round resets the clean streak. Every OQ is resolved or excluded; no OPEN DISC. Current: NOT_CONVERGED (the last four rounds are not clean; no DISC and no OQ is open).
 
 ## Next action (one line, executable)
 

@@ -7,7 +7,7 @@
 
 | field | value |
 |---|---|
-| phase | 4 parity gate (NOT converged: three non-author rounds in a row were dirty, with falling severity; round 9 is running) and 5 performance (three number levers PROVISIONAL, the key carriers ledgered); the reference port is complete and green on every lane |
+| phase | 4 parity gate (NOT converged: three non-author rounds in a row were dirty, with falling severity; round 9 is running; every DISC is ACCEPTED or RESOLVED since the owner's delegation) and 5 performance (three number levers PROVISIONAL, the key carriers ledgered); the reference port is complete and green on every lane |
 | tier | T2 |
 | bend | `bend 2.0.16` (checkout `15ae0c8`, run as `bun /tmp/bend/bend2/main.ts`); drift vs the previous pin: none, same pin since Phase 0 (VERSION-DRIFT) |
 | last updated | 2026-09-20 by Claude (Claude Code session, author of phases −1 to 5; rounds 6 to 9 are non-author subagents) |
@@ -33,17 +33,23 @@ Notes on these lines:
 - what no case can express: `python3 scripts/stdio-probe.py -- <port>` (20 descriptor-state rows against the original) → native binary `{"rows":20,"same":10,"known":10,"new":[],"verdict":"PASS"}`; through `bin/toon` 10 SAME, 7 rows that are KNOWN on the bare binary are repaired by the launcher, 3 KNOWN (`/dev/full`: DISC-003, DISC-006), 0 NEW; JavaScript build 0 NEW. `python3 scripts/diff-fuzz.py scale --runs 16000 -- <port> --` → `{"lens": "scale", "seed": 1, "inputs": 18, "differences": 0, "too_slow": 0, "switch": null, "verdict": "PASS"}` (the same lens on the binary of `1230a0d`: `"too_slow": 5`).
 - incumbent: `scripts/incumbent-bench.sh` captures are in `perf/evidence/`. MEASURED: EXP-001 1.67×, EXP-002 1.56×, EXP-003 2.12× against the build of `4bfecef` (A/A 1.00; PROVISIONAL, `perf/NEGATIVE-EVIDENCE.md` NE-001..003); EXP-004 against the original: 0.25× (16000 keys), 1.27× (1200-field rows), 3.06× (40000 expanded lines), one NO_EVIDENCE (NE-004). All six captures of ordinary inputs against the original were REFUSED_CV on the loaded host: no speed sentence is made from them anywhere.
 
+## Owner decisions (2026-09-20)
+
+The repository owner delegated every open decision to the author: "You decide on everything. I approve whatever you want to do." and asked for a public GitHub repository. The author's rulings, each recorded where it belongs:
+
+- DISC-001..008, 010, 011, 013: ACCEPTED, each with a scoped contract under its `Resolution:` (`docs/DISCREPANCIES.md`). DISC-009 and DISC-012 are RESOLVED by repairs.
+- the custom effect `Stdin.open`: it STAYS (DISC-012's approver line; `AGENTS.md`).
+- C-1..C-11: every candidate stays bug-compatible (the ruling paragraph above their table).
+- license: the original's text verbatim, MIT with its rider (`LICENSE`); remote: `https://github.com/Dicklesworthstone/toon_bend`, public.
+- NOT decided by delegation: the deletion of `./-` and `docs/AGENTS.scaffold.md`. RULE 1 of `AGENTS.md` asks for the owner's exact command, and a general approval is not one. `./-` is ignored by git and is not published.
+
 ## Open items
 
 | id | what | blocks | owner |
 |---|---|---|---|
-| DISC-001..008, 010, 011, 013 | eleven OPEN divergences: ten Platform/Performance facts of the Bend runtime (runtime flags before `--`, the literal program name, unwritable standard streams, non-UTF-8 argv, ANSI styling, closed descriptors, `-o` mode 0644, deep nesting, the 8 TiB reservation and memory per byte) and the cost of non-integer numbers (45 to 300 times, linear) | `converge.sh` (no OPEN DISC may remain); SHIP | the repository owner: accept or reject each (bead `toon_bend-svd`) |
-| custom effect | `Stdin.open` (`port/stdin_open.c`, `.js`) is the port's one custom effect; `AGENTS.md` had forbidden custom effects on a wrong premise and was amended by the author | nothing technical; it is a rule change the owner did not make | the repository owner (bead `toon_bend-gvt`): keep it (recommended: without it a regular-file stdin at an offset gives wrong bytes and a socket stdin fails) or revert and re-open DISC-012 |
-| C-1..C-11 | bug-compatibility candidates listed for the owner (decoded integers print as `1.0`, the two escape tables, the 8192-byte silent write, the two encode → decode breaks S10.83 and S10.200, …) | nothing: the port reproduces each | the repository owner |
 | rounds | T2 needs the last two rounds clean; rounds 6, 7 and 8 found 6, 11 and 8 (2 HIGH in round 7, 0 HIGH in round 8) | `converge.sh` | a fresh non-author subagent per round, after the previous round's repairs |
 | NE-001..004 | three PROVISIONAL levers and one refused capture | any WIN claim for them | author, on a quiet host; the owner for the binding question (bead `toon_bend-clf`) |
 | incumbent | cv-gated captures of ordinary inputs against the original | every speed sentence against the original | author, on a quiet host (bead `toon_bend-925`) |
-| license, remote | this repository has no LICENSE and no git remote | publishing; `git push` | the repository owner |
 | `./-` and `docs/AGENTS.scaffold.md` | two stray files created in Phase 0/1 (a probe's `-o -` output; a needless copy) | nothing; deletion needs the owner's exact command (RULE 1) | the repository owner |
 
 ## Find-fix rounds (Phase 4/5)
@@ -73,7 +79,7 @@ Convergence (computed by `scripts/converge.sh docs/PORT_STATE.md`): T1 ≥ 3
 rounds and ≥ 1 clean at the end; T2 ≥ 5 and ≥ 2 consecutive clean at the end and ≥ 1 non-author round; T3
 ≥ 10 with the last two rounds clean; a clean round has < 3 new genuine
 findings and no unresolved finding from that round; a dirty or reopened
-round resets the clean streak. Every OQ is resolved or excluded; no OPEN DISC. Current: NOT_CONVERGED (the last three rounds are dirty; eleven OPEN DISC await the owner; no OQ is open).
+round resets the clean streak. Every OQ is resolved or excluded; no OPEN DISC. Current: NOT_CONVERGED (the last three rounds are dirty; no DISC and no OQ is open).
 
 ## Next action (one line, executable)
 

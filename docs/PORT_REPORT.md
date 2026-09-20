@@ -7,13 +7,12 @@
 
 ## Verdict
 
-HOLD. The port is complete and every lane is green, and three constants fail, each with its owner and the predicate that flips it:
+HOLD. The port is complete and every lane is green; ONE constant fails, and one number is missing:
 
-1. **DISC register complete: fails.** Eleven entries are OPEN (DISC-001..008, 010, 011, 013). Owner: the repository owner. Flips when each is ACCEPTED or rejected; none needs code. Two are RESOLVED by repairs (DISC-009, DISC-012).
-2. **Convergence met for the tier: fails.** `converge.sh`: `NOT_CONVERGED` (T2 needs the last two rounds clean; the three non-author rounds found 6, 11 and 8 findings; round 7 had 2 HIGH, round 8 none). Owner: the author, with a fresh non-author subagent per round. Flips after two consecutive rounds with fewer than 3 new genuine findings, and constant 1.
-3. **Every performance claim has a pin, cv ≤ 5%, identical sha: holds only for what is claimed.** Nothing is claimed against the original on ordinary inputs, because all six captures were REFUSED_CV on the loaded host. Owner: the author, on a quiet host. This is a missing number, not a failing one; it blocks only a speed sentence.
+1. **Convergence met for the tier: fails.** `converge.sh`: `NOT_CONVERGED` (T2 needs the last two rounds clean; the three non-author rounds found 6, 11 and 8 findings; round 7 had 2 HIGH, round 8 none). Owner: the author, with a fresh non-author subagent per round. Flips after two consecutive rounds with fewer than 3 new genuine findings.
+2. **Every performance claim has a pin, cv ≤ 5%, identical sha: holds for what is claimed.** Nothing is claimed against the original on ordinary inputs, because all six captures were REFUSED_CV on the loaded host. Owner: the author, on a quiet host. This is a missing number, not a failing one; it blocks only a speed sentence.
 
-One decision is the owner's and is not a constant: the port's ONE custom effect `Stdin.open` replaces a rule the author had written into `AGENTS.md` ("no custom effects"); without it a regular-file stdin at an offset gives wrong bytes with exit 0 and a socket stdin fails (DISC-012).
+The DISC register is complete since 2026-09-20: the repository owner delegated the rulings to the author ("You decide on everything. I approve whatever you want to do."), eleven entries are ACCEPTED with a scoped contract each, two are RESOLVED by repairs, and the port's one custom effect `Stdin.open` stays.
 
 ## Constants (computed, never asserted)
 
@@ -24,12 +23,12 @@ One decision is the owner's and is not a constant: the port's ONE custom effect 
 | law coverage | `{"laws": 368, "proofs": 368, "unproved": "", "ghost_proofs": "", "ghost_cited": "", "uncited": "", "duplicate_laws": [], "duplicate_proofs": [], "unsafe": 0, "unsafe_annotations": 0, "verdict": "OK"}` | `scripts/law-coverage.sh` |
 | the laws bite | `{"laws_in_proof": 123, "reduced": true, "mutants": 22, "killed": 22, "survived": [], "not_evidence": [], "verdict": "STRONG"}`; `scripts/law-mutation.sh` itself: INCONCLUSIVE on the three modules (no valid textual site) | `scripts/hand-mutants.py` |
 | board FULL or DEBT, every exclusion classed | `{"rows": 33, "present": 27, "partial": 0, "missing": 0, "excluded": 6, "na": 0, "no_evidence": 0, "verdict": "DEBT"}` | `scripts/parity-board.sh` |
-| DISC register complete | 0 accepted, 2 RESOLVED, 11 OPEN: FAILS | `docs/DISCREPANCIES.md` |
+| DISC register complete | 11 ACCEPTED (each with a scoped contract), 2 RESOLVED, 0 OPEN | `docs/DISCREPANCIES.md`; `scripts/converge.sh`: `"open_disc": []` |
 | floor unchanged since capture | `{"repeat":3,"stable":1065,"unstable":[],"inconclusive":[],"oracle_identity_checked":true,"verdict":"STABLE"}` | `scripts/floor.sh` |
 | MANIFEST unchanged since the clean tail | there is no clean tail yet; last change `4c3cccc Round 8 (non-author, dirty: 0 HIGH, 4 MEDIUM, 4 LOW): EBADF on stdin ends the input, launcher repairs, 5 cases, 368 laws` (15 hashes added, 0 changed; every re-capture of this port only ever ADDED hashes) | git |
 | evidence ≤ 24 h old on this commit | every line of this report is dated 2026-09-20 | `docs/PORT_STATE.md` |
 | zero open high-severity findings | round 7's two HIGH findings are repaired and have regression rows (`scripts/stdio-probe.py`); round 8 found none | PORT_STATE rounds table |
-| convergence met for the tier | `{"tier": "T2", "rounds": 8, "clean": 5, "clean_tail": 0, "last_two_clean": false, "non_author_round": true, "open_oq": [], "open_disc": ["DISC-001", "DISC-002", "DISC-003", "DISC-004", "DISC-005", "DISC-006", "DISC-007", "DISC-008", "DISC-010", "DISC-011", "DISC-013"], "verdict": "NOT_CONVERGED", "missing": ["clean rounds since last reset 0 < 2", "open DISC: DISC-001, DISC-002, DISC-003, DISC-004, DISC-005, DISC-006, DISC-007, DISC-008, DISC-010, DISC-011, DISC-013"]}`: FAILS | `scripts/converge.sh` |
+| convergence met for the tier | `{"tier": "T2", "rounds": 8, "clean": 5, "clean_tail": 0, "last_two_clean": false, "non_author_round": true, "open_oq": [], "open_disc": [], "verdict": "NOT_CONVERGED", "missing": ["clean rounds since last reset 0 < 2"]}`: FAILS | `scripts/converge.sh` |
 | every perf claim has a pin, cv ≤ 5%, identical sha | the seven MEASURED captures named below; one NO_EVIDENCE; six REFUSED_CV that are claimed nowhere | `perf/evidence/`, `perf/PERF-LEDGER.md`, `perf/NEGATIVE-EVIDENCE.md` |
 | claims lint | `claims-lint: 0 hit(s)` on this file, `README.md`, `docs/PORT_STATE.md`, `docs/DISCREPANCIES.md`, `docs/OPEN_QUESTIONS.md`, `perf/*.md` | `scripts/claims-lint.sh` |
 
@@ -56,7 +55,7 @@ One decision is the owner's and is not a constant: the port's ONE custom effect 
 
 ## Discrepancies
 
-None is ACCEPTED yet (the owner has not ruled). OPEN, one line each: DISC-001 Platform, runtime flags before `--` (launcher) · DISC-002 Platform, the literal program name · DISC-003 Platform, an unwritable stderr (launcher repairs closed and read-only) · DISC-004 Platform, non-UTF-8 argv · DISC-005 Platform, ANSI styling · DISC-006 Platform, a failed stdout write (launcher repairs closed and read-only) · DISC-007 Platform, closed descriptors on the bare native binary (launcher) · DISC-008 Platform, `-o` mode 0644 · DISC-010 Performance, deep nesting · DISC-011 Performance, the runtime's resource floor · DISC-013 Performance, non-integer numbers 45 to 300 times slower, linearly. RESOLVED: DISC-009, DISC-012 (the stdin effect; regression rows in `scripts/stdio-probe.py`). Impact of every entry on the corpus: 0 of 1065 cases.
+ACCEPTED on 2026-09-20 by the owner's delegation, one line each (id, class, kill-switch or mitigation, cases affected): DISC-001 Platform, runtime flags before `--`, launcher, 0 · DISC-002 Platform, the literal program name, none, 0 · DISC-003 Platform, an unwritable stderr, launcher repairs closed and read-only, 0 · DISC-004 Platform, non-UTF-8 argv, none, 0 · DISC-005 Platform, ANSI styling, none, 0 · DISC-006 Platform, a failed stdout write, launcher repairs closed and read-only, 0 · DISC-007 Platform, closed descriptors on the bare native binary, launcher, 0 · DISC-008 Platform, `-o` mode 0644, none, 0 · DISC-010 Performance, deep nesting, none, 0 · DISC-011 Performance, the runtime's resource floor, the JavaScript build, 0 · DISC-013 Performance, non-integer numbers 45 to 300 times slower (linear), none, 0. RESOLVED by repairs: DISC-009, DISC-012 (the stdin effect; regression rows in `scripts/stdio-probe.py`). Approver of every entry: the repository owner through the delegation quoted above.
 
 ## Reproduce (an auditor gets the same lines)
 

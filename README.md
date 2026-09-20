@@ -5,6 +5,7 @@
 [![Bend 2](https://img.shields.io/badge/bend-2.0.16-7c3aed.svg)](https://github.com/bendlang/bend)
 [![Original](https://img.shields.io/badge/port%20of-toon__rust%200.2.4-orange.svg)](https://github.com/Dicklesworthstone/toon_rust)
 [![TOON Spec](https://img.shields.io/badge/spec-v3.0-fef3c0)](https://github.com/toon-format/spec)
+[![License: MIT](https://img.shields.io/badge/License-MIT%2BOpenAI%2FAnthropic%20Rider-blue.svg)](./LICENSE)
 
 </div>
 
@@ -22,6 +23,7 @@ A byte-for-byte port of the `toon` command line tool (`toon_rust` 0.2.4) to [Ben
 <h3>Quick Build</h3>
 
 ```bash
+git clone https://github.com/Dicklesworthstone/toon_bend && cd toon_bend
 git clone https://github.com/bendlang/bend /tmp/bend && git -C /tmp/bend checkout --detach 15ae0c8
 export BEND_NO_TELEMETRY=1
 bun /tmp/bend/bend2/main.ts port/main.bend -o toon      # bun >= 1.4, clang >= 14
@@ -67,7 +69,7 @@ Every line names its command, its lanes and its commit. Dates: 2026-09-20. Bend:
 - **Outside the corpus:** seeded differential fuzzing against the original (`scripts/diff-fuzz.py`: mutated corpus documents, generated documents through every option, command lines, numbers under both settings of the kill-switch, expansion, keys chosen to collide in the port's hash, inputs large in one dimension with a time verdict) and 20 descriptor states the harness cannot express (`scripts/stdio-probe.py`: inherited offsets, sockets, closed, read-only and full standard streams). Three non-author review rounds added about 210000 compared executions; they found 0 differences in conversion content and 25 other findings (2 HIGH, both repaired: stdin used to be re-opened by path), every one repaired or registered.
 - **Proved:** `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.`, 368 laws, unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16.
 - **Parity board:** `scripts/parity-board.sh docs/FEATURE_PARITY.md` → 27 in-scope rows `present`, 6 classed exclusions, verdict DEBT (an exclusion is debt, by rule).
-- **Verdict:** HOLD, not SHIP (`docs/PORT_REPORT.md`). What holds it: eleven OPEN divergences of the Bend runtime and of number speed need the owner's ruling (`docs/DISCREPANCIES.md`), and the convergence rule needs two clean review rounds in a row; the last three were dirty (`scripts/converge.sh docs/PORT_STATE.md`).
+- **Verdict:** HOLD, not SHIP (`docs/PORT_REPORT.md`). What holds it: the convergence rule needs two clean non-author review rounds in a row, and the last three were dirty (`scripts/converge.sh docs/PORT_STATE.md`). The eleven divergences of the Bend runtime and of number speed are ACCEPTED, each with a scoped contract (`docs/DISCREPANCIES.md`).
 
 ---
 
@@ -315,7 +317,7 @@ perf/           the performance ledger, negative evidence, experiment cards
 A: No. It is the `toon` CLI of `toon_rust` 0.2.4, ported to Bend 2.
 
 **Q: Does it match the original?**
-A: On every captured case, byte for byte: see **Status**. Beyond the corpus, differential fuzzing against the original found three behaviors the specification had missed (all fixed, each now a clause and a case) and then ran clean: 13000 mutated documents, 16000 command lines, 8000 generated documents in both directions, 127838 generated numbers. Six platform divergences are recorded and wait for the owner (`docs/DISCREPANCIES.md`).
+A: On every captured case, byte for byte: see **Status**. Beyond the corpus, differential fuzzing against the original found three behaviors the specification had missed (all fixed, each now a clause and a case) and then ran clean: 13000 mutated documents, 16000 command lines, 8000 generated documents in both directions, 127838 generated numbers. Three non-author review rounds then found what the corpus cannot express (stdin re-opened by path, keys chosen to collide in the port's hash, descriptor states); each finding is repaired or registered. Eleven divergences, all properties of the Bend runtime or of number speed, are ACCEPTED with a scoped contract each (`docs/DISCREPANCIES.md`).
 
 **Q: Why reproduce the bugs?**
 A: Because a port that silently fixes things is a different program. Each oddity is reproduced, numbered in the specification (S10), and listed for the owner, who can accept a `DISC-` with a kill-switch.
@@ -336,4 +338,6 @@ This repository follows the original's policy: outside contributions are not acc
 
 ## License
 
-The license of this repository has not been chosen yet by its owner. The original `toon_rust` is MIT licensed with an OpenAI/Anthropic rider; see its repository.
+MIT License (with OpenAI/Anthropic Rider), the same text as the original `toon_rust`. See [LICENSE](LICENSE).
+
+Third-party material: `cases/fixtures/spec/` holds the TOON specification's conformance fixtures from [toon-format/spec](https://github.com/toon-format/spec) (the copy `toon_rust` ships at the pinned commit); only their inputs and options are used, and they stay under their own license.

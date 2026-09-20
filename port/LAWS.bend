@@ -1555,3 +1555,12 @@ law golden_toonedge_repeated_keys_hash_collision:
 # S4.245 goldens/toonerr_expand_repeated_hash_collision (round 7: every key of this document lands in ONE bucket of the hashed carriers)
 law golden_toonerr_expand_repeated_hash_collision:
   {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("exr: 1\njda: 2\nexr: 3\nt[2]{jda,exr}:\n  1,2\n  3,4\n", Nil{})) == C.Out{1n, "", "Path expansion conflict at key \"exr\": cannot merge primitive with primitive"} : C.Out}
+
+# S6.10 the other worst case: seven keys put in DESCENDING order (every insertion makes a left link, which
+# only skew removes) also make three levels
+law ks_bucket_is_balanced_descending:
+  {T.ks.level(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.KSNil{}, "g"), "f"), "e"), "d"), "c"), "b"), "a")) == 3n : Nat}
+
+# S6.10 and the first and the last of them are found again
+law ks_bucket_members_descending:
+  {(T.ks.has(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.KSNil{}, "g"), "f"), "e"), "d"), "c"), "b"), "a"), "a"), T.ks.has(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.KSNil{}, "g"), "f"), "e"), "d"), "c"), "b"), "a"), "g")) == (True{}, True{}) : Bool & Bool}

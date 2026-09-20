@@ -131,17 +131,30 @@ The `--` right after the program name is part of the contract: a compiled Bend b
 
 ## Performance
 
-No speed claim is made yet. A performance sentence here needs an interleaved, cv-gated capture against the pinned original (`scripts/incumbent-bench.sh --pin`), and the development host was shared (load about 5), so every number below is a **maintenance number**: medians of 9 runs, 1 thread, 2026-09-20, useful for choosing levers and for nothing else.
+Every number here is a capture by `scripts/incumbent-bench.sh`: AB/BA pairs, medians, a cv gate of 5 percent per arm (a capture above it is REFUSED and gives no ratio), identical stdout and stderr in every sample. Host: AMD EPYC-Milan, 8 cores, Linux, shared with other agents' work; 1 thread; bend 2.0.16, clang 21.1.8; 2026-09-20. The JSON lines are in `perf/evidence/`, the cards in `perf/EXPERIMENTS.md`.
 
-| input | direction | original | port before the levers | port with the levers |
+**The port against earlier builds of itself** (the three number levers, commit `4bfecef` → `3751630`):
+
+| lever | input | before | after | ratio |
 | --- | --- | --- | --- | --- |
-| `large_tabular_1500.json` (167255 bytes, 1500 rows) | encode | 5.8 ms | 105 ms | 64 ms |
-| the same table as TOON (76989 bytes) | decode | 16.4 ms | 62 ms | 48 ms |
-| 24000 six-digit integers | encode | 6.4 ms | 489 ms | 57 ms |
-| 9000 one-decimal numbers | encode | 3.3 ms | 320 ms | 150 ms |
-| 7000 short strings | encode | 4.4 ms | 45 ms | 44 ms |
+| EXP-001: integers print their own digits | `--encode` of `large_tabular_1500.json` (167255 bytes, 1500 rows) | 89.8 ms | 53.9 ms | 1.67× (cv 0.9% / 0.6%, A/A 1.001) |
+| EXP-002: short integer texts are built from a `Nat` | `--decode` of the same table as TOON (76989 bytes) | 58.2 ms | 37.4 ms | 1.56× (cv 0.8% / 1.5%, A/A 0.995) |
+| EXP-003: division by a power of ten is single-limb short division | `--encode` of 9000 one-decimal numbers | 288.2 ms | 135.6 ms | 2.12× (cv 0.8% / 0.7%, A/A 1.004) |
 
-Startup is the same as the original's (about 1 ms). The port is 8 to 45 times slower than the Rust original on these inputs, and that is the expected shape: Bend has no `f64`, so every number goes through big naturals, and every byte goes through a checked, allocation-per-step state machine. The three levers that are in (`perf/EXPERIMENTS.md` EXP-001 to EXP-003: integers print their own digits, short integer texts are built from a `Nat`, division by a power of ten is single-limb short division) sit behind the kill-switch `TOON_SPEC=1`, are bound to their specification twins by closed laws, and give identical bytes on the whole corpus on three lanes with the switch off and on. What is known to be slow and not yet touched is filed as beads (`br ready`).
+Each met the gate written on its card before the capture. They are still PROVISIONAL in `perf/NEGATIVE-EVIDENCE.md` (NE-001 to NE-003), for two stated reasons: the fast twins are bound to their specification twins by closed laws and differential runs, not by a quantified law, and one binary carries all three levers, so no capture isolates one. They sit behind the kill-switch `TOON_SPEC=1`.
+
+**Inputs that are large in ONE dimension** (EXP-004, commit `3751630` → `1230a0d`; the earlier build walked a key chain per key):
+
+| input | build of `3751630` (one run) | build of `1230a0d` | the original (`toon 0.2.4` @ `f955c67`, release) | `1230a0d` against the original |
+| --- | --- | --- | --- | --- |
+| `-e`, one object of 16000 keys | 20.5 s | 66 ms | 17 ms | 0.25× the original's speed, MEASURED (cv 3.4% / 2.6%) |
+| `-e`, 20 rows of 1200 fields | 6.5 s | 75 ms | 95 ms | 1.27× the original's speed, MEASURED (cv 4.7% / 1.1%) |
+| `-d --expand-paths safe`, 40000 dotted lines | > 60 s (cut at its budget) | 772 ms | 2362 ms | 3.06× the original's speed, MEASURED (cv 0.8% / 3.1%) |
+| `-e --key-folding safe`, 30000 foldable keys | > 60 s (cut at its budget) | 307 ms | 610 ms | ratio REFUSED_CV twice (port arm cv 6.8%): NO_EVIDENCE, `perf/NEGATIVE-EVIDENCE.md` NE-004 |
+
+The non-author round 7 then showed that keys CHOSEN to collide in the carriers' 16 hash bits, and keys repeated in one object, were still quadratic (16000 colliding keys: 21 s; 16000 repeats: 50 s). Every bucket is a balanced tree now and a repeated key is resolved once per object; `python3 scripts/diff-fuzz.py scale --runs 16000 -- <port> --` runs those hostile inputs with a time verdict (too slow = more than 1 s AND more than 40 times the original): 5 inputs too slow on the binary of `1230a0d`, 0 on the current one, bytes identical.
+
+**The port against the original on ordinary inputs: no claim.** All six captures were REFUSED by the cv gate on the loaded host (`perf/evidence/INCUMBENT.*.json`, arms at 7 to 48 percent cv), so this README states no ratio. The refused medians, for orientation only and not as evidence: encode the 1500-row table: 63.6 ms against 6.0 ms; decode it: 48.9 ms against 23.9 ms; encode 24000 integers: 57.2 ms against 6.0 ms; encode 9000 decimals: 153.1 ms against 3.9 ms; encode 7000 strings: 39.6 ms against 4.0 ms; `--version`: 0.9 ms against 0.9 ms. What is structural and will not change: Bend has no `f64`, so every non-integer number goes through big naturals; every input byte is a heap cell of a checked state machine; and the native runtime reserves 8 TiB of address space and uses 47 to 70 bytes of memory per input byte (DISC-011).
 
 ---
 

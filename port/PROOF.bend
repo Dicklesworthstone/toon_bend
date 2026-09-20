@@ -1507,3 +1507,11 @@ def Laws.golden_toonedge_repeated_keys_hash_collision():
 # S4.245 goldens/toonerr_expand_repeated_hash_collision
 def Laws.golden_toonerr_expand_repeated_hash_collision():
   {==}
+
+# S6.10 the bucket's balance, descending
+def Laws.ks_bucket_is_balanced_descending():
+  {==}
+
+# S6.10 the bucket's members, descending
+def Laws.ks_bucket_members_descending():
+  {==}

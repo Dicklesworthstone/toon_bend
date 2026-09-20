@@ -19,6 +19,19 @@ if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
 fi
 exec python3 -B - "$(dirname "$0")" "$@" <<'PY'
 import argparse, hashlib, json, math, os, platform, statistics, sys
+def cpu_model():
+    """platform.processor() is empty on Linux: the model name comes from /proc/cpuinfo there."""
+    name = platform.processor()
+    if not name:
+        try:
+            with open('/proc/cpuinfo', encoding='utf-8') as fh:
+                for line in fh:
+                    if line.lower().startswith('model name'):
+                        name = line.split(':', 1)[1].strip()
+                        break
+        except OSError:
+            pass
+    return name
 from datetime import datetime, timezone
 sys.path.insert(0, sys.argv.pop(1))
 from case_manifest import command_provenance, positive, run
@@ -60,7 +73,7 @@ try:
             samples[arm].append(run(commands[arm], timeout=args.timeout))
         print(f'pair {pair + 1}/{args.runs}', file=sys.stderr)
     result = {'tag': args.tag, 'pin': args.pin, 'max_cv': args.max_cv, 'ratio': None,
-              'fingerprint': {'uname': platform.platform(), 'cpu': platform.processor(),
+              'fingerprint': {'uname': platform.platform(), 'cpu': cpu_model(),
                               'cores': os.cpu_count(), 'date': datetime.now(timezone.utc).isoformat()}}
     signatures = {}
     for arm, runs in samples.items():

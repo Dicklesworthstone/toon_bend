@@ -104,6 +104,21 @@ Outcome taxonomy (closed set):
 - Tally: W0/L0/N1
 - Agent: Claude (author session)
 
+### NE-005 — EXP-004, hashed key carriers, on three scale inputs   [2026-09-20 | PROVISIONAL_LOCAL_WIN]
+- Program / def: `port/text.bend` `kt.*`, `port/json.bend` `km.*` / `obj.member`, `port/encode.bend` `row.lock` / `put.cells`, `port/decode.bend` `XV` / `xm.*`
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores (shared host; the model name is NOT in the capture JSONs, whose `cpu` field is empty), GPU none, no bang
+- Exact command: `scripts/incumbent-bench.sh --runs 5 --max-cv 5 --timeout 60 --tag EXP-004 --original ./oracle/toon <args> --port <binary of 1230a0d> --threads 1 -- <args>` for the port against the ORIGINAL; the port's own earlier build (`3751630`) was timed ONCE per input under a 60 s budget (`perf/evidence/EXP-004.baseline-*.json`)
+- Kill-switch: none (the carrier is part of the spec twins)
+- Measured: earlier build → build of `1230a0d`: 20.5 s → 66.2 ms (16000 keys in one object), 6.5 s → 74.6 ms (20 rows of 1200 fields), more than 60 s (cut at its budget) → 772.3 ms (40000 expanded lines; at least 77 times, 60.0 s / 772.3 ms = 77.7). Against the original, MEASURED with cv ≤ 4.7% on both arms: 0.25×, 1.27×, 3.06× (`perf/evidence/EXP-004.*-vs-original.json`); regression captures against `3751630` on the four earlier inputs: 0.997, 0.992, 0.994, 1.022
+- Correctness: stdout sha identical to the original's in every sample; `All terms check.` (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16); lanes PASS; `scripts/diff-fuzz.py` lenses docs, expand, collide, scale: 0 differences
+- Keep-audit delta: whole program call sites, `3751630`→`1230a0d`: keep 255→268, take 248→298, seal 1687→1770, free 54→56 (`perf/evidence/keep-audit.3751630.txt`, `keep-audit.1230a0d.txt`)
+- Disposition: kept (it repairs a quadratic, round 6's finding); NOT in PERF-LEDGER
+- Why provisional and not WIN: the comparison with the earlier build has ONE baseline run per input, no cv and no A/A arm, so the ledger's rule 2 refuses it however large the difference is; the evidence directory holds the JSON lines and the keep-audit outputs, not the emitted C (rule 7); the fingerprints lack the CPU model (rule 6). The ratios against the original ARE cv-gated, and they are the only ones a document may quote as MEASURED
+- Killing metric: wall on this host at 1 thread
+- **Promote to WIN when:** AB/BA captures with an A/A arm exist for the earlier build against this one at sizes the earlier build finishes well inside the timeout (4000 keys, 300-field rows, 8000 expanded lines), with the emitted C of both builds in the evidence directory and the CPU model in the fingerprint
+- Tally: W0/L0/N0 (provisional)
+- Agent: Claude (author session); the refusal is round 10's (non-author)
+
 ---
 
 ## Inherited priors (re-confirm on THIS program's shape; not local evidence)

@@ -1,13 +1,17 @@
 # toon — the laws. HUMAN-OWNED: an agent may add a law, never weaken or delete one. Every law names
 # the spec clause it encodes. Kinds:
-#   fast == spec   binds every fast twin to its spec twin (none exists before Phase 5)
-#   first wins     the first failure, or the finished root value, ends a pass, whatever follows
-#   mode           a flag decides regardless of every other input
-#   closed golden  a small input whose expected output is pasted from goldens/ or from a spec clause
-#                  — the checker computes both sides
-# What does NOT belong here: anything the checker must normalize through a large Peano Nat (byte
-# values as Nat, long digit strings, whole documents through the JSON reader): those stay in goldens/
-# and conform.sh. The scaffold's placeholder law over its stub core was replaced together with the stub.
+#   first wins     the first failure, or the finished root value, ends a pass, whatever follows (quantified)
+#   mode           a flag decides regardless of every other input (quantified)
+#   twin gate      under TOON_SPEC=1 every fast-twin selector is off, for every input (quantified); what
+#                  binds a fast twin to its spec twin BEYOND the gate is closed instances only: see the
+#                  section "fast == spec (Phase 5)" below, which says why no quantified law exists
+#   closed unit    one def on one value: a bound, a rounding, a bucket's balance (the checker computes both sides)
+#   closed golden  golden_<case>: a captured golden restated as C.run_pure(argv, bytes) == Out, whole
+#                  documents through the JSON reader or the TOON decoder included (they normalize in 1 to 5 s
+#                  each since bytes are dispatched on small class codes)
+# What does NOT belong here, because the checker does not finish on it: a number that is not a small
+# integer through the pipeline (the shortest-digit generator), and digit strings long enough to need a
+# large Peano Nat. Those stay in goldens/ and conform.sh.
 import Base
 import ./bignat.bend as BN
 import ./f64.bend as F

@@ -11,15 +11,24 @@
 # Runtime knobs go through the environment, never argv: TOON_BEND_THREADS=N (a positive decimal count;
 # anything else is ignored), TOON_SPEC=1.
 # the launcher may be reached through symbolic links (a link in ~/.local/bin): the binary is beside the FILE
+# (no external command is needed unless the launcher IS a link: the directory of a path is cut with a
+# parameter expansion, so an empty PATH costs nothing; round 10)
+dir_of() {
+  case $1 in
+    */*) d=${1%/*}; [ -n "$d" ] || d=/ ;;
+    *) d=. ;;
+  esac
+  printf '%s' "$d"
+}
 self=$0
-while [ -L "$self" ]; do
+while [ -L "$self" ] && command -v readlink >/dev/null 2>&1; do
   link=$(readlink -- "$self") || break
   case $link in
     /*) self=$link ;;
-    *) self=$(dirname -- "$self")/$link ;;
+    *) self=$(dir_of "$self")/$link ;;
   esac
 done
-here=$(CDPATH='' cd -- "$(dirname -- "$self")" && pwd) || exit 127
+here=$(CDPATH='' cd -- "$(dir_of "$self")" && pwd) || exit 127
 bin=${TOON_BEND_BIN:-$here/../port/toon}
 if [ ! -x "$bin" ]; then
   echo "toon: no binary at $bin (build it: bun /tmp/bend/bend2/main.ts port/main.bend -o port/toon)" >&2

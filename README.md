@@ -32,7 +32,7 @@ echo '{"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}' | ./toon -- --e
 bun /tmp/bend/bend2/main.ts port/main.bend -o port/toon && bin/toon --encode < users.json
 ```
 
-<p><em>Linux and macOS. No package, no installer: one Bend build.</em></p>
+<p><em>Run and gated on Linux x86_64 only; macOS is untested (the launcher's repair of wrong-mode descriptors reads /proc). No package, no installer: one Bend build, about 25 seconds.</em></p>
 </div>
 
 ---
@@ -65,11 +65,11 @@ A port is only as good as the evidence that it behaves like the original. "The t
 
 Every line names its command, its lanes and its commit. Dates: 2026-09-20. Bend: 2.0.16 at `15ae0c8`. Original: `toon_rust` `f955c67` (`toon 0.2.4`).
 
-- **Golden-tested, every lane:** `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` → PASS on the interpreter, the native binary at 1 and at 8 threads, and the JavaScript build: 1065/1065 each on the tree of `4c3cccc` (and 1060/1060 at `d80251a`, 1053/1053 at `1230a0d`); `scripts/conform.sh` also passes 1065/1065 on the three compiled lanes with `TOON_SPEC=1`. MANIFEST: 3195 hashes, captured from `./oracle/toon`; floor STABLE (the original against itself, 3 repeats).
-- **Outside the corpus:** seeded differential fuzzing against the original (`scripts/diff-fuzz.py`: mutated corpus documents, generated documents through every option, command lines, numbers under both settings of the kill-switch, expansion, keys chosen to collide in the port's hash, inputs large in one dimension with a time verdict) and 20 descriptor states the harness cannot express (`scripts/stdio-probe.py`: inherited offsets, sockets, closed, read-only and full standard streams). Three non-author review rounds added about 210000 compared executions; they found 0 differences in conversion content and 25 other findings (2 HIGH, both repaired: stdin used to be re-opened by path), every one repaired or registered.
+- **Golden-tested, every lane:** `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` → PASS on the interpreter, the native binary at 1 and at 8 threads, and the JavaScript build: 1065/1065 each on the tree of `4c3cccc` (and 1060/1060 at `d80251a`, 1053/1053 at `1230a0d`); `scripts/conform.sh` also passes 1065/1065 on the three compiled lanes with `TOON_SPEC=1`. MANIFEST: 3195 hashes, captured from `./oracle/toon`; floor STABLE (the original against itself, 3 repeats). The two native lanes are ONE sequential execution under two labels: the port places no bang and no parallel let, so the runtime never starts a worker pool and `--threads N` changes nothing (2 OS threads at `--threads` 1, 8 and 64, measured by round 10 and re-measured); `c-8t` adds no evidence beyond `c-1t` today and is kept because it would catch a parallel twin the day one is added.
+- **Outside the corpus:** seeded differential fuzzing against the original (`scripts/diff-fuzz.py`: mutated corpus documents, generated documents through every option, command lines, numbers under both settings of the kill-switch, expansion, keys chosen to collide in the port's hash, inputs large in one dimension with a time verdict) and the descriptor states the harness cannot express (`scripts/stdio-probe.py`: inherited offsets, sockets, closed, read-only and full standard streams, descriptor paths). Five NON-AUTHOR review rounds (6 to 10; their reports are in `docs/reviews/`, what was done about each finding in `docs/PORT_STATE.md`) compared well over a million executions with the original and found 0 differences in conversion content since round 7's repairs; their 38 findings (2 HIGH in round 7: stdin used to be re-opened by path; 1 HIGH in round 10: three cited commits did not build from the public history, because `.gitignore` hid two source files) are each repaired or registered.
 - **Proved:** `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.`, 368 laws, unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16.
 - **Parity board:** `scripts/parity-board.sh docs/FEATURE_PARITY.md` → 27 in-scope rows `present`, 6 classed exclusions, verdict DEBT (an exclusion is debt, by rule).
-- **Verdict:** HOLD, not SHIP (`docs/PORT_REPORT.md`). What holds it: the convergence rule needs two clean non-author review rounds in a row, and the last three were dirty (`scripts/converge.sh docs/PORT_STATE.md`). The eleven divergences of the Bend runtime and of number speed are ACCEPTED, each with a scoped contract (`docs/DISCREPANCIES.md`).
+- **Verdict:** HOLD, not SHIP (`docs/PORT_REPORT.md`). What holds it: the convergence rule needs two clean non-author review rounds in a row, and none of rounds 6 to 10 was clean (`scripts/converge.sh docs/PORT_STATE.md`). Every divergence is ACCEPTED with a scoped contract or RESOLVED by a repair (`docs/DISCREPANCIES.md`, DISC-001 to DISC-014).
 
 ---
 
@@ -118,8 +118,21 @@ echo '{"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}' | ./toon -- --e
 #   2,Bob
 
 # Decode TOON back to JSON (every decoded number is a binary64 and prints as one: 1.0)
-printf 'users[2]{id,name}:\n  1,Alice\n  2,Bob\n' | ./toon -- --decode --indent 0
-# {"users":[{"id":1.0,"name":"Alice"},{"id":2.0,"name":"Bob"}]}
+printf 'users[2]{id,name}:\n  1,Alice\n  2,Bob\n' | ./toon -- --decode
+# {
+#   "users": [
+#     {
+#       "id": 1.0,
+#       "name": "Alice"
+#     },
+#     {
+#       "id": 2.0,
+#       "name": "Bob"
+#     }
+#   ]
+# }
+# (--indent is ALSO the indent unit expected in the TOON input: `--decode --indent 0` prints compact JSON,
+#  and accepts only unindented TOON; `--indent 4` expects TOON indented by fours)
 
 # File-based with auto-detection by extension
 ./toon -- input.json -o output.toon
@@ -135,7 +148,7 @@ The `--` right after the program name is part of the contract: a compiled Bend b
 
 ## Performance
 
-Every number here is a capture by `scripts/incumbent-bench.sh`: AB/BA pairs, medians, a cv gate of 5 percent per arm (a capture above it is REFUSED and gives no ratio), identical stdout and stderr in every sample. Host: AMD EPYC-Milan, 8 cores, Linux, shared with other agents' work; 1 thread; bend 2.0.16, clang 21.1.8; 2026-09-20. The JSON lines are in `perf/evidence/`, the cards in `perf/EXPERIMENTS.md`.
+Every RATIO here is a capture by `scripts/incumbent-bench.sh`: AB/BA pairs, medians, a cv gate of 5 percent per arm (a capture above it is REFUSED and gives no ratio), identical stdout and stderr in every sample. Two columns are NOT such captures and say so: the earlier build's single timed runs in the second table, and the round 7 timings quoted below it. No row is admitted to `perf/PERF-LEDGER.md` yet; everything measured so far is provisional (`perf/NEGATIVE-EVIDENCE.md` NE-001 to NE-005). Host: AMD EPYC-Milan, 8 cores, Linux, shared with other agents' work; 1 thread; bend 2.0.16, clang 21.1.8; 2026-09-20. The JSON lines are in `perf/evidence/`, the cards in `perf/EXPERIMENTS.md`.
 
 **The port against earlier builds of itself** (the three number levers, commit `4bfecef` → `3751630`):
 
@@ -204,7 +217,7 @@ Rebuilding the oracle (only needed to re-capture goldens) uses the original's pi
 ./toon -- --encode < data.json            # JSON -> TOON
 ./toon -- --decode < data.toon            # TOON -> JSON
 ./toon -- data.json --delimiter pipe --key-folding safe
-./toon -- data.toon --expand-paths safe --indent 4
+./toon -- data.toon --expand-paths safe      # dotted keys become nested objects (add --indent 4 only for TOON indented by fours)
 ./toon -- --help
 ```
 
@@ -306,7 +319,7 @@ perf/           the performance ledger, negative evidence, experiment cards
 ## Limitations
 
 - Not ported (classed exclusions, `docs/PLAN_TO_PORT_Toon_TO_BEND2.md` §3): the `async-stream` feature, the `wasm` bindings, the `EncodeReplacer` library callback, library-only behavior no CLI path reaches, shell completions and tracing, native Windows.
-- Platform divergences, all OPEN pending the owner's approval (`docs/DISCREPANCIES.md`): runtime flags before `--` (DISC-001), the literal program name `toon` in usage lines (DISC-002), an unwritable stderr (DISC-003), non-UTF-8 argv words (DISC-004), ANSI styling on a terminal (DISC-005), the text of a failed stdout write (DISC-006).
+- Divergences, every one a property of the Bend runtime or of number speed, each ACCEPTED with a scoped contract (`docs/DISCREPANCIES.md`): runtime flags before `--` (DISC-001, the launcher `bin/toon` passes `--` for you), the literal program name `toon` in usage lines (DISC-002), unwritable standard streams (DISC-003, DISC-006; the launcher repairs the closed and read-only cases), non-UTF-8 argv words (DISC-004), no ANSI styling on a terminal (DISC-005), closed standard descriptors on the bare native binary (DISC-007, launcher), `-o` files created with mode 0644 (DISC-008), no nesting limit where the original's stack overflows (DISC-010), the native runtime's resource floor: 8 TiB of address space, 50 to 70 bytes of memory per input byte (DISC-011), non-integer numbers 45 to 300 times slower, linearly (DISC-013), a `/dev/fd/N` path the caller did not open (DISC-014). RESOLVED by repairs: DISC-009, DISC-012 (stdin is read through the port's one custom effect).
 - No GPU lane: the work is text with data-dependent structure; no bang is placed, so `gpu` is MISSING with that reason.
 
 ---

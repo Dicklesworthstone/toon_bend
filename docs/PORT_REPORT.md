@@ -9,10 +9,10 @@
 
 HOLD. The port is complete and every lane is green; ONE constant fails, and one number is missing:
 
-1. **Convergence met for the tier: fails.** `converge.sh`: `NOT_CONVERGED` (T2 needs the last two rounds clean; the three non-author rounds found 6, 11 and 8 findings; round 7 had 2 HIGH, round 8 none). Owner: the author, with a fresh non-author subagent per round. Flips after two consecutive rounds with fewer than 3 new genuine findings.
+1. **Convergence met for the tier: fails.** `converge.sh`: `NOT_CONVERGED` (T2 needs the last two rounds clean; the five non-author rounds, 6 to 10, found 6, 11, 8, 3 and 10 findings: 2 HIGH in round 7 on stdin, 1 HIGH in round 10 on cited commits that did not build from the public history, 0 behavioral differences in rounds 9 and 10; their reports are in `docs/reviews/`). Owner: the author, with a fresh non-author subagent per round. Flips after two consecutive rounds with fewer than 3 new genuine findings.
 2. **Every performance claim has a pin, cv ≤ 5%, identical sha: holds for what is claimed.** Nothing is claimed against the original on ordinary inputs, because all six captures were REFUSED_CV on the loaded host. Owner: the author, on a quiet host. This is a missing number, not a failing one; it blocks only a speed sentence.
 
-The DISC register is complete since 2026-09-20: the repository owner delegated the rulings to the author ("You decide on everything. I approve whatever you want to do."), eleven entries are ACCEPTED with a scoped contract each, two are RESOLVED by repairs, and the port's one custom effect `Stdin.open` stays.
+The DISC register is complete since 2026-09-20: the repository owner delegated the rulings to the author ("You decide on everything. I approve whatever you want to do."), twelve entries are ACCEPTED with a scoped contract each (DISC-014 was found and ruled on after the delegation, by the same delegation), two are RESOLVED by repairs, and the port's one custom effect `Stdin.open` stays.
 
 ## Constants (computed, never asserted)
 
@@ -23,14 +23,14 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 | law coverage | `{"laws": 368, "proofs": 368, "unproved": "", "ghost_proofs": "", "ghost_cited": "", "uncited": "", "duplicate_laws": [], "duplicate_proofs": [], "unsafe": 0, "unsafe_annotations": 0, "verdict": "OK"}` | `scripts/law-coverage.sh` |
 | the laws bite | `{"laws_in_proof": 123, "reduced": true, "mutants": 22, "killed": 22, "survived": [], "not_evidence": [], "verdict": "STRONG"}`; `scripts/law-mutation.sh` itself: INCONCLUSIVE on the three modules (no valid textual site) | `scripts/hand-mutants.py` |
 | board FULL or DEBT, every exclusion classed | `{"rows": 33, "present": 27, "partial": 0, "missing": 0, "excluded": 6, "na": 0, "no_evidence": 0, "verdict": "DEBT"}` | `scripts/parity-board.sh` |
-| DISC register complete | 11 ACCEPTED (each with a scoped contract), 2 RESOLVED, 0 OPEN | `docs/DISCREPANCIES.md`; `scripts/converge.sh`: `"open_disc": []` |
+| DISC register complete | 12 ACCEPTED (each with a scoped contract), 2 RESOLVED, 0 OPEN | `docs/DISCREPANCIES.md`; `scripts/converge.sh`: `"open_disc": []` |
 | floor unchanged since capture | `{"repeat":3,"stable":1065,"unstable":[],"inconclusive":[],"oracle_identity_checked":true,"verdict":"STABLE"}` | `scripts/floor.sh` |
 | MANIFEST unchanged since the clean tail | there is no clean tail yet; last change `4c3cccc Round 8 (non-author, dirty: 0 HIGH, 4 MEDIUM, 4 LOW): EBADF on stdin ends the input, launcher repairs, 5 cases, 368 laws` (15 hashes added, 0 changed; every re-capture of this port only ever ADDED hashes) | git |
 | evidence ≤ 24 h old on this commit | every line of this report is dated 2026-09-20 | `docs/PORT_STATE.md` |
-| zero open high-severity findings | round 7's two HIGH findings are repaired and have regression rows (`scripts/stdio-probe.py`); round 8 found none | PORT_STATE rounds table |
-| convergence met for the tier | `{"tier": "T2", "rounds": 8, "clean": 5, "clean_tail": 0, "last_two_clean": false, "non_author_round": true, "open_oq": [], "open_disc": [], "verdict": "NOT_CONVERGED", "missing": ["clean rounds since last reset 0 < 2"]}`: FAILS | `scripts/converge.sh` |
-| every perf claim has a pin, cv ≤ 5%, identical sha | the seven MEASURED captures named below; one NO_EVIDENCE; six REFUSED_CV that are claimed nowhere | `perf/evidence/`, `perf/PERF-LEDGER.md`, `perf/NEGATIVE-EVIDENCE.md` |
-| claims lint | `claims-lint: 0 hit(s)` on this file, `README.md`, `docs/PORT_STATE.md`, `docs/DISCREPANCIES.md`, `docs/OPEN_QUESTIONS.md`, `perf/*.md` | `scripts/claims-lint.sh` |
+| zero open high-severity findings | round 7's two HIGH findings (stdin re-opened by path) are repaired and have regression rows (`scripts/stdio-probe.py`); round 10's one HIGH finding (cited commits that did not build) is repaired and has a gate (`scripts/clean-build-check.sh`); rounds 8 and 9 had none | PORT_STATE rounds table, `docs/reviews/` |
+| convergence met for the tier | `{"tier": "T2", "rounds": 10, "clean": 5, "clean_tail": 0, "last_two_clean": false, "non_author_round": true, "open_oq": [], "open_disc": [], "verdict": "NOT_CONVERGED", "missing": ["clean rounds since last reset 0 < 2"]}`: FAILS | `scripts/converge.sh` |
+| every perf claim has a pin, cv ≤ 5%, identical sha | the MEASURED captures named below; one NO_EVIDENCE; six REFUSED_CV that are claimed nowhere; NO row is admitted to the WIN ledger (NE-001..005 are provisional) | `perf/evidence/`, `perf/PERF-LEDGER.md`, `perf/NEGATIVE-EVIDENCE.md` |
+| claims lint | `claims-lint: 0 hit(s) in 11 file(s)`: this file, `README.md`, `CONTRIBUTING.md`, `docs/PORT_STATE.md`, `docs/PARITY_RUNBOOK.md`, `docs/DISCREPANCIES.md`, `docs/OPEN_QUESTIONS.md`, `perf/*.md` | `scripts/claims-lint.sh` |
 
 ## Claims
 
@@ -40,8 +40,9 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 - NOT proved: `fast == spec` for every input, for any of the three twins; anything about the compiled C or the JavaScript build; anything about a non-integer number through the pipeline (the checker does not normalize the shortest-digit generator)
 
 ### Golden-tested
+- The two native lanes are ONE sequential execution under two labels: the port places no bang and no parallel let, so the runtime never starts a worker pool and `--threads N` changes nothing (2 OS threads at `--threads` 1, 8 and 64, measured by round 10 and re-measured); `c-8t` adds no evidence beyond `c-1t` today and is kept because it would catch a parallel twin the day one is added.
 - 1065 cases on interpreter, c-1t, c-8t, js at `4c3cccc` (and 1060 at `d80251a`, 1053 at `1230a0d`); gpu MISSING: no bang is placed (text with data-dependent structure); the three compiled lanes also under `TOON_SPEC=1`; MANIFEST 3195 hashes captured from `./oracle/toon` (`toon 0.2.4` @ `f955c67`); 2026-09-20
-- outside the corpus, against the original, 0 differences on conversion content: the author's seeded lenses (`scripts/diff-fuzz.py`: mutate, docs, argv, expand, collide, numbers under `TOON_SPEC=1`, scale) and the three non-author rounds (about 122000 and 90000 compared executions in rounds 7 and 8)
+- outside the corpus, against the original, 0 differences on conversion content: the author's seeded lenses (`scripts/diff-fuzz.py`: mutate, docs, argv, expand, collide, numbers under `TOON_SPEC=1`, scale) and the non-author rounds (about 122000, 90000 and 948000 compared executions in rounds 7, 8 and 9; round 10 added terminals, environments, thread counts and a fresh clone)
 
 ### Measured
 - 1.67× / 1.56× / 2.12× against the port's own build of `4bfecef` (EXP-001 tabular encode, EXP-002 tabular decode, EXP-003 9000 decimals; 18 samples per arm in AB/BA pairs; cv ≤ 1.5%; A/A 1.001 / 0.995 / 1.004; stdout sha equal; AMD EPYC-Milan 8 cores, Linux, 1 thread; 2026-09-20); PROVISIONAL, not WIN (NE-001..003)
@@ -55,7 +56,7 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 
 ## Discrepancies
 
-ACCEPTED on 2026-09-20 by the owner's delegation, one line each (id, class, kill-switch or mitigation, cases affected): DISC-001 Platform, runtime flags before `--`, launcher, 0 · DISC-002 Platform, the literal program name, none, 0 · DISC-003 Platform, an unwritable stderr, launcher repairs closed and read-only, 0 · DISC-004 Platform, non-UTF-8 argv, none, 0 · DISC-005 Platform, ANSI styling, none, 0 · DISC-006 Platform, a failed stdout write, launcher repairs closed and read-only, 0 · DISC-007 Platform, closed descriptors on the bare native binary, launcher, 0 · DISC-008 Platform, `-o` mode 0644, none, 0 · DISC-010 Performance, deep nesting, none, 0 · DISC-011 Performance, the runtime's resource floor, the JavaScript build, 0 · DISC-013 Performance, non-integer numbers 45 to 300 times slower (linear), none, 0. RESOLVED by repairs: DISC-009, DISC-012 (the stdin effect; regression rows in `scripts/stdio-probe.py`). Approver of every entry: the repository owner through the delegation quoted above.
+ACCEPTED on 2026-09-20 by the owner's delegation, one line each (id, class, kill-switch or mitigation, cases affected): DISC-001 Platform, runtime flags before `--`, launcher, 0 · DISC-002 Platform, the literal program name, none, 0 · DISC-003 Platform, an unwritable stderr, launcher repairs closed and read-only, 0 · DISC-004 Platform, non-UTF-8 argv, none, 0 · DISC-005 Platform, ANSI styling, none, 0 · DISC-006 Platform, a failed stdout write, launcher repairs closed and read-only, 0 · DISC-007 Platform, closed descriptors on the bare native binary, launcher, 0 · DISC-008 Platform, `-o` mode 0644, none, 0 · DISC-010 Performance, deep nesting, none, 0 · DISC-011 Performance, the runtime's resource floor, the JavaScript build, 0 · DISC-013 Performance, non-integer numbers 45 to 300 times slower (linear), none, 0 · DISC-014 Platform, a `/dev/fd/N` path the caller did not open reaches a descriptor of the runtime, none, 0. RESOLVED by repairs: DISC-009, DISC-012 (the stdin effect; regression rows in `scripts/stdio-probe.py`). Approver of every entry: the repository owner through the delegation quoted above.
 
 ## Reproduce (an auditor gets the same lines)
 

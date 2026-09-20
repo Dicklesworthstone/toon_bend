@@ -5,7 +5,7 @@
      computes the verdict: FULL, PARTIAL, DEBT (exclusions exist) or
      MALFORMED (a "present" row with neither a golden nor a law). Rules:
      partial never rounds up; excluded is debt; a present feature names
-     its evidence. Statuses: present | present | missing | excluded | n/a. -->
+     its evidence. Statuses: present | partial | missing | excluded | n/a. -->
 
 Last gate run: 2026-09-20 at commit `4c3cccc` · `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8 --interpreter-timeout 120` → `{"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1065,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1065,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1065,"failed":0},{"lane":"js","verdict":"PASS","passed":1065,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":120.0,"compiled":5.0,"build":600},"verdict":"PASS"}` ·
 proofs: `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.` with 0 unsafe (0 `@unsafe` + 0 template instances, bend 2.0.16), 368 laws (14 quantified, 59 closed unit laws, 295 closed whole-pipeline `golden_<case>` laws) · `scripts/law-coverage.sh`: every law cited by a row below, 0 ghost citations ·

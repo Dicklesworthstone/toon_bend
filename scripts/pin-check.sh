@@ -132,6 +132,7 @@ if len(blocks)!=2 or any(not re.fullmatch(r'  [0-9a-f]{64}  [A-Za-z0-9][A-Za-z0-
 for h,n in rows:
     f=p.parent/n
     if not f.is_file() or hashlib.sha256(regular_bytes(f)).hexdigest()!=h: bad.append(n)
+golden_ok=not bad  # every golden file matched its hash (judged before the provenance of the capture is looked at)
 listed={n for _,n in rows}
 if len(listed)!=len(rows): bad.append('duplicate golden hashes')
 casefile=p.parent/'cases.tsv'
@@ -164,8 +165,13 @@ if len(prov)==1 and len(commands)==1:
         flag,separator,value=word.partition('=')
         if separator and flag.startswith('-') and pathlib.Path(value).is_absolute(): return flag+'='+relocated(value)
         return relocated(word) if pathlib.Path(word).is_absolute() else word
-    wanted=provenance([command_word(word) for word in command],str(casefile),manifest)
-    if actual!=wanted: bad.append('captured provenance does not cover current command and case inputs')
+    try:
+        wanted=provenance([command_word(word) for word in command],str(casefile),manifest)
+    except OSError as exc:
+        # a clone without the oracle binary (it is deliberately not in the repository): say so instead of a traceback
+        wanted=None
+        bad.append('the captured original is absent here ('+str(exc.filename or exc)+'): provenance not re-checked; the '+str(len(rows))+' golden hashes themselves '+('match' if golden_ok else 'do NOT all match'))
+    if wanted is not None and actual!=wanted: bad.append('captured provenance does not cover current command and case inputs')
 else: bad.append('missing or duplicate captured source/input provenance or original_argv; recapture')
 print(f'{len(rows)} hashes and capture inputs verified' if rows and not bad else 'capture integrity failed: '+'; '.join(bad))
 sys.exit(0 if rows and not bad else 1)

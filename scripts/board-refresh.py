@@ -135,8 +135,8 @@ def finalize(commit, log):
             "a row is `present` when the goldens it names pass on EVERY lane of that run and the laws it names are proved; \"laws\" on a row are closed instances unless the row names one of the %d quantified laws.\n\n"
             % (commit, line, len(names), len(quant), len(closed), len(golden), len(quant)))
     s = s[:a] + head + s[b:]
-    if allpass:
-        s = s.replace(" | partial | ", " | present | ")
+    if allpass:  # table rows only: the legend above the table names the statuses too
+        s = "".join(l.replace(" | partial | ", " | present | ") if l.startswith("| ") and l.count("|") >= 8 else l for l in s.splitlines(keepends=True))
     s = s.replace("`J.read` (`J.step`, `J.run`, `J.finish`), `J.obj.put`", "`J.read` (`J.step`, `J.run`, `J.finish`), `J.obj.member`, `J.obj.close`, `T.kt.*`, `J.km.*`")
     a = s.index("## Proof coverage")
     tail = """## Proof coverage
@@ -154,6 +154,9 @@ def finalize(commit, log):
     | lane | cases | verdict | date |
     |---|---|---|---|
     %s| gpu (`--gpu on`) | - | MISSING: no bang is placed (text with data-dependent structure), so there is no device lane to run | 2026-09-20 |
+
+The two native lanes are ONE sequential execution under two labels: no bang and no parallel let is placed, so `--threads N` changes nothing
+(2 OS threads at `--threads` 1, 8 and 64); `c-8t` is kept because it would catch a parallel twin the day one is added.
     """ % (len(quant), ", ".join("`%s`" % n for n in quant), len(twin), ", ".join("`%s`" % n for n in twin),
            len([n for n in closed if n not in twin]), ", ".join("`%s`" % n for n in closed if n not in twin), len(golden), len(golden),
            "".join("| %s | %d/%d | %s | 2026-09-20 (commit `%s`) |\n" % (l["lane"], l["passed"], l["passed"] + l["failed"], l["verdict"], commit) for l in lanes["lanes"]))

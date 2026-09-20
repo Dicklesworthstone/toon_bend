@@ -122,7 +122,8 @@ export BEND_NO_TELEMETRY=1 BEND_CLI='bun /tmp/bend/bend2/main.ts'
 # The proof gate: must print exactly "All terms check." (a "with N unsafe annotations" line is a partial green)
 (cd port && $BEND_CLI PROOF.bend)
 
-# Check every entry point without executing it
+# Check every entry point without executing it (this script belongs to the bend2-mega-skill, NOT to this repository; without
+# the skill, `$BEND_CLI port/main.bend -o /tmp/toon_check` checks main and everything it imports, and PROOF.bend the rest)
 ~/.claude/skills/bend2-mega-skill/scripts/bend-check.sh port
 
 # Porting anti-patterns (quadratic ++, untagged defs, fast twins without a law, clock/random in the core, ...)
@@ -133,7 +134,7 @@ python3 scripts/port-lint.py port/*.bend --laws port/LAWS.bend
 ./scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8
 ```
 
-If you see errors, **carefully understand and resolve each issue**. `~/.claude/skills/bend2-mega-skill/scripts/explain-error.sh` decodes a checker refusal; fix the first error only, then re-run. A refusal is usually a missing spec fact (an aliasing invariant, a loop bound, an unlisted error path): write the clause first, then reshape the code. Three identical errors on one def → write the OQ and move on.
+If you see errors, **carefully understand and resolve each issue**. `~/.claude/skills/bend2-mega-skill/scripts/explain-error.sh` (the skill's, not this repository's) decodes a checker refusal; fix the first error only, then re-run. A refusal is usually a missing spec fact (an aliasing invariant, a loop bound, an unlisted error path): write the clause first, then reshape the code. Three identical errors on one def → write the OQ and move on.
 
 ---
 
@@ -141,7 +142,7 @@ If you see errors, **carefully understand and resolve each issue**. `~/.claude/s
 
 ### Testing Policy
 
-Tests here are **captured, never typed**. `goldens/<case>.out|.err|.exit` hold what the pinned original printed for each row of `goldens/cases.tsv`; the port passes a case when all three match byte for byte **on every lane** (interpreter, C at 1 thread, C at 8 threads, JS). A lane difference is a bug, never a tolerance. A missing golden, an unrunnable case or an empty manifest is a FAIL, never a skip.
+Tests here are **captured, never typed**. `goldens/<case>.out|.err|.exit` hold what the pinned original printed for each row of `goldens/cases.tsv`; the port passes a case when all three match byte for byte **on every lane** (interpreter, C at 1 thread, C at 8 threads, JS). A lane difference is a bug, never a tolerance. A missing golden, an unrunnable case or an empty manifest is a FAIL, never a skip. The two native lanes are ONE sequential execution under two labels: the port places no bang and no parallel let, so the runtime never starts a worker pool and `--threads N` changes nothing (2 OS threads at `--threads` 1, 8 and 64, measured by round 10 and re-measured); `c-8t` adds no evidence beyond `c-1t` today and is kept because it would catch a parallel twin the day one is added.
 
 Properties that hold for every input are **laws** in `port/LAWS.bend`, proved in `port/PROOF.bend`. A claim says which of the two it rests on.
 
@@ -575,7 +576,7 @@ Parse: `file:line:col` -> location | Suggested fix -> how to fix | Exit 0/1 -> p
 
 RCH offloads `cargo build`, `cargo test` and other compilation commands to the remote worker fleet. **In this project it matters for exactly one thing: rebuilding the oracle** from the pinned commit of the original (`cd legacy/Toon && cargo build --release`). The cargo shim is installed ahead of `~/.cargo/bin`, so the build is admitted automatically; never invoke cargo by absolute path, and never set `CARGO_TARGET_DIR` to a `/tmp` path.
 
-Bend builds (`bend main.bend -o toon`) are a bun process plus one `clang` invocation and run locally; they take about a second.
+Bend builds (`bend main.bend -o toon`) are a bun process plus one `clang -O3` invocation over about 1.8 MB of emitted C and run locally; the native build takes about 25 seconds on the build host, the JavaScript build about 3.
 
 Quick commands:
 ```bash

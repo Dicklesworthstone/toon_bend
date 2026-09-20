@@ -167,7 +167,7 @@ These three captures compare one binary that carries ALL THREE levers with the b
 | `-e`, one object of 16000 keys | 20.5 s | 66 ms | 17 ms | 0.25× the original's speed, MEASURED (cv 3.4% / 2.6%) |
 | `-e`, 20 rows of 1200 fields | 6.5 s | 75 ms | 95 ms | 1.27× the original's speed, MEASURED (cv 4.7% / 1.1%) |
 | `-d --expand-paths safe`, 40000 dotted lines | > 60 s (cut at its budget) | 772 ms | 2362 ms | 3.06× the original's speed, MEASURED (cv 0.8% / 3.1%) |
-| `-e --key-folding safe`, 30000 foldable keys | > 60 s (cut at its budget) | 307 ms | 610 ms | ratio REFUSED_CV twice (port arm cv 6.8%): NO_EVIDENCE, `perf/NEGATIVE-EVIDENCE.md` NE-004 |
+| `-e --key-folding safe`, 30000 foldable keys | > 60 s (cut at its budget) | 452 ms | 668 ms | ratio REFUSED_CV three times (the last: port arm cv 5.6%, 15 pairs): NO_EVIDENCE, `perf/NEGATIVE-EVIDENCE.md` NE-004 |
 
 The non-author round 7 then showed that keys CHOSEN to collide in the carriers' 16 hash bits, and keys repeated in one object, were still quadratic (16000 colliding keys: 21 s; 16000 repeats: 50 s). Every bucket is a balanced tree now and a repeated key is resolved once per object; `python3 scripts/diff-fuzz.py scale --runs 16000 -- <port> --` runs those hostile inputs with a time verdict (too slow = more than 1 s AND more than 40 times the original): 5 inputs too slow on the binary of `1230a0d`, 0 on the current one, bytes identical.
 

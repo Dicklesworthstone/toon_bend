@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """claims-audit: the numbers and the cross-references of the claim-bearing documents, checked against the
 repository itself. `claims-lint.sh` judges the WORDS (deferrals, unsafe counts without a version); this one
-judges the FACTS, because that is what the non-author review rounds kept finding (rounds 9 to 11: a corpus
+judges the FACTS (including every ratio, median and cv of README's performance section against
+`perf/evidence/*.json`), because that is what the non-author review rounds kept finding (rounds 9 to 11: a corpus
 size that moved, a round range that stopped at 9, a bead id that had been closed, a pasted probe line with
 the row count of an older run).
 
@@ -102,6 +103,21 @@ def facts():
                 beads[j["id"]] = j.get("status", "?")
     f["beads"] = beads
     reviews_dir = os.path.join(ROOT, "docs", "reviews")
+    ev = {}
+    evdir = os.path.join(ROOT, "perf", "evidence")
+    for name in sorted(os.listdir(evdir) if os.path.isdir(evdir) else []):
+        if not name.endswith(".json"):
+            continue
+        try:
+            j = json.loads(read(os.path.join("perf", "evidence", name)))
+        except ValueError:
+            continue
+        if isinstance(j, dict) and "port" in j and "original" in j:
+            ev[name] = j
+    f["evidence"] = ev
+    f["ratios"] = {round(j["ratio"], d) for j in ev.values() if j.get("ratio") for d in (2, 3, 4)}
+    f["medians"] = {round(j[side]["median_ms"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1)}
+    f["cvs"] = {round(j[side]["cv_pct"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1)}
     f["reviews"] = {int(m.group(1)): p for p in sorted(os.listdir(reviews_dir) if os.path.isdir(reviews_dir) else [])
                     for m in [re.match(r"round-(\d+)\.md$", p)] if m}
     state = read("docs/PORT_STATE.md")
@@ -210,6 +226,22 @@ def audit(files, f, gates, verbose):
                     continue
                 if not os.path.exists(os.path.join(ROOT, ident)):
                     hit(path, n, "names the path %s, which does not exist" % ident, line)
+    # every number of README's performance section must come from perf/evidence/
+    readme = read("README.md")
+    a = readme.find("## Performance")
+    b = readme.find("## Design Philosophy", a + 1)
+    if a > 0 and b > a and "README.md" in files:
+        base = readme[:a].count("\n") + 1
+        for i, line in enumerate(readme[a:b].splitlines()):
+            if line.lstrip().startswith(("#", ">")) or "perf/evidence" in line:
+                continue
+            for value, kind, pool in ([(v, "ratio", f["ratios"]) for v in re.findall(r"(\d+\.\d+)×", line)]
+                                      + [(v, "median", f["medians"]) for v in re.findall(r"(\d+\.\d+) ms", line)]
+                                      + [(v, "cv", f["cvs"]) for v in re.findall(r"cv (\d+\.\d+)%|/ (\d+\.\d+)%", line) for v in [v[0] or v[1]]]):
+                if float(value) not in pool:
+                    findings.append({"file": "README.md", "line": base + i, "text": line.strip()[:200],
+                                     "finding": "the performance section states the %s %s, which is in no file of perf/evidence/" % (kind, value)})
+
     # the rounds table against the review reports
     for r, path in f["reviews"].items():
         if r not in f["round_findings"]:

@@ -1564,3 +1564,21 @@ law ks_bucket_is_balanced_descending:
 # S6.10 and the first and the last of them are found again
 law ks_bucket_members_descending:
   {(T.ks.has(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.KSNil{}, "g"), "f"), "e"), "d"), "c"), "b"), "a"), "a"), T.ks.has(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.KSNil{}, "g"), "f"), "e"), "d"), "c"), "b"), "a"), "g")) == (True{}, True{}) : Bool & Bool}
+
+# ---------------------------------------------------------------- round 8: a cluster after a pending value option (closed)
+
+# S1.81 goldens/usage_missing_value_before_mixed_cluster (round 8: the FIRST character of a cluster after a pending value option decides)
+law golden_usage_missing_value_before_mixed_cluster:
+  {C.run_pure(["-o", "-ex"], Nil{}) == C.Out{2n, "", "error: a value is required for '--output <FILE>' but none was supplied\n\nFor more information, try '--help'."} : C.Out}
+
+# S1.81 goldens/usage_missing_value_indent_before_mixed_cluster (round 8: the FIRST character of a cluster after a pending value option decides)
+law golden_usage_missing_value_indent_before_mixed_cluster:
+  {C.run_pure(["--indent", "-ox"], Nil{}) == C.Out{2n, "", "error: a value is required for '--indent <INDENT>' but none was supplied\n\nFor more information, try '--help'."} : C.Out}
+
+# S1.77 goldens/usage_unknown_first_in_cluster_after_value_option (round 8: the FIRST character of a cluster after a pending value option decides)
+law golden_usage_unknown_first_in_cluster_after_value_option:
+  {C.run_pure(["-o", "-xe"], Nil{}) == C.Out{2n, "", "error: unexpected argument '-x' found\n\n  tip: to pass '-x' as a value, use '-- -x'\n\nUsage: toon [OPTIONS] [INPUT]\n\nFor more information, try '--help'."} : C.Out}
+
+# S1.77 goldens/usage_unknown_digit_cluster_after_value_option (round 8: the FIRST character of a cluster after a pending value option decides)
+law golden_usage_unknown_digit_cluster_after_value_option:
+  {C.run_pure(["-o", "-5e"], Nil{}) == C.Out{2n, "", "error: unexpected argument '-5' found\n\n  tip: to pass '-5' as a value, use '-- -5'\n\nUsage: toon [OPTIONS] [INPUT]\n\nFor more information, try '--help'."} : C.Out}

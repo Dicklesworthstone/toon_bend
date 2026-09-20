@@ -710,3 +710,8 @@ toonedge_expand_hash_collision_conflict	["--decode", "--expand-paths", "safe"]	c
 toonedge_expand_hash_collision_lenient	["--decode", "--expand-paths", "safe", "--no-strict"]	cases/inputs/hand/toonedge_expand_hash_collision_lenient.txt	toon-edge	S4.246: the same document in lenient mode: the later value wins under jda.k only
 toonedge_repeated_keys_hash_collision	["--decode"]	cases/inputs/hand/toonedge_repeated_keys_hash_collision.txt	toon-edge	S3.25: writer A keeps every repeated key, colliding or not
 toonerr_expand_repeated_hash_collision	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_repeated_hash_collision.txt	toon-error	S4.245: a repeated literal key is a merge conflict under expansion
+usage_missing_value_before_mixed_cluster	["-o", "-ex"]	-	usage	S1.81: -e is known, so -o has no value; the unknown x behind it is never looked at
+usage_missing_value_before_cluster_digit	["-o", "-e5"]	-	usage	S1.81: the same with a digit behind the known character
+usage_missing_value_indent_before_mixed_cluster	["--indent", "-ox"]	-	usage	S1.81: a long value option, a cluster starting with the known -o
+usage_unknown_first_in_cluster_after_value_option	["-o", "-xe"]	-	usage	S1.77: the first character is unknown: unexpected argument '-x', although -e follows
+usage_unknown_digit_cluster_after_value_option	["-o", "-5e"]	-	usage	S1.77: a digit first: unexpected argument '-5' (not a negative number for --output)

@@ -40,18 +40,28 @@ def chunks.join(chunks: List<&2, List<&2, U32>>, acc: List<&2, U32>) -> List<&2,
     case Con{c, rest}:
       chunks.join(rest, chunk.onto(List.reverse(&2, U32, c), acc))
 
+# S9.12 a failed read. On STANDARD INPUT the original takes EBADF (errno 9) for the end of the input: a
+# descriptor 0 that is missing, or open without read access (`0>/dev/null`, the write end of a pipe, an
+# O_PATH descriptor), reads as EMPTY there (round 8, R8-1). A named INPUT file has no such rule.
+def read.failed(stdin: Bool, ebadf: Bool, n: U32, text: String, chunks: List<&2, List<&2, U32>>) -> RB:
+  match stdin ebadf:
+    case True{} True{}:
+      RBOk{chunks.join(chunks, Nil{})}
+    case _ _:
+      RBFail{n, text}
+
 # S8.5, S8.6 read to the end of the file, one chunk per step; an empty chunk is the end. The measure
 # is a chunk budget far above any input (2^40 bytes).
-def read.loop(budget: Nat, got: File & Result<&1, &1, U32 & String, List<&2, U32>>, chunks: List<&2, List<&2, U32>>) -> IO(RB):
+def read.loop(budget: Nat, got: File & Result<&1, &1, U32 & String, List<&2, U32>>, chunks: List<&2, List<&2, U32>>, +stdin: Bool) -> IO(RB):
   match budget:
     case 0n:
       IO.pure(RB, RBFail{27, "File too large"})
     case 1n+g:
       match got:
-        case (f, Fail{(n, text)}):
+        case (f, Fail{(+n, text)}):
           do IO<RB>:
             File.close(f)
-            return RBFail{n, text}
+            return read.failed(stdin, U32.is_eq(n, 9), n, text, chunks)
         case (f, Done{Nil{}}):
           do IO<RB>:
             File.close(f)
@@ -59,17 +69,17 @@ def read.loop(budget: Nat, got: File & Result<&1, &1, U32 & String, List<&2, U32
         case (f, Done{Con{b, more}}):
           do IO<RB>:
             next : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(f, 1048576)
-            read.loop(g, next, (b <> more) <> chunks)
+            read.loop(g, next, (b <> more) <> chunks, stdin)
 
 # S8.6 open failures carry the platform's error number and text (S9.4–S9.6)
-def read.opened(r: Result<&1, &1, U32 & String, File>) -> IO(RB):
+def read.opened(r: Result<&1, &1, U32 & String, File>, +stdin: Bool) -> IO(RB):
   match r:
-    case Fail{(n, text)}:
-      IO.pure(RB, RBFail{n, text})
+    case Fail{(+n, text)}:
+      IO.pure(RB, read.failed(stdin, U32.is_eq(n, 9), n, text, Nil{}))
     case Done{f}:
       do IO<RB>:
         got : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(f, 1048576)
-        read.loop(1048576n, got, Nil{})
+        read.loop(1048576n, got, Nil{}, stdin)
 
 # S8.5 standard input as a Base File: descriptor 0 ITSELF. Base has no stdin effect, and opening the
 # path /dev/stdin makes a NEW open file description: a regular file is read again from byte 0 whatever
@@ -87,11 +97,11 @@ def read.input(has_in: Bool, input: String) -> IO(RB):
     case True{}:
       do IO<RB>:
         r : Result<&1, &1, U32 & String, File> <- File.open(input, "r")
-        read.opened(r)
+        read.opened(r, False{})
     case False{}:
       do IO<RB>:
         r : Result<&1, &1, U32 & String, File> <- Stdin.open()
-        read.opened(r)
+        read.opened(r, True{})
 
 # S9.17 `<description> (os error <errno>)`
 def os.text(n: U32, text: String) -> String:

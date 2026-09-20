@@ -5,6 +5,8 @@ usage: js-lane.py FILE.js [--] [ARG ...]
 The optional first -- belongs to this launcher; later -- values belong to the
 program. Bun otherwise consumes an additional separator before Bend's IO.args
 handles its own separator. Bun is retained for generated bun:ffi file effects.
+Limit (round 8): a DIRECTORY as descriptor 0 stops Python itself before bun starts ("init_sys_streams:
+<stdin> is a directory"), so that one descriptor state must be probed by starting bun directly.
 """
 import json
 import os

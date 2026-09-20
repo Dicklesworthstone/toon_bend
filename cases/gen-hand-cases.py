@@ -831,6 +831,20 @@ def _found_round7():
 _found_round7()
 
 
+def _found_round8():
+    """Round 8 (non-author review), R8-7: a pending value option followed by a short cluster. The FIRST
+    character of the cluster decides (S1.81 when it is a known short option, S1.77 when it is not); the
+    spec had said "a short cluster of known characters". The port already agreed with the oracle."""
+    case("usage_missing_value_before_mixed_cluster", ["-o", "-ex"], None, "usage", "S1.81: -e is known, so -o has no value; the unknown x behind it is never looked at")
+    case("usage_missing_value_before_cluster_digit", ["-o", "-e5"], None, "usage", "S1.81: the same with a digit behind the known character")
+    case("usage_missing_value_indent_before_mixed_cluster", ["--indent", "-ox"], None, "usage", "S1.81: a long value option, a cluster starting with the known -o")
+    case("usage_unknown_first_in_cluster_after_value_option", ["-o", "-xe"], None, "usage", "S1.77: the first character is unknown: unexpected argument '-x', although -e follows")
+    case("usage_unknown_digit_cluster_after_value_option", ["-o", "-5e"], None, "usage", "S1.77: a digit first: unexpected argument '-5' (not a negative number for --output)")
+
+
+_found_round8()
+
+
 def _read_bytes(path):
     """The bytes of a file; the handle is closed before returning."""
     with open(path, "rb") as fh:

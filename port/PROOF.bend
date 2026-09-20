@@ -1515,3 +1515,19 @@ def Laws.ks_bucket_is_balanced_descending():
 # S6.10 the bucket's members, descending
 def Laws.ks_bucket_members_descending():
   {==}
+
+# S1.81 goldens/usage_missing_value_before_mixed_cluster
+def Laws.golden_usage_missing_value_before_mixed_cluster():
+  {==}
+
+# S1.81 goldens/usage_missing_value_indent_before_mixed_cluster
+def Laws.golden_usage_missing_value_indent_before_mixed_cluster():
+  {==}
+
+# S1.77 goldens/usage_unknown_first_in_cluster_after_value_option
+def Laws.golden_usage_unknown_first_in_cluster_after_value_option():
+  {==}
+
+# S1.77 goldens/usage_unknown_digit_cluster_after_value_option
+def Laws.golden_usage_unknown_digit_cluster_after_value_option():
+  {==}

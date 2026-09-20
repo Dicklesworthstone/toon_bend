@@ -127,6 +127,27 @@ def main():
                 os.close(dev)
         return f
 
+    def wrong_mode(which, args, data=b"[1,2]"):
+        def f(cmd):
+            path = os.path.join(work, "mode%d" % which)
+            with open(path, "wb") as fh:
+                fh.write(data if which == 0 else b"")
+            fd = os.open(path, os.O_WRONLY if which == 0 else os.O_RDONLY)
+            rd, wr = os.pipe()
+            try:
+                os.write(wr, data)
+                os.close(wr)
+                kw = {"stdin": fd} if which == 0 else ({"stdin": rd, "stdout": fd} if which == 1 else {"stdin": rd, "stderr": fd})
+                return run(cmd, args, **kw)
+            finally:
+                os.close(rd)
+                os.close(fd)
+        return f
+
+    row("stdin is open WRITE-only, decode (the original reads an empty input)", "", wrong_mode(0, ["-d"]))
+    row("stdin is open WRITE-only, encode", "", wrong_mode(0, ["-e"]))
+    row("stdout is open READ-only", "DISC-006", wrong_mode(1, ["-e"]))
+    row("stderr is open READ-only, a success line to write", "DISC-003", wrong_mode(2, ["-e", "-o", os.path.join(work, "out2.toon")]))
     row("stdin is a regular file at offset 11", "", offset(11, ["-d"]))
     row("stdin is a regular file at its end", "", offset(len(doc), ["-d"]))
     row("stdin offset is left alone when INPUT is a file", "", offset(11, ["-e", small]))

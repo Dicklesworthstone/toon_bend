@@ -8,8 +8,18 @@
 #     stdin and ignores EBADF on stdout and stderr, which is exactly what /dev/null gives: closed
 #     descriptors 0, 1 and 2 are re-opened from /dev/null before exec.
 # The binary is port/toon (build it: $BEND_CLI port/main.bend -o port/toon), or $TOON_BEND_BIN.
-# Runtime knobs go through the environment, never argv: TOON_BEND_THREADS=N, TOON_SPEC=1.
-here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd) || exit 127
+# Runtime knobs go through the environment, never argv: TOON_BEND_THREADS=N (a positive decimal count;
+# anything else is ignored), TOON_SPEC=1.
+# the launcher may be reached through symbolic links (a link in ~/.local/bin): the binary is beside the FILE
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink -- "$self") || break
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname -- "$self")/$link ;;
+  esac
+done
+here=$(CDPATH='' cd -- "$(dirname -- "$self")" && pwd) || exit 127
 bin=${TOON_BEND_BIN:-$here/../port/toon}
 if [ ! -x "$bin" ]; then
   echo "toon: no binary at $bin (build it: bun /tmp/bend/bend2/main.ts port/main.bend -o port/toon)" >&2
@@ -26,7 +36,30 @@ fi
 if [ ! -e /dev/fd/2 ]; then
   exec 2>/dev/null
 fi
-if [ -n "${TOON_BEND_THREADS:-}" ]; then
-  exec "$bin" --threads "$TOON_BEND_THREADS" -- "$@"
+# DISC-003, DISC-006 (round 8): a standard descriptor that is OPEN in the wrong access mode (`1</dev/null`,
+# `2</dev/null`) gives EBADF on its first write; the original ignores that and the Bend runtime stops with
+# exit 1. Linux tells the access mode in /proc/self/fdinfo/N (`flags:`, octal; the last digit 0 or 4 is
+# read-only, 1 or 5 write-only): a read-only 1 or 2 becomes /dev/null, which is what "ignored" amounts to.
+wrong_mode() {
+  [ -r "/proc/self/fdinfo/$1" ] || return 1
+  flags=
+  while read -r key value; do
+    [ "$key" = flags: ] && flags=$value
+  done < "/proc/self/fdinfo/$1"
+  case $flags in
+    *[04]) [ "$2" = write ] ;;
+    *[15]) [ "$2" = read ] ;;
+    *) return 1 ;;
+  esac
+}
+if wrong_mode 1 write; then
+  exec 1>/dev/null
 fi
-exec "$bin" -- "$@"
+if wrong_mode 2 write; then
+  exec 2>/dev/null
+fi
+# a thread count that the runtime would refuse (it refuses for EVERY argv, --version included) is not passed on
+case ${TOON_BEND_THREADS:-} in
+  '' | *[!0-9]* | 0*) exec "$bin" -- "$@" ;;
+  *) exec "$bin" --threads "$TOON_BEND_THREADS" -- "$@" ;;
+esac

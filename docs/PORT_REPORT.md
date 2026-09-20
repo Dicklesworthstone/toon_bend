@@ -18,7 +18,7 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 
 | constant | value | evidence |
 |---|---|---|
-| 100% of cases pass on every lane | `{"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1060,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1060,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1060,"failed":0},{"lane":"js","verdict":"PASS","passed":1060,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":120.0,"compiled":5.0,"build":600},"verdict":"PASS"}` at `d80251a` (1060 cases); at `4c3cccc` (1065 cases, one def of the shell changed) `conform.sh` PASS 1065/1065 on c-1t, c-8t, js with `TOON_SPEC` unset and `=1`, the four-lane run in progress when this was written (`docs/PORT_STATE.md` has the line when it ends) | `scripts/lanes.sh`, `scripts/conform.sh` |
+| 100% of cases pass on every lane | `{"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1065,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1065,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1065,"failed":0},{"lane":"js","verdict":"PASS","passed":1065,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":120.0,"compiled":5.0,"build":600},"verdict":"PASS"}` on the tree of `4c3cccc` (1065 cases; the port's modules are unchanged since); `conform.sh` PASS 1065/1065 on c-1t, c-8t, js with `TOON_SPEC=1` as well | `scripts/lanes.sh`, `scripts/conform.sh` |
 | all laws check | `All terms check.` (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16 @ `15ae0c8`), 368 laws | `(cd port && bun /tmp/bend/bend2/main.ts PROOF.bend)` |
 | law coverage | `{"laws": 368, "proofs": 368, "unproved": "", "ghost_proofs": "", "ghost_cited": "", "uncited": "", "duplicate_laws": [], "duplicate_proofs": [], "unsafe": 0, "unsafe_annotations": 0, "verdict": "OK"}` | `scripts/law-coverage.sh` |
 | the laws bite | `{"laws_in_proof": 123, "reduced": true, "mutants": 22, "killed": 22, "survived": [], "not_evidence": [], "verdict": "STRONG"}`; `scripts/law-mutation.sh` itself: INCONCLUSIVE on the three modules (no valid textual site) | `scripts/hand-mutants.py` |
@@ -40,7 +40,7 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 - NOT proved: `fast == spec` for every input, for any of the three twins; anything about the compiled C or the JavaScript build; anything about a non-integer number through the pipeline (the checker does not normalize the shortest-digit generator)
 
 ### Golden-tested
-- 1060 cases on interpreter, c-1t, c-8t, js at `d80251a`; gpu MISSING: no bang is placed (text with data-dependent structure); 1065 cases on c-1t, c-8t, js at `4c3cccc` under both settings of `TOON_SPEC`; MANIFEST 3195 hashes captured from `./oracle/toon` (`toon 0.2.4` @ `f955c67`); 2026-09-20
+- 1065 cases on interpreter, c-1t, c-8t, js at `4c3cccc` (and 1060 at `d80251a`, 1053 at `1230a0d`); gpu MISSING: no bang is placed (text with data-dependent structure); the three compiled lanes also under `TOON_SPEC=1`; MANIFEST 3195 hashes captured from `./oracle/toon` (`toon 0.2.4` @ `f955c67`); 2026-09-20
 - outside the corpus, against the original, 0 differences on conversion content: the author's seeded lenses (`scripts/diff-fuzz.py`: mutate, docs, argv, expand, collide, numbers under `TOON_SPEC=1`, scale) and the three non-author rounds (about 122000 and 90000 compared executions in rounds 7 and 8)
 
 ### Measured

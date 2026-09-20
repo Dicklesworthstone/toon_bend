@@ -1,0 +1,11 @@
+legacy/
+.port-bin
+.port-bin.js
+.port-bin.gpu
+__pycache__/
+port/*.c
+port/*.js
+port/*.gpu
+port/toon
+.ruff_cache/
+oracle/

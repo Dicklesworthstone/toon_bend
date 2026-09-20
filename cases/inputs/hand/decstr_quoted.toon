@@ -1,0 +1,9 @@
+a: "hello"
+b: "a\nb\tc\rd\\e\"f"
+c: ""
+d: "true"
+e: "123"
+f: " padded "
+"q k": 1
+"a.b": 2
+"": 3

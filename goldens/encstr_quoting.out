@@ -1,0 +1,30 @@
+empty: ""
+lead: " a"
+trail: "a "
+both: " a "
+t: "true"
+f: "false"
+n: "null"
+num: "123"
+exp: "1e5"
+neg: "-5"
+dash: "-"
+dashword: "-a"
+lz: "007"
+colon: "a:b"
+comma: "a,b"
+pipe: a|b
+tab: "a\tb"
+quote: "say \"hi\""
+bs: "a\\b"
+nl: "a\nb"
+cr: "a\rb"
+brk: "[x]"
+brc: "{x}"
+hash: #x
+plain: hello world
+T: True
+N: NULL
+dotnum: .5
+plusnum: +5
+hex: 0x10

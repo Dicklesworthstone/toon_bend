@@ -1,0 +1,4 @@
+user:
+  id: 123
+  name: Ada
+items[2]: a,b

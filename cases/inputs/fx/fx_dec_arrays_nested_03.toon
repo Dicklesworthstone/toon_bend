@@ -1,0 +1,5 @@
+items[2]:
+  - properties:
+      state:
+        type: string
+  - id: 2

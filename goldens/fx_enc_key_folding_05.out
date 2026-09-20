@@ -1,0 +1,4 @@
+data:
+  meta:
+    items[2]: 1,2
+data.meta.items: literal

@@ -1,0 +1,3 @@
+error: invalid value '' for '--indent <INDENT>': cannot parse integer from empty string
+
+For more information, try '--help'.

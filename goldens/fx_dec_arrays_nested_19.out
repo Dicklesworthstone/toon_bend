@@ -1,0 +1,12 @@
+{
+  "user": {
+    "id": 123.0,
+    "name": "Ada",
+    "tags": [
+      "reading",
+      "gaming"
+    ],
+    "active": true,
+    "prefs": []
+  }
+}

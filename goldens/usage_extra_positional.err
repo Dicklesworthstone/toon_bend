@@ -1,0 +1,5 @@
+error: unexpected argument 'b.json' found
+
+Usage: toon [OPTIONS] [INPUT]
+
+For more information, try '--help'.

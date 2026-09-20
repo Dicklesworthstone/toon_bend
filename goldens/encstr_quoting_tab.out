@@ -1,0 +1,4 @@
+comma: a,b
+pipe: a|b
+tab: "a\tb"
+arr[3	]: a,b	c|d	e

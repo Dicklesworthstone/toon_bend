@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "properties": {
+        "state": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "id": 2.0
+    }
+  ]
+}

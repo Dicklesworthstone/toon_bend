@@ -1,0 +1,15 @@
+[
+  "summary",
+  {
+    "id": 1.0,
+    "name": "Ada"
+  },
+  [
+    {
+      "id": 2.0
+    },
+    {
+      "status": "draft"
+    }
+  ]
+]

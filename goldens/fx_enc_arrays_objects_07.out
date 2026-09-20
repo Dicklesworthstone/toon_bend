@@ -1,0 +1,6 @@
+items[1]:
+  - users[2]:
+      - id: 1
+        name: Ada
+      - id: 2
+    status: active

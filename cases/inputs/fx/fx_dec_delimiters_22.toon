@@ -1,0 +1,3 @@
+items[2]:
+  - status: "a,b"
+  - status: "c,d"

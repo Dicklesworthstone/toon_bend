@@ -1,0 +1,2 @@
+config.database.host: localhost
+config.database.port: 5432

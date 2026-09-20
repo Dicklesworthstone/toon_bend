@@ -1,0 +1,55 @@
+empty_obj:
+empty_arr[0]:
+nested_empty:
+  a:
+  b[0]:
+arr_of_empty[3]:
+  -
+  - [0]:
+  -
+mixed[7]:
+  - 1
+  - a
+  - null
+  - true
+  - k: v
+  - [2]: 1,2
+  - [0]:
+aoa[3]:
+  - [2]: 1,2
+  - [0]:
+  - [1]: a
+aoa_mixed[2]:
+  - [2]:
+    - 1
+    - [1]: 2
+  - [1]: 3
+objs_diff[2]:
+  - a: 1
+  - b: 2
+objs_order[2]{a,b}:
+  1,2
+  4,3
+objs_nested[2]:
+  - a:
+      x: 1
+  - a:
+      x: 2
+objs_first_arr[4]:
+  - items[2]{id}:
+      1
+      2
+    n: 1
+  - items[2]: 1,2
+    n: 2
+  - items[0]:
+    n: 3
+  - items[1]:
+      - [1]: 1
+    n: 4
+objs_first_obj[2]:
+  - o:
+      p: 1
+    q: 2
+  - o:
+    q: 3

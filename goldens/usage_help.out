@@ -1,0 +1,28 @@
+TOON reference implementation in Rust (JSON <-> TOON)
+
+Usage: toon [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Input file path (omit or use "-" to read from stdin)
+
+Options:
+  -o, --output <FILE>                Output file path (stdout if omitted)
+  -e, --encode                       Encode JSON to TOON (auto-detected by default)
+  -d, --decode                       Decode TOON to JSON (auto-detected by default)
+      --delimiter <DELIMITER>        Delimiter for arrays: comma (,), tab (\t), or pipe (|) [default: ,]
+      --indent <INDENT>              Indentation size (spaces) [default: 2]
+      --no-strict                    Disable strict mode for decoding (allows lenient parsing)
+      --key-folding <KEY_FOLDING>    Key folding mode: off or safe [default: off] [possible values: off, safe]
+      --flatten-depth <N>            Maximum folded segment count when key folding is enabled
+      --expand-paths <EXPAND_PATHS>  Path expansion mode: off or safe (decode only) [default: off] [possible values: off, safe]
+      --stats                        Show token statistics (encode only)
+  -h, --help                         Print help
+  -V, --version                      Print version
+
+EXAMPLES:
+    toon input.json                  # Encode JSON to TOON (stdout)
+    toon input.toon                  # Decode TOON to JSON (stdout)
+    toon input.json -o output.toon   # Encode to file
+    cat data.json | toon --encode    # Encode from stdin
+    cat data.toon | toon --decode    # Decode from stdin
+    toon input.json --stats          # Show token statistics

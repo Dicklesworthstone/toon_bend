@@ -1,0 +1,10 @@
+{
+  "items": [
+    {
+      "status": "a,b"
+    },
+    {
+      "status": "c,d"
+    }
+  ]
+}

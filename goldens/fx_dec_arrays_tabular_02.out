@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "id": 1.0,
+      "value": null
+    },
+    {
+      "id": 2.0,
+      "value": "test"
+    }
+  ]
+}

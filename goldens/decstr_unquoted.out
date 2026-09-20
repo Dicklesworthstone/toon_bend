@@ -1,0 +1,11 @@
+{
+  "a": "hello world",
+  "b": "spaced",
+  "c": true,
+  "d": "TRUE",
+  "e": null,
+  "f": "Null",
+  "g": "café 😀",
+  "h": "a:b",
+  "i": "x # not a comment"
+}

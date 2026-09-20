@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "users": [
+        {
+          "id": 1.0,
+          "name": "Ada"
+        },
+        {
+          "id": 2.0,
+          "name": "Bob"
+        }
+      ],
+      "status": "active"
+    }
+  ]
+}

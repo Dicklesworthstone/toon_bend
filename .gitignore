@@ -5,6 +5,9 @@ legacy/
 __pycache__/
 port/*.c
 port/*.js
+# the one custom effect's twins are SOURCE, not build output (port/main.bend imports them)
+!port/stdin_open.c
+!port/stdin_open.js
 port/*.gpu
 port/toon
 .ruff_cache/

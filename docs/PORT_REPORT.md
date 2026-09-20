@@ -1,4 +1,4 @@
-# Port report: Toon → Bend 2   [SHIP | HOLD | BLOCK]   commit <sha>   <date>   bend <version>
+# Port report: Toon → Bend 2   HOLD   commit 4c3cccc   2026-09-20   bend 2.0.16
 
 <!-- Phase 6 document (SHIP-AND-CERTIFY). Every constant is computed from an
      artifact and pasted; every claim is proved / golden-tested / measured
@@ -7,54 +7,67 @@
 
 ## Verdict
 
-SHIP: every constant holds (table below).
-HOLD: <the constants that fail, each with the owner and the predicate that would flip it>.
-BLOCK: <a finding that invalidates the port's premise: an oracle-on-oracle run, an edited golden, a false law>.
+HOLD. The port is complete and every lane is green, and three constants fail, each with its owner and the predicate that flips it:
+
+1. **DISC register complete: fails.** Eleven entries are OPEN (DISC-001..008, 010, 011, 013). Owner: the repository owner. Flips when each is ACCEPTED or rejected; none needs code. Two are RESOLVED by repairs (DISC-009, DISC-012).
+2. **Convergence met for the tier: fails.** `converge.sh`: `NOT_CONVERGED` (T2 needs the last two rounds clean; the three non-author rounds found 6, 11 and 8 findings; round 7 had 2 HIGH, round 8 none). Owner: the author, with a fresh non-author subagent per round. Flips after two consecutive rounds with fewer than 3 new genuine findings, and constant 1.
+3. **Every performance claim has a pin, cv ≤ 5%, identical sha: holds only for what is claimed.** Nothing is claimed against the original on ordinary inputs, because all six captures were REFUSED_CV on the loaded host. Owner: the author, on a quiet host. This is a missing number, not a failing one; it blocks only a speed sentence.
+
+One decision is the owner's and is not a constant: the port's ONE custom effect `Stdin.open` replaces a rule the author had written into `AGENTS.md` ("no custom effects"); without it a regular-file stdin at an offset gives wrong bytes with exit 0 and a socket stdin fails (DISC-012).
 
 ## Constants (computed, never asserted)
 
 | constant | value | evidence |
 |---|---|---|
-| 100% of cases pass on every lane | `<lanes.sh JSON line>` | `scripts/port-doctor.sh` |
-| all laws check | `<All terms check. line>` (unsafe <n>, bend <version>) | `bend port/PROOF.bend` |
-| law coverage | `<law-coverage.sh JSON line>` | `scripts/law-coverage.sh` |
-| board FULL or DEBT, every exclusion classed | `<parity-board.sh verdict line>` | `scripts/parity-board.sh` |
-| DISC register complete | <n> accepted, 0 OPEN | `docs/DISCREPANCIES.md` |
-| floor unchanged since capture | `<floor.sh JSON line>` | `scripts/floor.sh` |
-| MANIFEST unchanged since the clean tail | `<git log -1 -- goldens/MANIFEST.txt>` | git |
-| evidence ≤ 24 h old on this commit | <dates from the doctor table> | `docs/PORT_STATE.md` |
-| zero open high-severity findings | <the last two rounds> | PORT_STATE rounds table |
-| convergence met for the tier | `<converge.sh JSON line>` | `scripts/converge.sh` |
-| every perf claim has a pin, cv ≤ 5%, identical sha | `<incumbent-bench.sh JSON line(s)>` | `perf/` |
-| claims lint | `<claims-lint.sh last line>` | `scripts/claims-lint.sh` |
+| 100% of cases pass on every lane | `{"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1060,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1060,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1060,"failed":0},{"lane":"js","verdict":"PASS","passed":1060,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":120.0,"compiled":5.0,"build":600},"verdict":"PASS"}` at `d80251a` (1060 cases); at `4c3cccc` (1065 cases, one def of the shell changed) `conform.sh` PASS 1065/1065 on c-1t, c-8t, js with `TOON_SPEC` unset and `=1`, the four-lane run in progress when this was written (`docs/PORT_STATE.md` has the line when it ends) | `scripts/lanes.sh`, `scripts/conform.sh` |
+| all laws check | `All terms check.` (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16 @ `15ae0c8`), 368 laws | `(cd port && bun /tmp/bend/bend2/main.ts PROOF.bend)` |
+| law coverage | `{"laws": 368, "proofs": 368, "unproved": "", "ghost_proofs": "", "ghost_cited": "", "uncited": "", "duplicate_laws": [], "duplicate_proofs": [], "unsafe": 0, "unsafe_annotations": 0, "verdict": "OK"}` | `scripts/law-coverage.sh` |
+| the laws bite | `{"laws_in_proof": 123, "reduced": true, "mutants": 22, "killed": 22, "survived": [], "not_evidence": [], "verdict": "STRONG"}`; `scripts/law-mutation.sh` itself: INCONCLUSIVE on the three modules (no valid textual site) | `scripts/hand-mutants.py` |
+| board FULL or DEBT, every exclusion classed | `{"rows": 33, "present": 27, "partial": 0, "missing": 0, "excluded": 6, "na": 0, "no_evidence": 0, "verdict": "DEBT"}` | `scripts/parity-board.sh` |
+| DISC register complete | 0 accepted, 2 RESOLVED, 11 OPEN: FAILS | `docs/DISCREPANCIES.md` |
+| floor unchanged since capture | `{"repeat":3,"stable":1065,"unstable":[],"inconclusive":[],"oracle_identity_checked":true,"verdict":"STABLE"}` | `scripts/floor.sh` |
+| MANIFEST unchanged since the clean tail | there is no clean tail yet; last change `4c3cccc Round 8 (non-author, dirty: 0 HIGH, 4 MEDIUM, 4 LOW): EBADF on stdin ends the input, launcher repairs, 5 cases, 368 laws` (15 hashes added, 0 changed; every re-capture of this port only ever ADDED hashes) | git |
+| evidence ≤ 24 h old on this commit | every line of this report is dated 2026-09-20 | `docs/PORT_STATE.md` |
+| zero open high-severity findings | round 7's two HIGH findings are repaired and have regression rows (`scripts/stdio-probe.py`); round 8 found none | PORT_STATE rounds table |
+| convergence met for the tier | `{"tier": "T2", "rounds": 8, "clean": 5, "clean_tail": 0, "last_two_clean": false, "non_author_round": true, "open_oq": [], "open_disc": ["DISC-001", "DISC-002", "DISC-003", "DISC-004", "DISC-005", "DISC-006", "DISC-007", "DISC-008", "DISC-010", "DISC-011", "DISC-013"], "verdict": "NOT_CONVERGED", "missing": ["clean rounds since last reset 0 < 2", "open DISC: DISC-001, DISC-002, DISC-003, DISC-004, DISC-005, DISC-006, DISC-007, DISC-008, DISC-010, DISC-011, DISC-013"]}`: FAILS | `scripts/converge.sh` |
+| every perf claim has a pin, cv ≤ 5%, identical sha | the seven MEASURED captures named below; one NO_EVIDENCE; six REFUSED_CV that are claimed nowhere | `perf/evidence/`, `perf/PERF-LEDGER.md`, `perf/NEGATIVE-EVIDENCE.md` |
+| claims lint | `claims-lint: 0 hit(s)` on this file, `README.md`, `docs/PORT_STATE.md`, `docs/DISCREPANCIES.md`, `docs/OPEN_QUESTIONS.md`, `perf/*.md` | `scripts/claims-lint.sh` |
 
 ## Claims
 
 ### Proved
-- <law> — <one sentence>; `All terms check.` (unsafe <n>, bend <version>)
+- 14 quantified laws, for every input and under the checker's assumptions: the first failure ends a pass (`argv_stop_is_sticky`, `decode_error_ends_pass`, `decode_root_ends_pass`, `json_error_is_sticky`), lenient mode never reports a scan or body check (`lenient_scan_never_fails`, `lenient_body_never_fails`), the mode flags win (`encode_flag_wins`, `decode_flag_wins`, `stdin_defaults_to_encode`), no `Saved` line without savings, the expansion cap on values and merges, and the kill-switch gate (`twin_gate_switch`, `twin_gate_open`); `All terms check.` (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16)
+- 354 closed laws, each about ONE value: 59 unit laws (the big-natural carry, the divisions and readers of the fast twins against their specification twins, the twins' bounds, the key hash, the balanced buckets, the percent roundings) and 295 captured goldens restated as `run_pure(argv, bytes) == (exit code, stdout, stderr)`; same verdict line
+- NOT proved: `fast == spec` for every input, for any of the three twins; anything about the compiled C or the JavaScript build; anything about a non-integer number through the pipeline (the checker does not normalize the shortest-digit generator)
 
 ### Golden-tested
-- <n> cases on interpreter, c-1t, c-<N>t, js[, gpu | gpu MISSING: <reason>]; MANIFEST <sha16>; <date>
+- 1060 cases on interpreter, c-1t, c-8t, js at `d80251a`; gpu MISSING: no bang is placed (text with data-dependent structure); 1065 cases on c-1t, c-8t, js at `4c3cccc` under both settings of `TOON_SPEC`; MANIFEST 3195 hashes captured from `./oracle/toon` (`toon 0.2.4` @ `f955c67`); 2026-09-20
+- outside the corpus, against the original, 0 differences on conversion content: the author's seeded lenses (`scripts/diff-fuzz.py`: mutate, docs, argv, expand, collide, numbers under `TOON_SPEC=1`, scale) and the three non-author rounds (about 122000 and 90000 compared executions in rounds 7 and 8)
 
 ### Measured
-- <ratio>× vs the original on <input> (<pin>; cv <a>% / <b>%; sha equal; <host>; <date>)
-- <ratio>× at <N> threads vs 1 (bench-speedup; same_output true; A/A <r>)
+- 1.67× / 1.56× / 2.12× against the port's own build of `4bfecef` (EXP-001 tabular encode, EXP-002 tabular decode, EXP-003 9000 decimals; 18 samples per arm in AB/BA pairs; cv ≤ 1.5%; A/A 1.001 / 0.995 / 1.004; stdout sha equal; AMD EPYC-Milan 8 cores, Linux, 1 thread; 2026-09-20); PROVISIONAL, not WIN (NE-001..003)
+- against the original (`toon 0.2.4` @ `f955c67`, release build, 1 thread each): 0.25× on one object of 16000 keys, 1.27× on 20 rows of 1200 fields, 3.06× on 40000 expanded lines (cv ≤ 4.7%; stdout sha equal; `perf/evidence/EXP-004.*-vs-original.json`), measured on the build of `1230a0d`
 
 ### Not claimed
-- <every refused capture with its NE id and predicate>
-- <every exclusion with its class>
+- any ratio against the original on ordinary inputs: six captures REFUSED_CV (`perf/evidence/INCUMBENT.*.json`); predicate: a quiet host, `--runs 15`
+- the folding input's ratio: NE-004 (REFUSED_CV twice)
+- a WIN for EXP-001..003: NE-001..003 (closed laws only; one artifact carries three levers)
+- exclusions, each classed in PLAN §3: async streaming, WebAssembly bindings, the `EncodeReplacer` callback, library-only behavior no CLI path reaches, shell completions / tracing / build metadata, native Windows
 
 ## Discrepancies
 
-<one line per accepted DISC: id, class, kill-switch, affected cases, impact, approver>
+None is ACCEPTED yet (the owner has not ruled). OPEN, one line each: DISC-001 Platform, runtime flags before `--` (launcher) · DISC-002 Platform, the literal program name · DISC-003 Platform, an unwritable stderr (launcher repairs closed and read-only) · DISC-004 Platform, non-UTF-8 argv · DISC-005 Platform, ANSI styling · DISC-006 Platform, a failed stdout write (launcher repairs closed and read-only) · DISC-007 Platform, closed descriptors on the bare native binary (launcher) · DISC-008 Platform, `-o` mode 0644 · DISC-010 Performance, deep nesting · DISC-011 Performance, the runtime's resource floor · DISC-013 Performance, non-integer numbers 45 to 300 times slower, linearly. RESOLVED: DISC-009, DISC-012 (the stdin effect; regression rows in `scripts/stdio-probe.py`). Impact of every entry on the corpus: 0 of 1065 cases.
 
 ## Reproduce (an auditor gets the same lines)
 
 ```bash
-git checkout <sha>
-./scripts/floor.sh goldens/cases.tsv goldens --repeat 3 -- <original cmd>
-./scripts/port-doctor.sh --threads <N> --original <original cmd> -- --switch Toon_SPEC=1 --probe "<hot args>"
+git checkout 4c3cccc
+export BEND_NO_TELEMETRY=1 BEND_CLI='bun /tmp/bend/bend2/main.ts'      # bendlang/bend at 15ae0c8
+./scripts/floor.sh goldens/cases.tsv goldens --repeat 3 -- ./oracle/toon
+./scripts/port-doctor.sh --threads 8 --original ./oracle/toon -- --switch TOON_SPEC=1 --probe '["--encode","cases/inputs/hand/large_tabular_1500.json"]'
 ./scripts/converge.sh docs/PORT_STATE.md
-${BEND_CLI:-bend} port/main.bend -o ./x && ./scripts/incumbent-bench.sh --runs 6 --pin "<pin>" --original <original cmd> <args> --port ./x --threads 1 --gpu off -- <args>
-./scripts/claims-lint.sh docs/PORT_REPORT.md README.md perf/*.md
+python3 scripts/hand-mutants.py
+$BEND_CLI port/main.bend -o ./x && python3 scripts/stdio-probe.py -- ./x -- && python3 scripts/diff-fuzz.py scale --runs 16000 -- ./x --
+./scripts/incumbent-bench.sh --runs 9 --pin "bend 2.0.16 @15ae0c8; toon 0.2.4 @f955c67" --original ./oracle/toon -e perf/inputs/wide_rows_1200.json --port ./x --threads 1 -- -e perf/inputs/wide_rows_1200.json
+./scripts/claims-lint.sh docs/PORT_REPORT.md README.md docs/PORT_STATE.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md
 ```

@@ -26,6 +26,8 @@ git clone https://github.com/bendlang/bend /tmp/bend && git -C /tmp/bend checkou
 export BEND_NO_TELEMETRY=1
 bun /tmp/bend/bend2/main.ts port/main.bend -o toon      # bun >= 1.4, clang >= 14
 echo '{"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}' | ./toon -- --encode
+# or, with the original's exact command line (the launcher passes `--` for you and repairs closed standard descriptors):
+bun /tmp/bend/bend2/main.ts port/main.bend -o port/toon && bin/toon --encode < users.json
 ```
 
 <p><em>Linux and macOS. No package, no installer: one Bend build.</em></p>
@@ -39,7 +41,7 @@ echo '{"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}' | ./toon -- --e
 A port is only as good as the evidence that it behaves like the original. "The tests pass" says little when the tests were typed by the porter, and "it is the same algorithm" says nothing about the forty places where the original does something its own README does not mention.
 
 ### The Solution
-`toon_bend` is built with the *porting-to-bend2* method: the original is pinned and RUN as an oracle (never read while implementing), its behavior is written down as a numbered specification (703 clauses), the Bend code is written from that specification, and it is judged against 1053 captured cases on four executor lanes. Two equivalences are kept apart:
+`toon_bend` is built with the *porting-to-bend2* method: the original is pinned and RUN as an oracle (never read while implementing), its behavior is written down as a numbered specification (703 clauses), the Bend code is written from that specification, and it is judged against 1065 captured cases on four executor lanes. Two equivalences are kept apart:
 
 1. **original == spec** is *golden-tested*: `goldens/` holds what the pinned binary printed; a case passes when stdout, stderr and the exit code match byte for byte on the interpreter, the native binary at 1 and 8 threads, and the JavaScript build.
 2. **spec == fast** rests on laws in `port/LAWS.bend`, checked by `port/PROOF.bend` (`All terms check.`), and this README says exactly how far they reach: the three fast twins that exist are bound to their specification twins by ONE quantified law (under `TOON_SPEC=1` every twin selector is off, for every input), by closed instance laws on boundary values, and by running both twins against the original on generated numbers. No universally quantified `fast == spec` law exists for any of them; `perf/NEGATIVE-EVIDENCE.md` NE-001 to NE-003 keep them provisional for that reason.
@@ -48,12 +50,12 @@ A port is only as good as the evidence that it behaves like the original. "The t
 
 | Feature | Why it matters |
 | --- | --- |
-| Byte-for-byte parity, measured | stdout, stderr and the exit code match the pinned original byte for byte on 1053 captured cases; see **Status** below for the lanes and the commit each line was produced on |
+| Byte-for-byte parity, golden-tested | stdout, stderr and the exit code match the pinned original byte for byte on 1065 captured cases; see **Status** below for the lanes and the commit each line was produced on |
 | Bug-compatible by default | decoded integers print as `1.0`, JSON number input is not correctly rounded, the two JSON writers escape differently: all reproduced, all listed for the owner in `docs/DISCREPANCIES.md` |
 | Exact numbers without an `f64` | Bend has no binary64: the port carries a software binary64 over big naturals and reproduces three different number algorithms of the original bit for bit |
-| Proved properties | 206 laws checked by Bend (`All terms check.`, unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16): what holds for every input (the first failure ends a pass, lenient mode never reports a body check, `--encode` beats every extension, no expansion step runs at depth 256, the kill-switch closes every fast path) and 171 closed instances computed by the checker itself |
+| Proved properties | 368 laws checked by Bend (`All terms check.`, unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16): 14 hold for every input (the first failure ends a pass, lenient mode never reports a body check, `--encode` beats every extension, no expansion step runs at depth 256, the kill-switch closes every fast path); 354 are closed instances computed by the checker itself, 295 of them captured goldens restated as laws. 22 hand-written mutants of the code the laws speak about are all killed (`scripts/hand-mutants.py`) |
 | One pure core, a thin shell | `run_pure(argv, bytes) -> (exit code, stdout, stderr)` is a value; `main.bend` is the only file with `IO` in its types |
-| No unsafe code, no dependencies | `import Base` only; 0 `@unsafe`, 0 template instances (bend 2.0.16) |
+| No unsafe code, no dependencies | `import Base` only; 0 `@unsafe`, 0 template instances (bend 2.0.16); ONE custom effect, `Stdin.open`, with a C and a JavaScript twin, because Base cannot read descriptor 0 (DISC-012) |
 
 ---
 
@@ -61,11 +63,11 @@ A port is only as good as the evidence that it behaves like the original. "The t
 
 Every line names its command, its lanes and its commit. Dates: 2026-09-20. Bend: 2.0.16 at `15ae0c8`. Original: `toon_rust` `f955c67` (`toon 0.2.4`).
 
-- **Golden-tested, 1053 cases:** `scripts/conform.sh` → PASS 1053/1053 on the native binary at 1 thread, at 8 threads, and on the JavaScript build, with `TOON_SPEC` unset and with `TOON_SPEC=1` (commit `3751630`). MANIFEST: 3159 hashes, captured from `./oracle/toon`; floor STABLE (the original against itself, 3 repeats).
-- **Interpreter lane:** see `docs/PORT_STATE.md` for the last complete `scripts/lanes.sh` line. A lane difference is a bug here, never a tolerance, so this README does not round the interpreter lane up.
-- **Proved:** `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.`, 206 laws, unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16.
-- **Parity board:** `scripts/parity-board.sh docs/FEATURE_PARITY.md` → 27 in-scope rows, 6 classed exclusions.
-- **Verdict:** HOLD, not SHIP. What holds it: six OPEN platform divergences need the owner's approval, and the convergence rule needs them closed (`scripts/converge.sh docs/PORT_STATE.md`). `docs/PORT_REPORT.md` has the constants.
+- **Golden-tested, every lane:** `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` → PASS on the interpreter, the native binary at 1 and at 8 threads, and the JavaScript build: 1060/1060 each at commit `d80251a` (and 1053/1053 each at `1230a0d`). At `4c3cccc` (one def of the shell changed, 5 cases added) `scripts/conform.sh` → PASS 1065/1065 on the three compiled lanes, with `TOON_SPEC` unset and with `TOON_SPEC=1`; `docs/PORT_STATE.md` has the four-lane line for that commit. MANIFEST: 3195 hashes, captured from `./oracle/toon`; floor STABLE (the original against itself, 3 repeats).
+- **Outside the corpus:** seeded differential fuzzing against the original (`scripts/diff-fuzz.py`: mutated corpus documents, generated documents through every option, command lines, numbers under both settings of the kill-switch, expansion, keys chosen to collide in the port's hash, inputs large in one dimension with a time verdict) and 20 descriptor states the harness cannot express (`scripts/stdio-probe.py`: inherited offsets, sockets, closed, read-only and full standard streams). Three non-author review rounds added about 210000 compared executions; they found 0 differences in conversion content and 25 other findings (2 HIGH, both repaired: stdin used to be re-opened by path), every one repaired or registered.
+- **Proved:** `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.`, 368 laws, unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16.
+- **Parity board:** `scripts/parity-board.sh docs/FEATURE_PARITY.md` → 27 in-scope rows `present`, 6 classed exclusions, verdict DEBT (an exclusion is debt, by rule).
+- **Verdict:** HOLD, not SHIP (`docs/PORT_REPORT.md`). What holds it: eleven OPEN divergences of the Bend runtime and of number speed need the owner's ruling (`docs/DISCREPANCIES.md`), and the convergence rule needs two clean review rounds in a row; the last three were dirty (`scripts/converge.sh docs/PORT_STATE.md`).
 
 ---
 
@@ -172,7 +174,7 @@ The non-author round 7 then showed that keys CHOSEN to collide in the carriers' 
 
 | Tool | Runtime | Evidence of parity | Proofs | Notes |
 | --- | --- | --- | --- | --- |
-| `toon_bend` (this repo) | Bend 2: native C, JavaScript, interpreter | 1053 captured cases x 4 lanes, differential fuzzing against the oracle | laws checked by Bend | bug-compatible port of `toon_rust` 0.2.4 |
+| `toon_bend` (this repo) | Bend 2: native C, JavaScript, interpreter | 1065 captured cases x 4 lanes, differential fuzzing against the oracle | laws checked by Bend | bug-compatible port of `toon_rust` 0.2.4 |
 | `toon` (`toon_rust`) | Native (Rust) | spec fixtures | none | the oracle of this port |
 | `toon` (reference, TS) | Node | canonical | none | defines the format |
 
@@ -267,8 +269,9 @@ Shell:   args, stdin/files as bytes, stdout/stderr, exit codes. It calls one pur
 ```
 port/
   main.bend     IO shell: argv, bytes in, text out, exit codes
+  stdin_open.c / .js   the one custom effect's twins: descriptor 0 as a Base File (native / JavaScript and interpreter)
   cli.bend      clap-compatible argv model, help/version, similarity tips, mode detection, --stats, convert
-  text.bend     strict UTF-8, Unicode White_Space, trim, loop-based string and list tools
+  text.bend     strict UTF-8, Unicode White_Space, trim, loop-based string and list tools, the hashed key set with balanced buckets
   bignat.bend   big naturals over 16-bit limbs
   f64.bend      software binary64: serde_json's float path, correctly rounded tokens, shortest digits, both printers
   json.bend     the Json type, the JSON reader, the JSON writer with two escape tables
@@ -279,7 +282,9 @@ port/
 docs/           the plan, the pins, the specification, the architecture, the parity board, discrepancies, open questions
 cases/          generators of the conformance corpus
 goldens/        the captured outputs of the pinned original (never edited by hand)
-scripts/        the porting harness: capture, floor, conform, lanes, doctor, lints, bench
+scripts/        the porting harness: capture, floor, conform, lanes, doctor, lints, bench; plus diff-fuzz.py (seeded differential
+                fuzzing), stdio-probe.py (descriptor states no case can express), hand-mutants.py (do the laws bite?)
+bin/toon        the launcher: passes `--` first (DISC-001), repairs closed and wrong-mode standard descriptors (DISC-003/006/007)
 perf/           the performance ledger, negative evidence, experiment cards
 ```
 

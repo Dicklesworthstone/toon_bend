@@ -25,6 +25,7 @@ measured (an interleaved, cv-gated capture). Nothing else is a claim.
 ./scripts/pin-check.sh docs/PIN.toml                       # GREEN before anything else; YELLOW = caveat; RED = stop
 ./scripts/port-doctor.sh --threads 8 --original ./oracle/toon -- --switch TOON_SPEC=1 --probe '["--encode","cases/inputs/hand/large_tabular_1500.json"]'   # proof, lanes, board, floor, kill-switch (about 90 minutes: the interpreter lane)
 ./scripts/converge.sh docs/PORT_STATE.md                   # the tier's convergence rule, computed
+python3 scripts/claims-audit.py                            # the documents' numbers and references against the repository
 ./scripts/claims-lint.sh README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md   # the forbidden phrases, on the claim-bearing documents (not docs/*.md: the spec's clauses are not claims)
 ./scripts/harness-selftest.sh -- ./oracle/toon             # the gates are attacked and hold (verdict OK)
 ./scripts/clean-build-check.sh                             # the COMMIT builds and converts, not only the working tree (an ignored source file hides here)
@@ -102,7 +103,7 @@ is the executable list.
 ## 10. The one-line re-certification
 
 ```bash
-./scripts/port-doctor.sh --threads 8 --original ./oracle/toon -- --switch TOON_SPEC=1 --probe '["--encode","cases/inputs/hand/large_tabular_1500.json"]' && ./scripts/converge.sh docs/PORT_STATE.md && ./scripts/claims-lint.sh README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md
+./scripts/port-doctor.sh --threads 8 --original ./oracle/toon -- --switch TOON_SPEC=1 --probe '["--encode","cases/inputs/hand/large_tabular_1500.json"]' && ./scripts/converge.sh docs/PORT_STATE.md && python3 scripts/claims-audit.py && ./scripts/claims-lint.sh README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md
 ```
 
 Its three last lines, pasted, are the certification (`docs/PORT_REPORT.md`

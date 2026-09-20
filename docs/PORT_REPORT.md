@@ -31,6 +31,7 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 | zero open high-severity findings | round 7's two HIGH findings (stdin re-opened by path) are repaired and have regression rows (`scripts/stdio-probe.py`); round 10's one HIGH finding (cited commits that did not build) is repaired and has a gate (`scripts/clean-build-check.sh`); rounds 8 and 9 had none | PORT_STATE rounds table, `docs/reviews/` |
 | convergence met for the tier | `{"tier": "T2", "rounds": 11, "clean": 5, "clean_tail": 0, "last_two_clean": false, "non_author_round": true, "open_oq": [], "open_disc": [], "verdict": "NOT_CONVERGED", "missing": ["clean rounds since last reset 0 < 2"]}`: FAILS | `scripts/converge.sh` |
 | every perf claim has a pin, cv ≤ 5%, identical sha | the MEASURED captures named below; one NO_EVIDENCE; six REFUSED_CV that are claimed nowhere; NO row is admitted to the WIN ledger (NE-001, 002, 003 and 005 are provisional, NE-004 is NO_EVIDENCE) | `perf/evidence/`, `perf/PERF-LEDGER.md`, `perf/NEGATIVE-EVIDENCE.md` |
+| claims audit | `{"files": 16, "absent": [], "findings": 0, "historical_lines_exempt": 0, "laws": 368, "cases": 1065, "disc": {"accepted": 13, "resolved": 2, "open": 0}, "verdict": "OK"}` | `python3 scripts/claims-audit.py` |
 | claims lint | `claims-lint: 0 hit(s) in 11 file(s)`: this file, `README.md`, `CONTRIBUTING.md`, `docs/PORT_STATE.md`, `docs/PARITY_RUNBOOK.md`, `docs/DISCREPANCIES.md`, `docs/OPEN_QUESTIONS.md`, `perf/*.md` | `scripts/claims-lint.sh` |
 
 ## Claims
@@ -73,7 +74,7 @@ export BEND_NO_TELEMETRY=1 BEND_CLI='bun /tmp/bend/bend2/main.ts'      # bendlan
 ./scripts/port-doctor.sh --threads 8 --original ./oracle/toon -- --switch TOON_SPEC=1 --probe '["--encode","cases/inputs/hand/large_tabular_1500.json"]'
 ./scripts/clean-build-check.sh
 ./scripts/converge.sh docs/PORT_STATE.md          # exit 1 while NOT_CONVERGED: run it on its own line
-python3 scripts/hand-mutants.py
+python3 scripts/claims-audit.py && python3 scripts/hand-mutants.py
 $BEND_CLI port/main.bend -o ./x && python3 scripts/stdio-probe.py -- ./x -- && python3 scripts/diff-fuzz.py scale --runs 16000 -- ./x --
 ./scripts/incumbent-bench.sh --runs 9 --pin "bend 2.0.16 @15ae0c8; toon 0.2.4 @f955c67" --original ./oracle/toon -e perf/inputs/wide_rows_1200.json --port ./x --threads 1 -- -e perf/inputs/wide_rows_1200.json
 ./scripts/claims-lint.sh README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md

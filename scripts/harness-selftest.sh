@@ -19,6 +19,7 @@
 #   M9  an intention sentence appended to PORT_STATE     -> state-check.sh finding (exit 1)
 #   M10 a `present` board row with no golden and no law  -> parity-board.sh MALFORMED (exit 1)
 #   M11 a re-capture without --repin/--disc              -> golden-capture.sh refused (exit 3); needs -- <original cmd>
+#   M12 a case added, the documents' counts left behind  -> claims-audit.py FINDINGS (exit 1)
 # The port under test is the native binary built once from port/main.bend
 # (--lane c-1t, the default) or the interpreter through scripts/interp-lane.sh
 # (--lane interpreter). PARITY-GATE "Anti-gaming" lists what these lies are.
@@ -425,6 +426,9 @@ copy() {  # $1 name -> a fresh copy of the port under $T/$1 (legacy linked)
   # this port keeps the cases' stdin files and input files under cases/ (cases.tsv names them by relative path), and
   # its oracle binary under oracle/: without them every case of the clean copy is INCONCLUSIVE and M1..M5 are UNTESTABLE
   [[ -d cases ]] && cp -RL cases "$d/" 2>/dev/null
+  [[ -d .beads ]] && cp -RL .beads "$d/" 2>/dev/null
+  [[ -d bin ]] && cp -RL bin "$d/" 2>/dev/null
+  for f in README.md CONTRIBUTING.md AGENTS.md; do [[ -f $f ]] && cp "$f" "$d/"; done
   [[ -e oracle ]] && ln -s "$ROOT/oracle" "$d/oracle"
   [[ -e legacy ]] && ln -s "$ROOT/legacy" "$d/legacy"
   [[ -f .gitignore ]] && cp .gitignore "$d/"
@@ -438,6 +442,7 @@ B="$(copy base)"
 ( cd "$B" && scripts/claims-lint.sh perf/NEGATIVE-EVIDENCE.md ) >"$T/base.claims.log" 2>&1; b_claims=$?
 ( cd "$B" && scripts/state-check.sh docs/PORT_STATE.md ) >"$T/base.state.log" 2>&1; b_state=$?
 ( cd "$B" && scripts/parity-board.sh docs/FEATURE_PARITY.md ) >"$T/base.board.log" 2>&1; b_board=$?
+b_audit=1; [[ -f scripts/claims-audit.py ]] && { ( cd "$B" && python3 scripts/claims-audit.py ) >"$T/base.audit.log" 2>&1; b_audit=$?; }
 b_manifest=1; [[ -f goldens/MANIFEST.txt ]] && b_manifest=0
 printf 'baseline   conform=%s law-coverage=%s claims-lint=%s state-check=%s parity-board=%s manifest=%s (0 = green)\n' \
   "$b_conform" "$b_lawcov" "$b_claims" "$b_state" "$b_board" "$b_manifest"
@@ -509,6 +514,16 @@ if [[ ${#ORIG[@]} -gt 0 ]]; then
 else
   echo "UNTESTABLE M11_silent_recapture     no original command given after --"
   n=$((n+1)); untestable+=(M11_silent_recapture)
+fi
+
+# M12 a count that moved on: one case is added to the corpus and the documents keep the old number
+if [[ -f scripts/claims-audit.py ]]; then
+  D="$(copy m12)"
+  printf 'selftest_extra_case\t["--encode"]\t-\tselftest\tadded by harness-selftest M12\n' >>"$D/goldens/cases.tsv"
+  expect M12_stale_count "$b_audit" 1 "$D" python3 scripts/claims-audit.py
+else
+  echo "UNTESTABLE M12_stale_count          scripts/claims-audit.py is not in this port"
+  n=$((n+1)); untestable+=(M12_stale_count)
 fi
 
 verdict=OK

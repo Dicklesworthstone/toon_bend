@@ -30,6 +30,7 @@ $BEND_CLI port/main.bend -o /tmp/toon_check                                     
 python3 cases/build-cases.py --check && ./scripts/cases-lint.sh goldens/cases.tsv
 python3 scripts/spec-lint.py docs/EXISTING_Toon_STRUCTURE.md goldens/cases.tsv
 ./scripts/law-coverage.sh && ./scripts/parity-board.sh docs/FEATURE_PARITY.md
+python3 scripts/claims-audit.py                                                              # do the documents' numbers still match the repository?
 ./scripts/clean-build-check.sh                                                               # does the COMMIT build, not only the working tree?
 ```
 

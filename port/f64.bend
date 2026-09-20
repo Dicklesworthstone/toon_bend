@@ -888,3 +888,73 @@ def literal(s: String) -> Maybe<&2, F64>:
       None{}
     case SCon{Chr{+c}, rest}:
       literal.body(lex.run(U32.is_eq(c, 45), c, rest, False{}), U32.is_eq(c, 45))
+
+# ---------------------------------------------------------------- S1.74, S4.315, S4.316 the CLI's binary64 arithmetic
+
+# S1.74 both significands brought to the smaller exponent (exact)
+def align.a(ma: List<&2, U32>, +ta: Nat, tb: Nat) -> List<&2, U32>:
+  BN.shl(ma, Nat.sub(ta, Nat.min(ta, tb)))
+
+# S1.74 ONE IEEE addition of two non-negative finite values: exact sum, one RNE
+def add(a: F64, b: F64) -> F64:
+  match a b:
+    case FNum{na, +ta, ma} FNum{nb, +tb, mb}:
+      round(False{}, BN.add(align.a(ma, ta, tb), align.a(mb, tb, ta), 0), Nat.min(ta, tb), False{})
+    case _ _:
+      FInf{False{}}
+
+# S1.75 exact order of two non-negative finite values
+def cmp(a: F64, b: F64) -> Cmp:
+  match a b:
+    case FNum{na, +ta, ma} FNum{nb, +tb, mb}:
+      BN.cmp(align.a(ma, ta, tb), align.a(mb, tb, ta))
+    case FInf{na} FNum{nb, tb, mb}:
+      GT{}
+    case FNum{na, ta, ma} FInf{nb}:
+      LT{}
+    case FInf{na} FInf{nb}:
+      EQ{}
+
+# S4.316 the shifted value without its sticky flag
+def fixed1.fst(p: List<&2, U32> & Bool) -> List<&2, U32>:
+  (q, s) = p
+  q
+
+# S4.316 drop the half bit
+def fixed1.half(r1: List<&2, U32>) -> List<&2, U32>:
+  fixed1.fst(BN.shr(r1, 1n))
+
+# S4.316 round up by one
+def fixed1.up(up: Bool, q: List<&2, U32>) -> List<&2, U32>:
+  match up:
+    case True{}:
+      BN.add(q, [1], 0)
+    case False{}:
+      q
+
+# S4.316 ten times the significand, scaled to an integer with round-half-to-even on the EXACT value:
+# with a negative binary exponent -k, the bits below the half bit are the sticky flag
+def fixed1.round(p: List<&2, U32> & Bool) -> List<&2, U32>:
+  (+r1, s1) = p
+  fixed1.up(Bool.and(BN.is_odd(r1), Bool.or(s1, BN.is_odd(fixed1.half(r1)))), fixed1.half(r1))
+
+# S4.316 the text of a small non-negative count of tenths: integer part, '.', one digit
+def fixed1.text(+n: Nat) -> String:
+  Nat.show(Nat.div(n, 10n)) ++ "." ++ Nat.show(Nat.mod(n, 10n))
+
+# S4.316 the count of tenths of man10 * 2^(tb - 100000)
+def fixed1.tenths(int: Bool, man10: List<&2, U32>, +tb: Nat) -> List<&2, U32>:
+  match int:
+    case True{}:
+      BN.shl(man10, Nat.sub(tb, 100000n))
+    case False{}:
+      fixed1.round(BN.shr(man10, Nat.sub(Nat.sub(100000n, tb), 1n)))
+
+# S4.316 `{:.1}` of a non-negative finite value below 2^44: at least one integer digit, exactly one
+# fractional digit, no exponent
+def fixed1(f: F64) -> String:
+  match f:
+    case FNum{neg, +tb, man}:
+      fixed1.text(BN.to_nat(fixed1.tenths(Nat.is_ge(tb, 100000n), BN.mul_small(man, 10, 0), tb)))
+    case FInf{neg}:
+      "inf"

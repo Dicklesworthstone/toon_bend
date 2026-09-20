@@ -308,3 +308,16 @@ def divmod(+a: List<&2, U32>, +b: List<&2, U32>) -> DivSt:
 # S7.21 2^64 - 1, the largest value the original's 64-bit accumulators hold
 def u64_max() -> List<&2, U32>:
   [65535, 65535, 65535, 65535]
+
+# S7.7 Horner over the limbs from the most significant one: no intermediate exceeds the value itself
+# (arguments are evaluated eagerly, so a running power of 65536 would pass Nat's 2^48 wall by itself)
+def to_nat.go(hi_first: List<&2, U32>, acc: Nat) -> Nat:
+  match hi_first:
+    case Nil{}:
+      acc
+    case Con{x, t}:
+      to_nat.go(t, Nat.add(Nat.mul(acc, 65536n), U32.to_nat(x)))
+
+# S7.7 the value of a SMALL big natural as a Nat (the caller bounds it below 2^48)
+def to_nat(a: List<&2, U32>) -> Nat:
+  to_nat.go(List.reverse(&2, U32, a), 0n)

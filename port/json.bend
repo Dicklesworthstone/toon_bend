@@ -929,3 +929,8 @@ def w(j: Json, first: Bool, +n: Nat, +tab_b: Bool, +depth: Nat, acc: String) -> 
 # S5.51 the JSON text of a value at indent N under writer A's table (tab_b False) or writer B's
 def write(j: Json, n: Nat, tab_b: Bool) -> String:
   String.reverse(w(j, True{}, n, tab_b, 0n, SNil{}))
+
+# S5.101 the JSON text followed by exactly one LF (pushed before the single reversal: `++` would
+# recurse to the depth of the whole text)
+def write_ln(j: Json, n: Nat, tab_b: Bool) -> String:
+  String.reverse(SCon{Chr{10}, w(j, True{}, n, tab_b, 0n, SNil{})})

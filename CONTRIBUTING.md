@@ -56,7 +56,7 @@ or the spec. A new law gets its proof in `port/PROOF.bend`, a citation on its bo
 
 Bug-compatibility is the default. A divergence exists only as an entry of `docs/DISCREPANCIES.md` with its class, spec
 clause, the original's behavior, the port's, a kill-switch or mitigation, the affected cases and the measured impact.
-The approver is the repository owner (who, on 2026-09-20, delegated the rulings on DISC-001..014 to the author; the
+The approver is the repository owner (who, on 2026-09-20, delegated the rulings on every entry of the register to the author; the
 words are quoted in each entry).
 
 ## 6. Performance levers

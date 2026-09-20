@@ -806,6 +806,12 @@ def _found_phase4():
 _found_phase4()
 
 
+def _read_bytes(path):
+    """The bytes of a file; the handle is closed before returning."""
+    with open(path, "rb") as fh:
+        return fh.read()
+
+
 def main():
     check = "--check" in sys.argv[1:]
     names = [r[0] for r in rows]
@@ -818,14 +824,14 @@ def main():
     for rel, data in files.items():
         p = os.path.join(ROOT, rel)
         if check:
-            if not os.path.exists(p) or open(p, "rb").read() != data:
+            if not os.path.exists(p) or _read_bytes(p) != data:
                 drift.append(rel)
         else:
             os.makedirs(os.path.dirname(p), exist_ok=True)
             with open(p, "wb") as fh:
                 fh.write(data)
     if check:
-        if not os.path.exists(out_tsv) or open(out_tsv, encoding="utf-8").read() != tsv:
+        if not os.path.exists(out_tsv) or _read_bytes(out_tsv).decode("utf-8") != tsv:
             drift.append("cases/hand-cases.tsv")
         print(json.dumps({"cases": len(rows), "drift": drift, "verdict": "OK" if not drift else "DRIFT"}))
         return 1 if drift else 0

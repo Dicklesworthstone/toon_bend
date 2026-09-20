@@ -18,6 +18,12 @@ HEADER = """# Toon conformance cases: name<TAB>argv (JSON string array)<TAB>stdi
 """
 
 
+def _read_bytes(path):
+    """The bytes of a file; the handle is closed before returning."""
+    with open(path, "rb") as fh:
+        return fh.read()
+
+
 def main():
     check = "--check" in sys.argv[1:]
     extra = ["--check"] if check else []
@@ -32,7 +38,7 @@ def main():
     out = os.path.join(ROOT, "goldens", "cases.tsv")
     n = sum(1 for l in body.splitlines() if l.strip())
     if check:
-        same = os.path.exists(out) and open(out, encoding="utf-8").read() == text
+        same = os.path.exists(out) and _read_bytes(out).decode("utf-8") == text
         print(json.dumps({"cases": n, "verdict": "OK" if same and rc == 0 else "DRIFT"}))
         return 0 if same and rc == 0 else 1
     with open(out, "w", encoding="utf-8") as fh:

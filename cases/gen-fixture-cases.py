@@ -73,6 +73,12 @@ def args_for(kind, options):
     return args
 
 
+def _read_bytes(path):
+    """The bytes of a file; the handle is closed before returning."""
+    with open(path, "rb") as fh:
+        return fh.read()
+
+
 def main():
     check = "--check" in sys.argv[1:]
     os.makedirs(OUT_INPUTS, exist_ok=True)
@@ -100,13 +106,13 @@ def main():
     for rel, data in files.items():
         p = os.path.join(ROOT, rel)
         if check:
-            if not os.path.exists(p) or open(p, "rb").read() != data:
+            if not os.path.exists(p) or _read_bytes(p) != data:
                 drift.append(rel)
         else:
             with open(p, "wb") as fh:
                 fh.write(data)
     if check:
-        if not os.path.exists(OUT_TSV) or open(OUT_TSV, encoding="utf-8").read() != tsv:
+        if not os.path.exists(OUT_TSV) or _read_bytes(OUT_TSV).decode("utf-8") != tsv:
             drift.append("cases/fixture-cases.tsv")
         print(json.dumps({"cases": len(rows), "drift": drift, "verdict": "OK" if not drift else "DRIFT"}))
         return 1 if drift else 0

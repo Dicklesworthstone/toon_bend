@@ -1,4 +1,4 @@
-# Port report: Toon → Bend 2   HOLD   commit 4c3cccc   2026-09-20   bend 2.0.16
+# Port report: Toon → Bend 2   HOLD   commit c7239e2 (gates) and later (documents)   2026-09-20   bend 2.0.16
 
 <!-- Phase 6 document (SHIP-AND-CERTIFY). Every constant is computed from an
      artifact and pasted; every claim is proved / golden-tested / measured
@@ -18,9 +18,10 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 
 | constant | value | evidence |
 |---|---|---|
-| 100% of cases pass on every lane | `{"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1065,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1065,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1065,"failed":0},{"lane":"js","verdict":"PASS","passed":1065,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":120.0,"compiled":5.0,"build":600},"verdict":"PASS"}` on the tree of `4c3cccc` (1065 cases; the port's modules are unchanged since); `conform.sh` PASS 1065/1065 on c-1t, c-8t, js with `TOON_SPEC=1` as well | `scripts/lanes.sh`, `scripts/conform.sh` |
-| all laws check | `All terms check.` (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16 @ `15ae0c8`), 368 laws | `(cd port && bun /tmp/bend/bend2/main.ts PROOF.bend)` |
+| 100% of cases pass on every lane | `{"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1065,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1065,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1065,"failed":0},{"lane":"js","verdict":"PASS","passed":1065,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":60.0,"compiled":5.0,"build":600},"verdict":"PASS"}` on the tree of `c7239e2` (1065 cases), inside one `port-doctor.sh` run whose last line is `{"proof":"All terms check.","unsafe":"0","unsafe_annotations":"0","instances":"0","unsafe_count_mode":"explicit-and-instances","bend":"bend 2.0.16","lanes":"PASS","board":"DEBT","floor":"STABLE","switch":"PASS","verdict":"GREEN"}` | `scripts/port-doctor.sh` |
+| all laws check | `All terms check.` (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16 @ `15ae0c8`), 368 laws; the doctor's proof row says the same | `(cd port && bun /tmp/bend/bend2/main.ts PROOF.bend)` |
 | law coverage | `{"laws": 368, "proofs": 368, "unproved": "", "ghost_proofs": "", "ghost_cited": "", "uncited": "", "duplicate_laws": [], "duplicate_proofs": [], "unsafe": 0, "unsafe_annotations": 0, "verdict": "OK"}` | `scripts/law-coverage.sh` |
+| the gates bite | `harness-selftest.sh -- ./oracle/toon`: `"mutations":11,"caught":11,"leaked":[],"untestable":[],"verdict":"OK"` | `scripts/harness-selftest.sh` |
 | the laws bite | `{"laws_in_proof": 123, "reduced": true, "mutants": 22, "killed": 22, "survived": [], "not_evidence": [], "verdict": "STRONG"}`; `scripts/law-mutation.sh` itself: INCONCLUSIVE on the three modules (no valid textual site) | `scripts/hand-mutants.py` |
 | board FULL or DEBT, every exclusion classed | `{"rows": 33, "present": 27, "partial": 0, "missing": 0, "excluded": 6, "na": 0, "no_evidence": 0, "verdict": "DEBT"}` | `scripts/parity-board.sh` |
 | DISC register complete | 12 ACCEPTED (each with a scoped contract), 2 RESOLVED, 0 OPEN | `docs/DISCREPANCIES.md`; `scripts/converge.sh`: `"open_disc": []` |
@@ -41,7 +42,7 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 
 ### Golden-tested
 - The two native lanes are ONE sequential execution under two labels: the port places no bang and no parallel let, so the runtime never starts a worker pool and `--threads N` changes nothing (2 OS threads at `--threads` 1, 8 and 64, measured by round 10 and re-measured); `c-8t` adds no evidence beyond `c-1t` today and is kept because it would catch a parallel twin the day one is added.
-- 1065 cases on interpreter, c-1t, c-8t, js at `4c3cccc` (and 1060 at `d80251a`, 1053 at `1230a0d`); gpu MISSING: no bang is placed (text with data-dependent structure); the three compiled lanes also under `TOON_SPEC=1`; MANIFEST 3195 hashes captured from `./oracle/toon` (`toon 0.2.4` @ `f955c67`); 2026-09-20
+- 1065 cases on interpreter, c-1t, c-8t, js at `c7239e2` (earlier all-lane passes: 1065 at `4c3cccc`, 1060 at `d80251a`, 1053 at `1230a0d`; of those only `1230a0d` builds from the public history, see Reproduce); gpu MISSING: no bang is placed (text with data-dependent structure); the three compiled lanes also under `TOON_SPEC=1`; MANIFEST 3195 hashes captured from `./oracle/toon` (`toon 0.2.4` @ `f955c67`); 2026-09-20
 - outside the corpus, against the original, 0 differences on conversion content: the author's seeded lenses (`scripts/diff-fuzz.py`: mutate, docs, argv, expand, collide, numbers under `TOON_SPEC=1`, scale) and the non-author rounds (about 122000, 90000 and 948000 compared executions in rounds 7, 8 and 9; round 10 added terminals, environments, thread counts and a fresh clone)
 
 ### Measured
@@ -60,14 +61,16 @@ ACCEPTED on 2026-09-20 by the owner's delegation, one line each (id, class, kill
 
 ## Reproduce (an auditor gets the same lines)
 
+Use `c7239e2` or any commit after it. NOT `d80251a`, `861abf2` or `4c3cccc`, which this report's earlier versions named: they do not build from the public history (`port/stdin_open.c` and `.js` were hidden by `.gitignore` until `a725d10`; `./scripts/clean-build-check.sh 4c3cccc` → FAIL at the native build, `… c7239e2` → PASS). The oracle binary is not in the repository: `docs/PIN.toml` has its commit and sha256, PLAN §2 the build command; without it the first, second and the last-but-one command below cannot run, the others can.
+
 ```bash
-git checkout 4c3cccc
+git checkout c7239e2                                                    # or any commit after it
 export BEND_NO_TELEMETRY=1 BEND_CLI='bun /tmp/bend/bend2/main.ts'      # bendlang/bend at 15ae0c8
 ./scripts/floor.sh goldens/cases.tsv goldens --repeat 3 -- ./oracle/toon
 ./scripts/port-doctor.sh --threads 8 --original ./oracle/toon -- --switch TOON_SPEC=1 --probe '["--encode","cases/inputs/hand/large_tabular_1500.json"]'
-./scripts/converge.sh docs/PORT_STATE.md
+./scripts/clean-build-check.sh && ./scripts/converge.sh docs/PORT_STATE.md
 python3 scripts/hand-mutants.py
 $BEND_CLI port/main.bend -o ./x && python3 scripts/stdio-probe.py -- ./x -- && python3 scripts/diff-fuzz.py scale --runs 16000 -- ./x --
 ./scripts/incumbent-bench.sh --runs 9 --pin "bend 2.0.16 @15ae0c8; toon 0.2.4 @f955c67" --original ./oracle/toon -e perf/inputs/wide_rows_1200.json --port ./x --threads 1 -- -e perf/inputs/wide_rows_1200.json
-./scripts/claims-lint.sh docs/PORT_REPORT.md README.md docs/PORT_STATE.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md
+./scripts/claims-lint.sh README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md
 ```

@@ -422,6 +422,10 @@ L="$(grep -oE '^law [A-Za-z0-9_.]+' port/LAWS.bend 2>/dev/null | head -1 | awk '
 copy() {  # $1 name -> a fresh copy of the port under $T/$1 (legacy linked)
   local d="$T/$1"; mkdir -p "$d"
   cp -RL docs goldens port perf scripts "$d/" 2>/dev/null
+  # this port keeps the cases' stdin files and input files under cases/ (cases.tsv names them by relative path), and
+  # its oracle binary under oracle/: without them every case of the clean copy is INCONCLUSIVE and M1..M5 are UNTESTABLE
+  [[ -d cases ]] && cp -RL cases "$d/" 2>/dev/null
+  [[ -e oracle ]] && ln -s "$ROOT/oracle" "$d/oracle"
   [[ -e legacy ]] && ln -s "$ROOT/legacy" "$d/legacy"
   [[ -f .gitignore ]] && cp .gitignore "$d/"
   printf '%s' "$d"

@@ -280,6 +280,30 @@ def Laws.expand_cap_is_256_accept():
 # ---------------------------------------------------------------- closed goldens of the whole pure core:
 # every one is proved by computation
 
+# S2.2 the surrogate gate (round 13, R13-9)
+def Laws.utf8_rejects_surrogate():
+  {==}
+
+# S2.2 the scalar below the surrogate block
+def Laws.utf8_accepts_below_surrogate():
+  {==}
+
+# S5.64 writer B's escape table
+def Laws.writer_b_escapes_del():
+  {==}
+
+# S5.64 writer B on the C1 block
+def Laws.writer_b_escapes_c1():
+  {==}
+
+# S5.63 writer A on the same scalar
+def Laws.writer_a_keeps_del_raw():
+  {==}
+
+# S4.12-S4.16 a TAB forces quotes
+def Laws.tab_in_value_forces_quotes():
+  {==}
+
 # S5.112 goldens/usage_none
 def Laws.golden_usage_none():
   {==}

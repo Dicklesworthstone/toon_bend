@@ -50,6 +50,11 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(int_text_)", ["JSON number reading", "TOON number tokens"]),
  (r"(key_hash_fnv1a|kt_member|kt_not_member)$", ["JSON text input", "safe key folding"]),
  (r"golden_(jsonerr|toonerr)_(invalid_utf8|overlong_utf8|truncated_utf8)", ["strict UTF-8"]),
+ # round 13 (R13-9): the three behaviours whose mutants survived the whole proof, now pinned by laws
+ (r"(utf8_rejects_surrogate|utf8_accepts_below_surrogate)$", ["strict UTF-8"]),
+ (r"(writer_b_escapes_)", ["JSON writer B"]),
+ (r"(writer_a_keeps_del_raw)$", ["JSON writer A"]),
+ (r"(tab_in_value_forces_quotes)$", ["encoder primitives", "delimiters comma, tab, pipe on encode"]),
  (r"golden_jsonerr_", ["JSON input errors"]),
  (r"golden_(jsonout_duplicate_keys)$", ["JSON writer A", "structural decoding"]),
  (r"golden_jsonout_", ["JSON writer A"]),

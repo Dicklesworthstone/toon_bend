@@ -41,6 +41,13 @@ MUTANTS = [
  ("M15", "decode.bend", "    case XObj{keys, map} True{}:\n      XObj{k <> keys, xm.set(map, k, v)}", "    case XObj{keys, map} True{}:\n      XObj{keys, xm.set(map, k, v)}", "a fresh expanded key is never listed"),
  ("M16", "decode.bend", "    case XObj{keys, map} False{}:\n      XObj{keys, xm.set(map, k, v)}", "    case XObj{keys, map} False{}:\n      XObj{k <> keys, xm.set(map, k, v)}", "a merged key is listed twice"),
  ("M17", "encode.bend", "row.lock(rest, t, T.str_eq(k, key), Bool.and(prim, is_prim(v)))", "row.lock(rest, t, True{}, Bool.and(prim, is_prim(v)))", "rows in another key order count as lockstep"),
+ # Round 13 (R13-9) wrote these three itself and all three SURVIVED the whole 368-law proof: no law pinned
+ # writer B's escape table, the surrogate test or the TAB quoting rule. The laws exist now
+ # (writer_b_escapes_del, writer_b_escapes_c1, utf8_rejects_surrogate, tab_in_value_forces_quotes), and the
+ # mutants live here so that stays true.
+ ("M24", "json.bend", "w.ch.plain(Bool.or(U32.is_le(c, 31), Bool.and(U32.is_ge(c, 127), U32.is_le(c, 159))), c, acc)", "w.ch.plain(U32.is_le(c, 31), c, acc)", "writer B stops escaping DEL and the C1 block"),
+ ("M25", "text.bend", "Bool.or(U32.is_lt(value, 55296), U32.is_gt(value, 57343))", "True{}", "a UTF-8-encoded surrogate is accepted"),
+ ("M26", "encode.bend", "Bool.or(U32.is_eq(c, 13), U32.is_eq(c, 9))", "U32.is_eq(c, 13)", "a TAB in a value no longer forces quotes"),
 ]
 
 def reduced(laws_text, proof_text):

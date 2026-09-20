@@ -309,6 +309,37 @@ law expand_cap_is_256_reject:
 law expand_cap_is_256_accept:
   {D.dr.ok(D.decode_expanded("k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k: x\n", True{}, 2n, False{})) == True{} : Bool}
 
+# S2.2 a UTF-8-encoded surrogate (ED A0 80, the CESU-8 form of U+D800) is NOT valid UTF-8 and the input
+# gate rejects it. Round 13 (R13-9) mutated the surrogate test out of `utf8.cont` and the whole proof still
+# checked: no law pinned it, only the corpus (`jsonerr_utf8_surrogate`).
+law utf8_rejects_surrogate:
+  {T.utf8.finish(T.utf8.bytes([237, 160, 128], T.utf8.init())) == None{} : Maybe<&2, String>}
+
+# S2.2 and the same three-byte shape one scalar below the surrogate block (ED 9F BF = U+D7FF) IS valid:
+# the law above must not be satisfiable by refusing every three-byte sequence.
+law utf8_accepts_below_surrogate:
+  {T.utf8.finish(T.utf8.bytes([237, 159, 191], T.utf8.init())) == Some{SCon{Chr{55295}, SNil{}}} : Maybe<&2, String>}
+
+# S5.64 writer B (the one behind --expand-paths) escapes DEL as \u007f. The accumulator is built in
+# reverse, so the expected string reads backwards. Round 13 (R13-9) mutated this table and the whole proof
+# still checked.
+law writer_b_escapes_del:
+  {J.w.ch(True{}, 127, SNil{}) == "f700u\\" : String}
+
+# S5.64 and writer B escapes the C1 block too (U+0085 as \u0085)
+law writer_b_escapes_c1:
+  {J.w.ch(True{}, 133, SNil{}) == "5800u\\" : String}
+
+# S5.63 writer A (plain --decode) writes the SAME scalar raw: the two tables differ, and a repair that
+# unified them would break the goldens of one of the two writers
+law writer_a_keeps_del_raw:
+  {J.w.ch(False{}, 127, SNil{}) == SCon{Chr{127}, SNil{}} : String}
+
+# S4.12-S4.16 a TAB inside a value forces quotes (and is written as the escape \t). Round 13 (R13-9)
+# mutated TAB out of `bad_char` and the whole proof still checked: only the corpus caught it.
+law tab_in_value_forces_quotes:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":\"x\\ty\"}", Nil{})) == C.Out{0n, "a: \"x\\ty\"\n", ""} : C.Out}
+
 # ---------------------------------------------------------------- closed goldens of the WHOLE pure core
 #
 # Each law below is one case of goldens/cases.tsv, pasted from its captured files: argv, the input

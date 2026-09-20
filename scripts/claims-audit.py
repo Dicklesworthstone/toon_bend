@@ -116,7 +116,7 @@ def facts():
             ev[name] = j
     f["evidence"] = ev
     f["ratios"] = {round(j["ratio"], d) for j in ev.values() if j.get("ratio") for d in (2, 3, 4)}
-    f["medians"] = {round(j[side]["median_ms"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1)}
+    f["medians"] = {round(j[side]["median_ms"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1, 2)}
     f["cvs"] = {round(j[side]["cv_pct"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1)}
     f["reviews"] = {int(m.group(1)): p for p in sorted(os.listdir(reviews_dir) if os.path.isdir(reviews_dir) else [])
                     for m in [re.match(r"round-(\d+)\.md$", p)] if m}
@@ -179,8 +179,13 @@ def audit(files, f, gates, verbose):
             continue
         for n, line in enumerate(text.splitlines(), 1):
             historical = bool(HISTORY.search(line))
+            # `hand-mutants.py M24 M25 M26` runs a SELECTION and reports that many mutants: a line that names
+            # the ids it ran is not a stale full-set line. It must still name ids that exist (REFERENCES).
+            selective = bool(re.search(r"\bM\d\d\b[^\n]*\bM\d\d\b", line))
             for name, pat, want in counts:
                 if want is None or path in ARCHIVE:
+                    continue
+                if selective and name.startswith("mutants"):
                     continue
                 for m in re.finditer(pat, line):
                     said = next(g for g in m.groups() if g)
@@ -257,11 +262,14 @@ def audit(files, f, gates, verbose):
     if a > 0 and b > a and "README.md" in files:
         base = readme[:a].count("\n") + 1
         for i, line in enumerate(readme[a:b].splitlines()):
-            if line.lstrip().startswith(("#", ">")) or "perf/evidence" in line:
+            if line.lstrip().startswith(("#", ">")):
                 continue
-            for value, kind, pool in ([(v, "ratio", f["ratios"]) for v in re.findall(r"(\d+\.\d+)×", line)]
-                                      + [(v, "median", f["medians"]) for v in re.findall(r"(\d+\.\d+) ms", line)]
-                                      + [(v, "cv", f["cvs"]) for v in re.findall(r"cv (\d+\.\d+)%|/ (\d+\.\d+)%", line) for v in [v[0] or v[1]]]):
+            # Integers count too: round 13 (R13-6) falsified a whole row to `9999 ms | 111 ms` and this gate
+            # stayed green, because every pattern here demanded a decimal point. Naming a file under
+            # perf/evidence/ is likewise no longer an exemption from having the numbers on the line checked.
+            for value, kind, pool in ([(v, "ratio", f["ratios"]) for v in re.findall(r"(\d+(?:\.\d+)?)×", line)]
+                                      + [(v, "median", f["medians"]) for v in re.findall(r"(\d+(?:\.\d+)?) ms", line)]
+                                      + [(v, "cv", f["cvs"]) for v in re.findall(r"cv (\d+(?:\.\d+)?)%|/ (\d+(?:\.\d+)?)%", line) for v in [v[0] or v[1]]]):
                 if float(value) not in pool:
                     findings.append({"file": "README.md", "line": base + i, "text": line.strip()[:200],
                                      "finding": "the performance section states the %s %s, which is in no file of perf/evidence/" % (kind, value)})

@@ -457,6 +457,17 @@ def main():
         originals = oracle_commands(args.gold)
         if originals and not any(identity(command) == identity(original) for original in originals):
             raise ValueError("floor command differs from the captured original; use the captured command or explicitly recapture")
+        # identity() resolves symlinks, so the SAME file under another name passes it — and then every usage
+        # case differs, because clap prints argv[0]'s basename (S1.2, DISC-002). That is a renamed oracle, not
+        # nondeterminism: 62 false UNSTABLE cases in round 13 (R13-7). Refuse it by name.
+        if originals:
+            names = {os.path.basename(original[0]) for original in originals}
+            if os.path.basename(command[0]) not in names:
+                print("floor: the original is invoked as %r but was captured as %s. The same file under another "
+                      "name is not the same program here: the usage text carries argv[0]'s basename (S1.2, "
+                      "DISC-002), so every usage_* case would differ. Invoke it under the captured name."
+                      % (os.path.basename(command[0]), ", ".join(sorted(names))), file=sys.stderr)
+                return 2
         if not originals:
             print("note: original identity unavailable; floor command unverified", file=sys.stderr)
         try:

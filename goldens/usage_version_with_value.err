@@ -1,0 +1,5 @@
+error: unexpected value '1' for '--version' found; no more were expected
+
+Usage: toon --version [INPUT]
+
+For more information, try '--help'.

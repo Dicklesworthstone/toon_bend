@@ -655,3 +655,51 @@ toonedge_expand_segments_253	["--decode", "--expand-paths", "safe"]	cases/inputs
 toonerr_expand_segments_254	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_segments_254.toon	toon-error	S4.248: rejected
 toonedge_expand_nested_127	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_nested_127.toon	toon-edge	S4.248: 127 objects accepted
 toonerr_expand_nested_128	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_nested_128.toon	toon-error	S4.248: 128 objects rejected
+toonedge_expand_arrays_255	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_arrays_255.toon	toon-edge	S4.248: 255 nested list arrays around a primitive are accepted
+toonerr_expand_arrays_256	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_arrays_256.toon	toon-error	S4.248: 256 nested list arrays -> depth cap
+toonedge_expand_empty_leaf_128	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_empty_leaf_128.toon	toon-edge	S4.248: 128 objects (root included) are accepted when the deepest one is {}
+toonerr_expand_empty_leaf_129	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_empty_leaf_129.toon	toon-error	S4.248: 129 objects with an empty deepest member -> depth cap
+toonedge_expand_mixed_100_objects_55_arrays	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_mixed_100_objects_55_arrays.toon	toon-edge	S4.248: objects cost 2, arrays 1: 100 objects then 55 list arrays around a primitive pass
+toonerr_expand_mixed_100_objects_56_arrays	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_mixed_100_objects_56_arrays.toon	toon-error	S4.248: one more array -> depth cap
+toonedge_expand_nested_key_251	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_nested_key_251.toon	toon-edge	S4.248: k=1, 253-2k = 251 segments accepted
+toonerr_expand_nested_key_252	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_nested_key_252.toon	toon-error	S4.248: k=1, 252 segments -> depth cap
+toonedge_expand_header_key_253	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_header_key_253.toon	toon-edge	S4.248: an array-header key walks like any key; its array value was expanded at c=2 before the walk
+toonerr_expand_header_key_254	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_header_key_254.toon	toon-error	S4.248: 254-segment header key -> depth cap
+toonedge_expand_root_tabular_field_252	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_root_tabular_field_252.toon	toon-edge	S4.248: a row object of a root table has c=1, so 252 segments pass
+toonerr_expand_root_tabular_field_253	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_root_tabular_field_253.toon	toon-error	S4.248: 253 segments in a root-table field -> depth cap
+toonedge_expand_keyed_tabular_field_250	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_keyed_tabular_field_250.toon	toon-edge	S4.248: a row object under a key has c=3, so 250 segments pass
+toonerr_expand_keyed_tabular_field_251	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_keyed_tabular_field_251.toon	toon-error	S4.248: 251 segments in a keyed-table field -> depth cap
+toonedge_expand_merge_flat_252	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_merge_flat_252.toon	toon-edge	S4.248: the merge of two flat objects at the end of a 252-segment path runs at c=255
+toonerr_expand_merge_flat_253	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_merge_flat_253.toon	toon-error	S4.248: the same merge at 253 segments would run at c=256 -> depth cap
+toonedge_expand_merge_nested_251	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_merge_nested_251.toon	toon-edge	S4.248: a nested merge runs one higher (c=255)
+toonerr_expand_merge_nested_252	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_merge_nested_252.toon	toon-error	S4.248: nested merge at c=256 -> depth cap
+toonedge_expand_merge3_250	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_merge3_250.toon	toon-edge	S4.248: three merge levels (c=253, 254, 255) pass
+toonerr_expand_merge3_251	["--decode", "--expand-paths", "safe", "--no-strict"]	cases/inputs/hand/toonerr_expand_merge3_251.toon	toon-error	S4.248: third merge level at c=256 -> depth cap, in lenient mode too
+io_output_dev_full_decode_8192	["--decode", "-o", "/dev/full"]	cases/inputs/hand/io_output_dev_full_decode_8192.toon	usage	LINUX: S10.3 on the decode path, writer A: 8192 output bytes -> exit 0 and the success line
+io_output_dev_full_decode_8193	["--decode", "-o", "/dev/full"]	cases/inputs/hand/io_output_dev_full_decode_8193.toon	usage	LINUX: 8193 output bytes -> Failed to write to file '/dev/full': No space left on device (os error 28)
+io_output_dev_full_decode_expand_8192	["--decode", "-o", "/dev/full", "--expand-paths", "safe"]	cases/inputs/hand/io_output_dev_full_decode_expand_8192.toon	usage	LINUX: the same through writer B (one 8191-byte piece, then LF)
+io_output_dev_full_decode_expand_8193	["--decode", "-o", "/dev/full", "--expand-paths", "safe"]	cases/inputs/hand/io_output_dev_full_decode_expand_8193.toon	usage	LINUX: the same through writer B
+io_output_dev_full_decode_stats	["--decode", "--stats", "-o", "/dev/full"]	cases/inputs/hand/io_output_dev_full_decode_stats.toon	usage	LINUX: S1.153: --stats is ignored in decode mode, so the small failed write is LOST (exit 0, success line), unlike io_output_dev_full_stats
+io_output_dev_full_lines_8192	["-e", "-o", "/dev/full"]	cases/inputs/hand/io_output_dev_full_lines_8192.txt	usage	LINUX: 910 short lines, 8192 bytes in total -> exit 0 and the success line (the total decides, not the line sizes)
+io_output_dev_full_lines_8193	["-e", "-o", "/dev/full"]	cases/inputs/hand/io_output_dev_full_lines_8193.txt	usage	LINUX: 910 short lines, 8193 bytes in total -> write error
+enc_tabular_field_name_close_brace	["--encode"]	cases/inputs/hand/enc_tabular_field_name_close_brace.json	enc-string	S4.26: the field name is quoted, the brace stays raw inside the quotes
+toonerr_field_name_close_brace	["--decode"]	cases/inputs/hand/toonerr_field_name_close_brace.toon	toon-error	S2.132/S10.200: the encoder's own output; the fields segment is cut at the brace inside the quotes -> Unterminated string
+toonedge_field_name_open_brace_ok	["--decode"]	cases/inputs/hand/toonedge_field_name_open_brace_ok.toon	toon-edge	S2.132: an opening brace inside a quoted field name is harmless
+enc_value_looks_like_header	["--encode"]	cases/inputs/hand/enc_value_looks_like_header.json	enc-string	S4.12/S4.14: such values are quoted and nothing else; lines a, b and the item line f are the ones S10.83 breaks on the way back
+toonedge_header_in_value_first_bracket_only	["--decode"]	cases/inputs/hand/toonedge_header_in_value_first_bracket_only.toon	toon-edge	S2.130-S2.135/S10.83: only the FIRST [ of the line is tried, it needs a length inside and a colon after; all four values survive
+toonerr_header_in_value_unterminated	["--decode"]	cases/inputs/hand/toonerr_header_in_value_unterminated.toon	toon-error	S10.83: the inline text is the value's closing quote -> Unterminated string
+toonerr_header_in_value_count	["--decode"]	cases/inputs/hand/toonerr_header_in_value_count.toon	toon-error	S10.83: -> Expected 2 inline array items, but got 1
+toonedge_header_in_value_list_item_field	["--decode"]	cases/inputs/hand/toonedge_header_in_value_list_item_field.toon	toon-edge	S10.83: the first field of a list-item object is a key-value line too
+toonedge_crlf_all_constructs	["--decode"]	cases/inputs/hand/toonedge_crlf_all_constructs.toon	toon-edge	S2.113: nested object, quoted key, table rows, list items of every shape and an empty array decode like the LF twin
+toonerr_crlf_blank_line_in_list	["--decode"]	cases/inputs/hand/toonerr_crlf_blank_line_in_list.toon	toon-error	S2.105/S2.113: a line holding only CR is blank -> Line 3: Blank lines inside list array are not allowed in strict mode
+encnum_long_text_in_rows_tab	["--encode", "--delimiter", "\t"]	cases/inputs/hand/encnum_long_text_in_rows_tab.json	enc-number	S4.130: 301- to 326-character number texts inside tab-delimited rows, never quoted
+decnum_long_tokens_in_rows_pipe	["--decode"]	cases/inputs/hand/decnum_long_tokens_in_rows_pipe.toon	dec-number	S4.142/S4.143: 300+ character tokens as cells; 309 nines and 1e309 stay strings, -1e-401 is 0.0
+toonerr_item_header_cap_quoted_colon	["--decode"]	cases/inputs/hand/toonerr_item_header_cap_quoted_colon.toon	toon-error	S4.223: the cap message although the only ':' after the brackets sits inside quotes
+toonerr_item_header_inline_unterminated	["--decode"]	cases/inputs/hand/toonerr_item_header_inline_unterminated.toon	toon-error	S4.223/S4.210: a keyed header with a fields segment; its inline text is a lone quote -> Unterminated string
+toonerr_item_header_key_escape	["--decode"]	cases/inputs/hand/toonerr_item_header_key_escape.toon	toon-error	S4.223/S2.139 (3): the quoted header key's escape error surfaces
+toonerr_item_bracket_cap_quoted_colon	["--decode"]	cases/inputs/hand/toonerr_item_bracket_cap_quoted_colon.toon	toon-error	S4.222/S4.223: the root-array test fails (no unquoted ':'), the header parse of S4.223 still reports the cap
+toonerr_quoted_key_escape_before_colon	["--decode"]	cases/inputs/hand/toonerr_quoted_key_escape_before_colon.toon	toon-error	S2.126: Invalid escape sequence: \x, not Missing colon after key
+toonerr_quoted_key_escape_before_colon_item	["--decode"]	cases/inputs/hand/toonerr_quoted_key_escape_before_colon_item.toon	toon-error	S2.126: the same order inside a list item
+usage_help_with_value_after_commit	["-e", "--help=x"]	-	usage	S1.86: C not empty -> the group line G preceded by --help (help is not a member of G)
+usage_version_with_value_after_commit	["--indent=2", "--version="]	-	usage	S1.86: the same for --version, with an empty attached value
+usage_version_with_value	["--version=1"]	-	usage	S1.86: C empty -> Usage: toon --version [INPUT]

@@ -728,6 +728,84 @@ def _proposed_e():
 _proposed_e()
 
 
+def _proposed_x():
+    """Cases proposed by the pass-2 cross-surface reader (docs/spec-parts/pass2_X.md, 'Cases to add'); each was run on the oracle there."""
+    # ---- S4.248: the expansion counter on the paths no golden pins (arrays, table rows, header keys, merges of 1-3 levels, empty leaf, mixed chain, lenient)
+    dec("toonedge_expand_arrays_255", "[1]:\n" + "".join("  " * i + "- [1]:\n" for i in range(1, 254)) + "  " * 254 + "- [1]: x\n", ["--expand-paths", "safe"], cls="toon-edge", note="S4.248: 255 nested list arrays around a primitive are accepted")
+    dec("toonerr_expand_arrays_256", "[1]:\n" + "".join("  " * i + "- [1]:\n" for i in range(1, 255)) + "  " * 255 + "- [1]: x\n", ["--expand-paths", "safe"], cls="toon-error", note="S4.248: 256 nested list arrays -> depth cap")
+    dec("toonedge_expand_empty_leaf_128", "".join("  " * i + "o:\n" for i in range(127)), ["--expand-paths", "safe"], cls="toon-edge", note="S4.248: 128 objects (root included) are accepted when the deepest one is {}")
+    dec("toonerr_expand_empty_leaf_129", "".join("  " * i + "o:\n" for i in range(128)), ["--expand-paths", "safe"], cls="toon-error", note="S4.248: 129 objects with an empty deepest member -> depth cap")
+    dec("toonedge_expand_mixed_100_objects_55_arrays", "".join("  " * i + "o:\n" for i in range(99)) + "  " * 99 + "a[1]:\n" + "".join("  " * (99 + j) + "- [1]:\n" for j in range(1, 54)) + "  " * 153 + "- [1]: x\n", ["--expand-paths", "safe"], cls="toon-edge", note="S4.248: objects cost 2, arrays 1: 100 objects then 55 list arrays around a primitive pass")
+    dec("toonerr_expand_mixed_100_objects_56_arrays", "".join("  " * i + "o:\n" for i in range(99)) + "  " * 99 + "a[1]:\n" + "".join("  " * (99 + j) + "- [1]:\n" for j in range(1, 55)) + "  " * 154 + "- [1]: x\n", ["--expand-paths", "safe"], cls="toon-error", note="S4.248: one more array -> depth cap")
+    dec("toonedge_expand_nested_key_251", "o:\n  " + ".".join(["k"] * 251) + ": 1\n", ["--expand-paths", "safe"], cls="toon-edge", note="S4.248: k=1, 253-2k = 251 segments accepted")
+    dec("toonerr_expand_nested_key_252", "o:\n  " + ".".join(["k"] * 252) + ": 1\n", ["--expand-paths", "safe"], cls="toon-error", note="S4.248: k=1, 252 segments -> depth cap")
+    dec("toonedge_expand_header_key_253", ".".join(["k"] * 253) + "[2]: a,b\n", ["--expand-paths", "safe"], cls="toon-edge", note="S4.248: an array-header key walks like any key; its array value was expanded at c=2 before the walk")
+    dec("toonerr_expand_header_key_254", ".".join(["k"] * 254) + "[2]: a,b\n", ["--expand-paths", "safe"], cls="toon-error", note="S4.248: 254-segment header key -> depth cap")
+    dec("toonedge_expand_root_tabular_field_252", "[1]{" + ".".join(["k"] * 252) + "}:\n  1\n", ["--expand-paths", "safe"], cls="toon-edge", note="S4.248: a row object of a root table has c=1, so 252 segments pass")
+    dec("toonerr_expand_root_tabular_field_253", "[1]{" + ".".join(["k"] * 253) + "}:\n  1\n", ["--expand-paths", "safe"], cls="toon-error", note="S4.248: 253 segments in a root-table field -> depth cap")
+    dec("toonedge_expand_keyed_tabular_field_250", "t[1]{" + ".".join(["k"] * 250) + "}:\n  1\n", ["--expand-paths", "safe"], cls="toon-edge", note="S4.248: a row object under a key has c=3, so 250 segments pass")
+    dec("toonerr_expand_keyed_tabular_field_251", "t[1]{" + ".".join(["k"] * 251) + "}:\n  1\n", ["--expand-paths", "safe"], cls="toon-error", note="S4.248: 251 segments in a keyed-table field -> depth cap")
+    dec("toonedge_expand_merge_flat_252", (".".join(["k"] * 252) + ":\n  p: 1\n") + (".".join(["k"] * 252) + ":\n  q: 2\n"), ["--expand-paths", "safe"], cls="toon-edge", note="S4.248: the merge of two flat objects at the end of a 252-segment path runs at c=255")
+    dec("toonerr_expand_merge_flat_253", (".".join(["k"] * 253) + ":\n  p: 1\n") + (".".join(["k"] * 253) + ":\n  q: 2\n"), ["--expand-paths", "safe"], cls="toon-error", note="S4.248: the same merge at 253 segments would run at c=256 -> depth cap")
+    dec("toonedge_expand_merge_nested_251", (".".join(["k"] * 251) + ":\n  x:\n    p: 1\n") + (".".join(["k"] * 251) + ":\n  x:\n    q: 2\n"), ["--expand-paths", "safe"], cls="toon-edge", note="S4.248: a nested merge runs one higher (c=255)")
+    dec("toonerr_expand_merge_nested_252", (".".join(["k"] * 252) + ":\n  x:\n    p: 1\n") + (".".join(["k"] * 252) + ":\n  x:\n    q: 2\n"), ["--expand-paths", "safe"], cls="toon-error", note="S4.248: nested merge at c=256 -> depth cap")
+    dec("toonedge_expand_merge3_250", (".".join(["k"] * 250) + ":\n  x:\n    y:\n      p: 1\n") + (".".join(["k"] * 250) + ":\n  x:\n    y:\n      q: 2\n"), ["--expand-paths", "safe"], cls="toon-edge", note="S4.248: three merge levels (c=253, 254, 255) pass")
+    dec("toonerr_expand_merge3_251", (".".join(["k"] * 251) + ":\n  x:\n    y:\n      p: 1\n") + (".".join(["k"] * 251) + ":\n  x:\n    y:\n      q: 2\n"), ["--expand-paths", "safe", "--no-strict"], cls="toon-error", note="S4.248: third merge level at c=256 -> depth cap, in lenient mode too")
+    # ---- S10.3 / S9.15 / S1.153: the 8192-byte rule on the decode path (both writers), with --stats in decode mode, and for an output made of many short lines
+    dec("io_output_dev_full_decode_8192", "x" * 8189 + "\n", ["-o", "/dev/full"], cls="usage", note="LINUX: S10.3 on the decode path, writer A: 8192 output bytes -> exit 0 and the success line")
+    dec("io_output_dev_full_decode_8193", "x" * 8190 + "\n", ["-o", "/dev/full"], cls="usage", note="LINUX: 8193 output bytes -> Failed to write to file '/dev/full': No space left on device (os error 28)")
+    dec("io_output_dev_full_decode_expand_8192", "x" * 8189 + "\n", ["-o", "/dev/full", "--expand-paths", "safe"], cls="usage", note="LINUX: the same through writer B (one 8191-byte piece, then LF)")
+    dec("io_output_dev_full_decode_expand_8193", "x" * 8190 + "\n", ["-o", "/dev/full", "--expand-paths", "safe"], cls="usage", note="LINUX: the same through writer B")
+    dec("io_output_dev_full_decode_stats", "a: 1\n", ["--stats", "-o", "/dev/full"], cls="usage", note="LINUX: S1.153: --stats is ignored in decode mode, so the small failed write is LOST (exit 0, success line), unlike io_output_dev_full_stats")
+    case("io_output_dev_full_lines_8192", ["-e", "-o", "/dev/full"], "{" + ",".join('"k%04d":"v"' % i for i in range(909)) + ',"z":"' + "y" * 7 + '"}', "usage", "LINUX: 910 short lines, 8192 bytes in total -> exit 0 and the success line (the total decides, not the line sizes)")
+    case("io_output_dev_full_lines_8193", ["-e", "-o", "/dev/full"], "{" + ",".join('"k%04d":"v"' % i for i in range(909)) + ',"z":"' + "y" * 8 + '"}', "usage", "LINUX: 910 short lines, 8193 bytes in total -> write error")
+    # ---- S10.200 (new): second encode->decode break, a closing brace inside a quoted tabular field name
+    enc("enc_tabular_field_name_close_brace", '[{"a}b":1,"c":2},{"a}b":3,"c":4}]\n', note="S4.26: the field name is quoted, the brace stays raw inside the quotes")
+    dec("toonerr_field_name_close_brace", '[2]{"a}b",c}:\n  1,2\n  3,4\n', cls="toon-error", note="S2.132/S10.200: the encoder's own output; the fields segment is cut at the brace inside the quotes -> Unterminated string")
+    dec("toonedge_field_name_open_brace_ok", '[1]{"a{b",c}:\n  1,2\n', cls="toon-edge", note="S2.132: an opening brace inside a quoted field name is harmless")
+    # ---- S10.83: exact reach of the header-in-value class, and its other outcomes
+    enc("enc_value_looks_like_header", '{"a":"x[1]: y","b":"[1]:","c":"[abc] [1]: y","d":["x[1]: y"],"e":[{"f":"x[1]: y","g":[1]}]}\n', note="S4.12/S4.14: such values are quoted and nothing else; lines a, b and the item line f are the ones S10.83 breaks on the way back")
+    dec("toonedge_header_in_value_first_bracket_only", 'a: "[abc] [1]: y"\nb: "x[1] y"\nc: "x[1\\t]: y"\nd: "x[1]{p:q}"\n', cls="toon-edge", note="S2.130-S2.135/S10.83: only the FIRST [ of the line is tried, it needs a length inside and a colon after; all four values survive")
+    dec("toonerr_header_in_value_unterminated", 'a: "[1]:"\n', cls="toon-error", note="S10.83: the inline text is the value's closing quote -> Unterminated string")
+    dec("toonerr_header_in_value_count", 'a: "x[2]: y"\n', cls="toon-error", note="S10.83: -> Expected 2 inline array items, but got 1")
+    dec("toonedge_header_in_value_list_item_field", 'f[1]:\n  - e: "x[1]: y"\n    g[1]: 1\n', cls="toon-edge", note="S10.83: the first field of a list-item object is a key-value line too")
+    # ---- S2.113: CRLF through every construct the clause names (the corpus pins key-value and inline only)
+    dec("toonedge_crlf_all_constructs", 'o:\r\n  n: -0\r\n  "q k": "s"\r\nt[2]{a,b}:\r\n  1,x\r\n  2.50,"y"\r\nl[4]:\r\n  - 1e3\r\n  - k: v\r\n    m:\r\n      z: true\r\n  - [2]: p,q\r\n  - u[1]{w}:\r\n      7\r\ne[0]:\r\n', cls="toon-edge", note="S2.113: nested object, quoted key, table rows, list items of every shape and an empty array decode like the LF twin")
+    dec("toonerr_crlf_blank_line_in_list", 'l[2]:\r\n  - a\r\n\r\n  - b\r\n', cls="toon-error", note="S2.105/S2.113: a line holding only CR is blank -> Line 3: Blank lines inside list array are not allowed in strict mode")
+    # ---- S4.122/S4.146: long number texts are position-independent (rows and inline values under tab and pipe)
+    enc("encnum_long_text_in_rows_tab", '{"t":[{"a":1e300,"b":5e-324},{"a":-1.7976931348623157e308,"b":1e-7}],"i":[1e21,1e-300,-0]}\n', ["--delimiter", "\t"], cls="enc-number", note="S4.130: 301- to 326-character number texts inside tab-delimited rows, never quoted")
+    dec("decnum_long_tokens_in_rows_pipe", "t[2|]{a|b}:\n  1" + "0" * 300 + "|0." + "0" * 323 + "5\n  " + "9" * 309 + "|-0." + "0" * 400 + "1\ni[2|]: 1" + "0" * 308 + " | 1" + "0" * 309 + "\n", cls="dec-number", note="S4.142/S4.143: 300+ character tokens as cells; 309 nines and 1e309 stay strings, -1e-401 is 0.0")
+
+
+_proposed_x()
+
+
+def _found_phase3():
+    """Spec gaps met while implementing (Phase 3), each resolved by RUNNING the oracle (OQ-P3-1, OQ-P3-2)."""
+    # ---- OQ-P3-1 (S4.223): a list item's header parse surfaces its failures even when the item has no ':' outside quotes
+    dec("toonerr_item_header_cap_quoted_colon", 'l[1]:\n  - a[999999999999]":"\n', cls="toon-error", note="S4.223: the cap message although the only ':' after the brackets sits inside quotes")
+    dec("toonerr_item_header_inline_unterminated", 'l[1]:\n  - a[2]{x}":"\n', cls="toon-error", note="S4.223/S4.210: a keyed header with a fields segment; its inline text is a lone quote -> Unterminated string")
+    dec("toonerr_item_header_key_escape", 'l[1]:\n  - "a\\q"[1]{x}":"\n', cls="toon-error", note="S4.223/S2.139 (3): the quoted header key's escape error surfaces")
+    dec("toonerr_item_bracket_cap_quoted_colon", 'l[1]:\n  - [999999999999]":"\n', cls="toon-error", note="S4.222/S4.223: the root-array test fails (no unquoted ':'), the header parse of S4.223 still reports the cap")
+    # ---- OQ-P3-2 (S2.126): a quoted key is unescaped BEFORE the ':' after its closing quote is required (found by the mutation fuzzer)
+    dec("toonerr_quoted_key_escape_before_colon", '"a\\x"\n"a\\x"\n', cls="toon-error", note="S2.126: Invalid escape sequence: \\x, not Missing colon after key")
+    dec("toonerr_quoted_key_escape_before_colon_item", 'l[1]:\n  - "a\\b"x: 1\n', cls="toon-error", note="S2.126: the same order inside a list item")
+
+
+_found_phase3()
+
+
+def _found_phase4():
+    """Spec gaps met in the Phase 4 find-fix rounds, each resolved by RUNNING the oracle."""
+    # ---- OQ-P4-1 (S1.86): a value attached to --help / --version while C is not empty (found by the argv fuzzer)
+    case("usage_help_with_value_after_commit", ["-e", "--help=x"], None, "usage", "S1.86: C not empty -> the group line G preceded by --help (help is not a member of G)")
+    case("usage_version_with_value_after_commit", ["--indent=2", "--version="], None, "usage", "S1.86: the same for --version, with an empty attached value")
+    case("usage_version_with_value", ["--version=1"], None, "usage", "S1.86: C empty -> Usage: toon --version [INPUT]")
+
+
+_found_phase4()
+
+
 def main():
     check = "--check" in sys.argv[1:]
     names = [r[0] for r in rows]

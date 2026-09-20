@@ -76,6 +76,17 @@ to change the contract. Keep the historical entry and its original evidence.
 - Approver: pending
 - Resolution: n/a while OPEN
 
+### DISC-006 — a failed write to stdout prints the runtime's line, not the original's   [2026-09-20 | Platform | OPEN]
+- Spec clause: S9.16, S8.9, S8.10
+- Original behavior: `Failed to write to stdout: <os text> (os error <n>)` + LF on stderr, exit 1 (run 2026-09-20: stdout = `/dev/full` → `No space left on device (os error 28)`; stdout = a pipe whose reader is closed → `Broken pipe (os error 32)`)
+- Port behavior: the same exit code 1; stderr is `bend: a short write on a standard stream` + LF (run 2026-09-20 on the C lane, both situations)
+- Why: `IO.write` owns fd 1 and fail-stops inside the runtime; a program cannot intercept the failure. Writing through `File.open("/dev/stdout", …)` instead would return the errno, but re-opening fd 1 by path fails where the original succeeds (a socket, a descriptor inherited across a privilege change), which is a worse divergence than a differing text on a failing write. Writes to the `-o` file DO go through the File API and reproduce S9.15 byte for byte (golden-tested: `io_output_dev_full_*`).
+- Kill-switch: not applicable
+- Affected cases: none expressible (the harness captures stdout)
+- Impact measured: 0 of 1005 cases
+- Approver: pending
+- Resolution: n/a while OPEN
+
 ### DISC-CANDIDATES (not divergences: the port is bug-compatible with each; listed so the owner can decide)
 
 These are behaviors of the pinned original that look unintended. The port reproduces all of them and the goldens pin them. Turning any into a fix is a `BugFix` DISC with the owner's approval, a kill-switch and a re-capture; none has been taken.

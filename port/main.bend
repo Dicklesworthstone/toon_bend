@@ -91,7 +91,7 @@ def os.text(n: U32, text: String) -> String:
 def read.msg(has_in: Bool, input: String, n: U32, text: String) -> String:
   match has_in:
     case True{}:
-      "Failed to read file '" ++ input ++ "': " ++ os.text(n, text)
+      T.cat(["Failed to read file '", input, "': ", os.text(n, text)])
     case False{}:
       "Failed to read stdin: " ++ os.text(n, text)
 
@@ -108,7 +108,7 @@ def put.stats(stats: String) -> IO(Unit):
 def wrote(r: Result<&1, &1, U32 & String, Unit>, loud: Bool, +o: C.Opts, stats: String) -> IO(Unit):
   match r loud:
     case Fail{(n, text)} True{}:
-      IO.die(Unit, 1, "Failed to write to file '" ++ C.o.output(o) ++ "': " ++ os.text(n, text))
+      IO.die(Unit, 1, T.cat(["Failed to write to file '", C.o.output(o), "': ", os.text(n, text)]))
     case _ _:
       do IO<Unit>:
         put.stats(stats)
@@ -132,7 +132,7 @@ def write.file(f: File, out: String, loud: Bool, o: C.Opts, stats: String) -> IO
 def write.opened(r: Result<&1, &1, U32 & String, File>, output: String, out: String, loud: Bool, o: C.Opts, stats: String) -> IO(Unit):
   match r:
     case Fail{(n, text)}:
-      IO.die(Unit, 1, "Failed to create file '" ++ output ++ "': " ++ os.text(n, text))
+      IO.die(Unit, 1, T.cat(["Failed to create file '", output, "': ", os.text(n, text)]))
     case Done{f}:
       write.file(f, out, loud, o, stats)
 

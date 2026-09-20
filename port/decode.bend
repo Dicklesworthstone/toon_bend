@@ -619,7 +619,7 @@ def len.canon(z: String) -> String:
 
 # S2.135, S7.34 a canonical digit string fits the original's 64-bit word up to 18446744073709551615
 def len.fits(+d: String) -> Bool:
-  Bool.or(Nat.is_lt(String.length(d), 20n), Bool.and(Nat.is_eq(String.length(d), 20n), String.is_le(d, "18446744073709551615")))
+  Bool.or(Nat.is_lt(T.str_len(d, 0n), 20n), Bool.and(Nat.is_eq(T.str_len(d, 0n), 20n), String.is_le(d, "18446744073709551615")))
 
 # S2.135 the digits after the optional single '+'
 def len.body(ok: Bool, +digits: String, delim: U32) -> HL:
@@ -679,7 +679,7 @@ def hdr.e(l: HL, has_key: Bool, key: String, quoted: Bool, has_seg: Bool, seg: S
     case HL{False{}, delim, digits}:
       HNot{}
     case HL{True{}, delim, +digits}:
-      hdr.f(len.over(Nat.is_gt(String.length(digits), 9n), digits), digits, has_key, key, quoted, delim, has_seg, seg, inline)
+      hdr.f(len.over(Nat.is_gt(T.str_len(digits, 0n), 9n), digits), digits, has_key, key, quoted, delim, has_seg, seg, inline)
 
 # S2.139 (3) the escapes of a quoted key are interpreted before the bracket content is looked at
 def hdr.d.quoted(r: RS, inside: String, has_seg: Bool, seg: String, inline: String) -> Hdr:
@@ -1029,7 +1029,7 @@ def array(has_inline: Bool, has_fields: Bool, n: Nat, +delim: U32, +fields: List
     case True{} _:
       inline(prims.go(split(inline_text, delim), PROk{J.JNil{}, 0n}), n, frames, pk, g)
     case False{} True{}:
-      decide(FTab{J.JNil{}, n, 0n, 1n+d, fields, List.length(&2, Field, fields), delim, 0n} <> frames, pk, g)
+      decide(FTab{J.JNil{}, n, 0n, 1n+d, fields, T.llen(&2, Field, fields, 0n), delim, 0n} <> frames, pk, g)
     case False{} False{}:
       decide(FList{J.JNil{}, n, 0n, 1n+d, 0n} <> frames, pk, g)
 
@@ -1103,7 +1103,7 @@ def row.fin(pr: PR, +num: Nat, rev: J.Json, n: Nat, cnt: Nat, r: Nat, +fields: L
 def row.width(bad: Bool, +vals: List<&2, String>, num: Nat, rev: J.Json, n: Nat, cnt: Nat, r: Nat, fields: List<&2, Field>, +nf: Nat, delim: U32, first: Nat, more: List<&2, Frame>, pk: Peek, g: G) -> Step:
   match bad:
     case True{}:
-      SErr{"Expected " ++ Nat.show(nf) ++ " tabular row values, but got " ++ Nat.show(List.length(&2, String, vals))}
+      SErr{"Expected " ++ Nat.show(nf) ++ " tabular row values, but got " ++ Nat.show(T.llen(&2, String, vals, 0n))}
     case False{}:
       row.fin(prims.go(vals, PROk{J.JNil{}, 0n}), num, rev, n, cnt, r, fields, nf, delim, first, more, pk, g)
 
@@ -1111,7 +1111,7 @@ def row.width(bad: Bool, +vals: List<&2, String>, num: Nat, rev: J.Json, n: Nat,
 def eat.row(+vals: List<&2, String>, num: Nat, rev: J.Json, n: Nat, cnt: Nat, r: Nat, fields: List<&2, Field>, +nf: Nat, delim: U32, first: Nat, more: List<&2, Frame>, pk: Peek, g: G) -> Step:
   match g:
     case G{+strict, blanks, last}:
-      row.width(Bool.and(strict, Nat.is_ne(List.length(&2, String, vals), nf)), vals, num, rev, n, cnt, r, fields, nf, delim, first, more, pk, G{strict, blanks, last})
+      row.width(Bool.and(strict, Nat.is_ne(T.llen(&2, String, vals, 0n), nf)), vals, num, rev, n, cnt, r, fields, nf, delim, first, more, pk, G{strict, blanks, last})
 
 # S4.221 the text after the two-character marker `- ` (nothing for the bare marker `-`), not trimmed
 def item.rest(content: String) -> String:
@@ -1341,7 +1341,7 @@ type Act is Data:
 def plan.conf(strict: Bool, k: String, x: String, y: String) -> Act:
   match strict:
     case True{}:
-      AConf{"Path expansion conflict at key \"" ++ k ++ "\": cannot merge " ++ x ++ " with " ++ y}
+      AConf{T.cat(["Path expansion conflict at key \"", k, "\": cannot merge ", x, " with ", y])}
     case False{}:
       APut{}
 
@@ -1444,7 +1444,7 @@ def path.ins(segs: List<&2, String>, look: LK, left: Nat, strict: Bool, +rev: J.
       +rx = J.rev_entries(ex, J.JNil{})
       path.put(rev, s, path.ins(more, lk.head(more, rx), p, st, rx, v))
     case Con{s, more} LOther{t} 1n+p True{}:
-      EErr{"Path expansion conflict at segment \"" ++ s ++ "\": expected object but found " ++ t}
+      EErr{T.cat(["Path expansion conflict at segment \"", s, "\": expected object but found ", t])}
     case Con{s, more} l0 1n+p +st:
       path.put(rev, s, path.ins(more, LNone{}, p, st, J.JNil{}, v))
 

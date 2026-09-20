@@ -272,7 +272,7 @@ def vk.tab.if(ok: Bool, hdr: List<&2, String>) -> VK:
 # S4.34 tabular when a header can be extracted and every row is uniform; an empty header (first row {})
 # is never tabular (S4.35)
 def vk.tab(+hdr: List<&2, String>, items: J.Json) -> VK:
-  +hn = List.length(&2, String, hdr)
+  +hn = T.llen(&2, String, hdr, 0n)
   vk.tab.if(Bool.and(Bool.not(Nat.is_eq(hn, 0n)), rows_ok.go(items, hdr, hn, True{})), hdr)
 
 
@@ -425,7 +425,7 @@ def join_segs.one(s: String, acc: String) -> String:
     case SNil{}:
       s
     case SCon{c, t}:
-      s ++ "." ++ SCon{c, t}
+      T.cat([s, ".", SCon{c, t}])
 
 # S4.68 the segments (newest first) joined with single dots, in walk order
 def join_segs(segs: List<&2, String>, acc: String) -> String:
@@ -454,7 +454,7 @@ def any_eq(xs: List<&2, String>, k: String) -> Bool:
 def path(has_pre: Bool, pre: String, k: String) -> String:
   match has_pre:
     case True{}:
-      pre ++ "." ++ k
+      T.cat([pre, ".", k])
     case False{}:
       k
 
@@ -475,7 +475,7 @@ def fold.check(two: Bool, idents: Bool, sib: Bool, lit: Bool, n: Nat, fkey: Stri
 def fold.go(fc: FCtx, +segs: List<&2, String>, sibs: List<&2, String>) -> Fold:
   match fc:
     case FCtx{on, budget, has_set, set, has_pre, pre}:
-      +n = List.length(&2, String, segs)
+      +n = T.llen(&2, String, segs, 0n)
       +fkey = join_segs(segs, SNil{})
       fold.check(Nat.is_ge(n, 2n), segs_ok.go(segs, True{}), any_eq(sibs, fkey), Bool.and(has_set, any_eq(set, path(has_pre, pre, fkey))), n, fkey)
 

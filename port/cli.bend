@@ -300,7 +300,7 @@ def jaro.value(+m: Nat, la: Nat, lb: Nat, t: Nat) -> F.F64:
 def jaro.fin(st: JA, la: Nat, lb: Nat) -> F.F64:
   match st:
     case JA{i, bs, +am}:
-      jaro.value(List.length(&2, U32, am), la, lb, Nat.div(jaro.h(List.reverse(&2, U32, am), jaro.bmatched(bs, Nil{}), 0n), 2n))
+      jaro.value(T.llen(&2, U32, am, 0n), la, lb, Nat.div(jaro.h(List.reverse(&2, U32, am), jaro.bmatched(bs, Nil{}), 0n), 2n))
 
 # S1.74 w = max(floor(max(|a|, |b|) / 2) - 1, 0)
 def jaro.window(la: Nat, lb: Nat) -> Nat:
@@ -308,7 +308,7 @@ def jaro.window(la: Nat, lb: Nat) -> Nat:
 
 # S1.74 the similarity of two texts taken as sequences of scalar values (0 when either is empty: m = 0)
 def jaro(+a: String, +b: String) -> F.F64:
-  jaro.fin(jaro.match(a, JA{0n, jaro.bms(b, Nil{}), Nil{}}, jaro.window(String.length(a), String.length(b))), String.length(a), String.length(b))
+  jaro.fin(jaro.match(a, JA{0n, jaro.bms(b, Nil{}), Nil{}}, jaro.window(T.str_len(a, 0n), T.str_len(b, 0n))), T.str_len(a, 0n), T.str_len(b, 0n))
 
 # S1.74 the binary64 literal 0.7
 def seven_tenths() -> F.F64:
@@ -403,11 +403,11 @@ def usage(+c: List<&2, Nat>) -> String:
 
 # S1.71 unknown long option without a similar name
 def e71(+name: String, usage_line: String) -> String:
-  "error: unexpected argument '--" ++ name ++ "' found\n\n  tip: to pass '--" ++ name ++ "' as a value, use '-- --" ++ name ++ "'\n\n" ++ fin(usage_line)
+  T.cat(["error: unexpected argument '--", name, "' found\n\n  tip: to pass '--", name, "' as a value, use '-- --", name, "'\n\n", fin(usage_line)])
 
 # S1.73 unknown long option with a similar name
 def e73(name: String, cand: String, usage_line: String) -> String:
-  "error: unexpected argument '--" ++ name ++ "' found\n\n  tip: a similar argument exists: '--" ++ cand ++ "'\n\n" ++ fin(usage_line)
+  T.cat(["error: unexpected argument '--", name, "' found\n\n  tip: a similar argument exists: '--", cand, "'\n\n", fin(usage_line)])
 
 # S1.77 unknown short character: always the fixed usage line, never a similarity tip
 def e77(+c: U32) -> String:
@@ -415,7 +415,7 @@ def e77(+c: U32) -> String:
 
 # S1.78 extra positional word: no tip line, fixed usage line
 def e78(word: String) -> String:
-  "error: unexpected argument '" ++ word ++ "' found\n\n" ++ fin(usage_fixed())
+  T.cat(["error: unexpected argument '", word, "' found\n\n", fin(usage_fixed())])
 
 # S1.79 encode/decode conflict
 def e79(first: Nat, second: Nat, usage_line: String) -> String:
@@ -441,7 +441,7 @@ def e81(+id: Nat) -> String:
 
 # S1.83 invalid value with a reason: the word as typed, no Usage line
 def e83(word: String, id: Nat, reason: String) -> String:
-  "error: invalid value '" ++ word ++ "' for '" ++ disp(id) ++ "': " ++ reason ++ "\n\nFor more information, try '--help'."
+  T.cat(["error: invalid value '", word, "' for '", disp(id), "': ", reason, "\n\nFor more information, try '--help'."])
 
 # S1.84 the optional similar-value tip
 def e84.tip(b: Best) -> String:
@@ -453,23 +453,29 @@ def e84.tip(b: Best) -> String:
 
 # S1.84 invalid enum value
 def e84(+word: String, id: Nat) -> String:
-  "error: invalid value '" ++ word ++ "' for '" ++ disp(id) ++ "'\n  [possible values: off, safe]\n" ++ e84.tip(best(["off", "safe"], word)) ++ "\nFor more information, try '--help'."
+  T.cat(["error: invalid value '", word, "' for '", disp(id), "'\n  [possible values: off, safe]\n", e84.tip(best(["off", "safe"], word)), "\nFor more information, try '--help'."])
 
-# S1.86 line G, used when C is not empty
+# S1.86 the group G of every argument a value-less flag competes with (help and version are not in it)
 def usage_g() -> String:
-  "Usage: toon <INPUT|--output <FILE>|--encode|--decode|--delimiter <DELIMITER>|--indent <INDENT>|--no-strict|--key-folding <KEY_FOLDING>|--flatten-depth <N>|--expand-paths <EXPAND_PATHS>|--stats>"
+  "<INPUT|--output <FILE>|--encode|--decode|--delimiter <DELIMITER>|--indent <INDENT>|--no-strict|--key-folding <KEY_FOLDING>|--flatten-depth <N>|--expand-paths <EXPAND_PATHS>|--stats>"
 
-# S1.86 the usage line depends only on whether C is empty at that moment
-def e86.usage(c: List<&2, Nat>, id: Nat) -> String:
-  match c:
-    case Nil{}:
-      "Usage: toon " ++ disp(id) ++ " [INPUT]"
-    case Con{x, rest}:
-      usage_g()
+# S1.86 the usage line depends on whether C is empty at that moment: empty, the flag and `[INPUT]`;
+# otherwise the group G, preceded by the flag itself when the flag is not a member of G (--help and
+# --version; amended in Phase 4, OQ-P4-1)
+def e86.usage(c: List<&2, Nat>, +id: Nat) -> String:
+  match c id:
+    case Nil{} _:
+      T.cat(["Usage: toon ", disp(id), " [INPUT]"])
+    case Con{x, rest} 11n:
+      T.cat(["Usage: toon --help ", usage_g()])
+    case Con{x, rest} 12n:
+      T.cat(["Usage: toon --version ", usage_g()])
+    case Con{x, rest} _:
+      T.cat(["Usage: toon ", usage_g()])
 
 # S1.86 a value attached to a flag
 def e86(val: String, +id: Nat, c: List<&2, Nat>) -> String:
-  "error: unexpected value '" ++ val ++ "' for '" ++ disp(id) ++ "' found; no more were expected\n\n" ++ fin(e86.usage(c, id))
+  T.cat(["error: unexpected value '", val, "' for '", disp(id), "' found; no more were expected\n\n", fin(e86.usage(c, id))])
 
 # S1.60 the help text, block V1
 def help_text() -> String:
@@ -502,7 +508,7 @@ def delim.of(+w: String) -> U32:
 
 # S1.83 R-DELIM: the word is copied raw between the double quotes; `(\t)` is a backslash and a `t`
 def e83.delim(+w: String) -> String:
-  e83(w, 4n, "Invalid delimiter \"" ++ w ++ "\". Valid delimiters are: comma (,), tab (\\t), pipe (|)")
+  e83(w, 4n, T.cat(["Invalid delimiter \"", w, "\". Valid delimiters are: comma (,), tab (\\t), pipe (|)"]))
 
 # S1.30 an accepted delimiter is stored; any other word is S1.83 with reason R-DELIM
 def delim.set.if(bad: Bool, d: U32, w: String, input: String, output: String, indent: Nat, fold: Bool, budget: Nat, expand: Bool) -> VR:
@@ -560,7 +566,7 @@ def int.canon(digits: String) -> String:
 
 # S1.31 whether canonical digits exceed a 19-digit limit of the signed 64-bit range
 def int.beyond(+c: String, lim: String) -> Bool:
-  Bool.or(Nat.is_gt(String.length(c), 19n), Bool.and(Nat.is_eq(String.length(c), 19n), String.is_gt(c, lim)))
+  Bool.or(Nat.is_gt(T.str_len(c, 0n), 19n), Bool.and(Nat.is_eq(T.str_len(c, 0n), 19n), String.is_gt(c, lim)))
 
 # S1.31 the parsed integer in canonical decimal, for the range message (`-007` is `-7`, `-0` is `0`)
 def int.show(neg: Bool, +c: String) -> String:
@@ -605,7 +611,7 @@ def indent.set(reason: String, +w: String, n: Nat, v: Vals) -> VR:
 
 # S1.31 the range verdicts over the canonical digits
 def indent.check.c(+kind: Nat, +neg: Bool, +c: String, w: String, v: Vals) -> VR:
-  indent.set(indent.reason(kind, Bool.and(Bool.not(neg), int.beyond(c, "9223372036854775807")), Bool.and(neg, int.beyond(c, "9223372036854775808")), Bool.and(Bool.or(Bool.not(neg), T.str_eq(c, "0")), Nat.is_le(indent.small(Nat.is_le(String.length(c), 2n), c), 16n)), int.show(neg, c)), w, indent.small(Nat.is_le(String.length(c), 2n), c), v)
+  indent.set(indent.reason(kind, Bool.and(Bool.not(neg), int.beyond(c, "9223372036854775807")), Bool.and(neg, int.beyond(c, "9223372036854775808")), Bool.and(Bool.or(Bool.not(neg), T.str_eq(c, "0")), Nat.is_le(indent.small(Nat.is_le(T.str_len(c, 0n), 2n), c), 16n)), int.show(neg, c)), w, indent.small(Nat.is_le(T.str_len(c, 0n), 2n), c), v)
 
 # S1.31 the verdicts of a well-formed (or not) indent word
 def indent.check(iw: IW, w: String, v: Vals) -> VR:
@@ -644,7 +650,7 @@ def budget.value(short: Bool, c: String) -> Nat:
 
 # S1.32 the range verdict over the canonical digits
 def budget.check.c(kind: Nat, +c: String, w: String, v: Vals) -> VR:
-  budget.set(budget.reason(kind, Bool.not(D.len.fits(c))), w, Nat.min(budget.value(Nat.is_le(String.length(c), 3n), c), 1000n), v)
+  budget.set(budget.reason(kind, Bool.not(D.len.fits(c))), w, Nat.min(budget.value(Nat.is_le(T.str_len(c, 0n), 3n), c), 1000n), v)
 
 # S1.32 the verdicts of a flatten-depth word: every value up to 18446744073709551615 is accepted
 def budget.check(iw: IW, w: String, v: Vals) -> VR:
@@ -1123,7 +1129,7 @@ def utf8.msg(has_in: Bool, input: String) -> String:
     case False{}:
       "Failed to read stdin: stream did not contain valid UTF-8"
     case True{}:
-      "Failed to read file '" ++ input ++ "': stream did not contain valid UTF-8"
+      T.cat(["Failed to read file '", input, "': stream did not contain valid UTF-8"])
 
 # S8.7 the complete input is validated as UTF-8 before any parsing (S9.10); S8.8 then the conversion,
 # a pure function of the text and the options
@@ -1152,7 +1158,7 @@ def label.in(has_in: Bool, input: String) -> String:
 def success(o: Opts) -> String:
   match o:
     case Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
-      Bool.pick(String, decode, "Decoded", "Encoded") ++ " `" ++ label.in(has_in, input) ++ "` → `" ++ output ++ "`"
+      T.cat([Bool.pick(String, decode, "Decoded", "Encoded"), " `", label.in(has_in, input), "` → `", output, "`"])
 
 # S5.102 whether there is an output path
 def o.has_out(o: Opts) -> Bool:

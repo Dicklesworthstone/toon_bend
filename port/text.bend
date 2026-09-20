@@ -245,3 +245,32 @@ def ascii_bytes(s: String, acc: List<&2, U32>) -> List<&2, U32>:
       List.reverse(&2, U32, acc)
     case SCon{Chr{c}, rest}:
       ascii_bytes(rest, c <> acc)
+
+# S6.36 the number of scalar values of a text (a loop: Base's String.length recurses to the length)
+def str_len(s: String, acc: Nat) -> Nat:
+  match s:
+    case SNil{}:
+      acc
+    case SCon{c, rest}:
+      str_len(rest, 1n+acc)
+
+# S6.36 the length of a list (a loop: Base's List.length recurses to the length)
+def llen(a, -A: Kind(a), xs: List<a, A>, acc: Nat) -> Nat:
+  match xs:
+    case Nil{}:
+      acc
+    case h <> t:
+      llen(a, A, t, 1n+acc)
+
+# S6.36 the loop of cat: every part pushed, reversed, onto one accumulator
+def cat.go(parts: List<&2, String>, acc: String) -> String:
+  match parts:
+    case Nil{}:
+      String.reverse(acc)
+    case Con{p, rest}:
+      cat.go(rest, rev_onto(p, acc))
+
+# S6.36 the concatenation of texts, in order (two loops: `++` recurses to the length of its left
+# operand, a stack wall on the JS and interpreter lanes for an input-controlled text)
+def cat(parts: List<&2, String>) -> String:
+  cat.go(parts, SNil{})

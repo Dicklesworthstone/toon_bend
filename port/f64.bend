@@ -8,6 +8,7 @@
 # exponent is 2^-1074 (tb = 98926). NaN cannot arise (S4.117).
 import Base
 import ./bignat.bend as BN
+import ./text.bend as T
 
 # S7.25 a signed integer as sign and magnitude, for the decimal exponents E10, X, T, k, q
 type Int is Data:
@@ -411,13 +412,72 @@ def token.done(f: F64) -> Maybe<&2, F64>:
     case FNum{n, tb, Con{h, t}}:
       Some{FNum{n, tb, h <> t}}
 
+# S4.143 the first n characters of a text and the rest (a loop; n descends)
+type Take is Data:
+  Take{head: String, tail: String}
+
+# S4.143 the loop of take
+def take.go(n: Nat, s: String, rev: String) -> Take:
+  match n s:
+    case 0n rest:
+      Take{String.reverse(rev), rest}
+    case 1n+p SNil{}:
+      Take{String.reverse(rev), SNil{}}
+    case 1n+p SCon{c, rest}:
+      take.go(p, rest, SCon{c, rev})
+
+# S4.143 the loop of any_nonzero: stops at the first digit that is not '0'
+def any_nonzero.go(s: String, hit: Bool) -> Bool:
+  match s hit:
+    case _ True{}:
+      True{}
+    case SNil{} False{}:
+      False{}
+    case SCon{Chr{c}, rest} False{}:
+      any_nonzero.go(rest, Bool.not(U32.is_eq(c, 48)))
+
+# S4.143 the significant digits that decide a correctly rounded binary64, and how many digits were
+# dropped from the exponent's point of view
+type Clamp is Data:
+  Clamp{digits: String, dropped: Nat}
+
+# S4.143 no rounding boundary of binary64 (a midpoint of two neighbours, the overflow threshold, half
+# of the smallest subnormal) has more than 767 significant decimal digits, so none lies strictly
+# between two consecutive 800-digit decimals: when the digits after the first 800 are not all zero, a
+# single '1' in place of them rounds exactly like the full text; when they are all zero they only
+# scale. This keeps every big natural below 3000 bits whatever the token's length.
+def clamp.tail(nonzero: Bool, head: String, +tail: String) -> Clamp:
+  match nonzero:
+    case True{}:
+      Clamp{T.cat([head, "1"]), Nat.sub(T.str_len(tail, 0n), 1n)}
+    case False{}:
+      Clamp{head, T.str_len(tail, 0n)}
+
+# S4.143 clamp a digit string (no leading zeros) to 800 significant digits
+def clamp.of(t: Take) -> Clamp:
+  match t:
+    case Take{head, SNil{}}:
+      Clamp{head, 0n}
+    case Take{head, SCon{+c, +rest}}:
+      clamp.tail(any_nonzero.go(SCon{c, rest}, False{}), head, SCon{c, rest})
+
 # S4.143 the exact decimal D * 10^E rounded once
-def token.round(neg: Bool, digits: String, e: Int) -> Maybe<&2, F64>:
+def token.round.e(neg: Bool, digits: String, e: Int) -> Maybe<&2, F64>:
   match e:
     case Pos{k}:
       token.done(from_dec(False{}, neg, BN.from_dec(digits, Nil{}), k))
     case Neg{k}:
       token.done(from_dec(True{}, neg, BN.from_dec(digits, Nil{}), k))
+
+# S4.143 the clamped digits with the exponent moved by the dropped count
+def token.round.c(neg: Bool, c: Clamp, e: Int) -> Maybe<&2, F64>:
+  match c:
+    case Clamp{digits, dropped}:
+      token.round.e(neg, digits, Int.add(e, Pos{dropped}))
+
+# S4.143 the exact decimal D * 10^E rounded once
+def token.round(neg: Bool, digits: String, e: Int) -> Maybe<&2, F64>:
+  token.round.c(neg, clamp.of(take.go(800n, digits, SNil{})), e)
 
 # S4.142, S4.143 with `lead` = the decimal exponent of the first significant digit + 346 (a Nat):
 # above 10^309 the value is infinite and below 10^-345 it is zero, decided without big arithmetic
@@ -440,7 +500,7 @@ def token.lead.of(l: Int, neg: Bool, digits: String, e: Int) -> Maybe<&2, F64>:
 
 # S4.143 position of the first significant digit: nd + E - 1, as an Int
 def token.lead(neg: Bool, +digits: String, +e: Int) -> Maybe<&2, F64>:
-  token.lead.of(Int.add(Pos{String.length(digits)}, e), neg, digits, e)
+  token.lead.of(Int.add(Pos{T.str_len(digits, 0n)}, e), neg, digits, e)
 
 # S4.143 no significant digit: the value is zero
 def token.nz(digits: String, neg: Bool, e: Int) -> Maybe<&2, F64>:
@@ -453,7 +513,7 @@ def token.nz(digits: String, neg: Bool, e: Int) -> Maybe<&2, F64>:
 # S4.143 the correctly rounded value of a numeric token given as its sign, integer digits, fraction
 # digits and written exponent; None when the value is not finite (S4.142)
 def token_value(neg: Bool, ints: String, +fracs: String, exp: Int) -> Maybe<&2, F64>:
-  token.nz(strip_zeros(ints ++ fracs), neg, Int.add(exp, Int.diff(0n, String.length(fracs))))
+  token.nz(strip_zeros(T.cat([ints, fracs])), neg, Int.add(exp, Int.diff(0n, T.str_len(fracs, 0n))))
 
 # ---------------------------------------------------------------- S4.131 shortest round-trip digits
 # Free-format generation after Burger and Dybvig over big naturals. The value is r/s, the distances to

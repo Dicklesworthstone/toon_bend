@@ -201,9 +201,10 @@ A claim says which equivalence it rests on. "Proved" means a law; "golden-tested
 ```
 JSON bytes → strict UTF-8 → JSON reader (pushdown machine, serde_json-compatible errors) → Json value
            → annotate (array strategy, key folding) → emit → TOON lines
-TOON bytes → strict UTF-8 → lines → scanner → decoder (pushdown machine over lines) → events
-           → streaming JSON writer            (plain --decode)
-           → value builder → path expansion → second JSON writer   (--expand-paths safe)
+TOON bytes → strict UTF-8 → lines → scanner → decoder (pushdown machine over lines) → Json value
+           (values attached in the event order of S3.20–S3.22; repeated keys and quoted-key flags kept)
+           → JSON writer, escape table A                          (plain --decode)
+           → path expansion → JSON writer, escape table B         (--expand-paths safe)
 
 Numbers: text ⇄ exact software binary64 (sign, exponent, 53-bit significand over big naturals).
 Shell:   args, stdin/files as bytes, stdout/stderr, exit codes. It calls one core function and prints.
@@ -290,9 +291,9 @@ toon_bend/
 | `Json` | ONE self-recursive Data type: null, bool, number, string, array, object, plus the item and entry chains as its own constructors; objects keep insertion order |
 | `F64` | a software binary64: sign, exponent, significand as a `BigNat`; zero and the specials named explicitly |
 | `BigNat` | little-endian 16-bit limbs in `U32`, no high zero limb |
-| `Event` | the decoder's stream: start/end object, start/end array with its declared length, key (with `was_quoted`), primitive |
+| `Frame` (decode) | an open construct of the decoder's pushdown machine: an object (field depth, list-item flag, pending key), a tabular body, a list body; the spec's event order (S3.20) is the order in which finished values are attached |
 | `Line` | a scanned TOON line: number, indent, depth, content |
-| `Opts` | the resolved options: mode, indent 0–16, delimiter, key folding, flatten depth, strict, expand paths, stats, input, output |
+| `Opts` / `Parsed` / `Out` | the resolved options; argv's outcome (a text with its exit code, or the options); the whole pure core's result `run_pure(argv, bytes) -> (code, out, err)` |
 | `Outcome`-style verdicts | every failure is a value carried to the shell, which owns the one `IO.die` per verdict type |
 
 ### Project Semantics (hard rules)
@@ -328,7 +329,8 @@ toon_bend/
 
 - **One core, a thin shell** — everything decidable without an effect lives in the pure core; `main.bend` is the only file with `IO` in its types
 - **One self-recursive `Json` type** — the only rose-tree shape Bend's termination checker accepts without fuel
-- **Parsers are pushdown machines** with the measure (input, stack); no `@unsafe`, no fuel
+- **Parsers are pushdown machines** with the measure (input, stack) or (input, bound on the stack height); no `@unsafe`
+- **Dispatch on small class codes** — never `match` on `U32` literals (bend #867: a bit tree per arm set) nor on byte values as `Nat` literals (one successor per unit in the checker); classify once (`byte.cls`), match on codes below 16
 - **Bytes in, lines out** — input is read as bytes and decoded strictly (the original rejects invalid UTF-8); JSON error columns are byte columns; output is written line by line
 - **Software binary64** — Bend has no f64, and the goldens show three distinct number algorithms that must be matched bit for bit
 - **Bug-compatible by default** — oddities are reproduced and listed for the owner, not fixed

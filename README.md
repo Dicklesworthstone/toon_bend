@@ -188,7 +188,7 @@ REFUSED by the cv gate in the same run, as in two earlier attempts, so NO ratio 
 | `-d --expand-paths safe`, 40000 dotted lines | 1716 ms | 863 ms | 1.989× (cv 3.1% / 3.1%) | 3.06× |
 | `-e`, 20 rows of 1200 fields | 56 ms | 72 ms | 0.773× — the port is SLOWER (cv 4.4% / 2.3%) | 1.27× |
 
-So one of the two inputs on which the port beat the original does not survive a fair build: the 1.27× was an artifact of the incumbent's size-tuned profile. The `--encode` of the 1500-row table refused the cv gate against this build (the original's arm is 5.2 ms on a shared host) and claims nothing. Entry: `perf/NEGATIVE-EVIDENCE.md` NE-006.
+(The strongest build's median on the expand input reads 1732 ms in the build-against-build capture and 1716 ms in the one against the port: they are two interleaved captures of the same binary, an hour apart on a shared host, not one number written twice.) So one of the two inputs on which the port beat the original does not survive a fair build: the 1.27× was an artifact of the incumbent's size-tuned profile. The `--encode` of the 1500-row table refused the cv gate against this build (the original's arm is 5.2 ms on a shared host) and claims nothing. Entry: `perf/NEGATIVE-EVIDENCE.md` NE-006.
 
 ---
 

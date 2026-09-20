@@ -1,4 +1,4 @@
-# Negative Evidence Ledger — <PROJECT>
+# Negative Evidence Ledger — toon_bend
 
 <!-- Copy to perf/NEGATIVE-EVIDENCE.md on the day the project reaches rigor
      tier T2, BEFORE the first lever. Sweep it before starting any perf
@@ -42,6 +42,67 @@ Outcome taxonomy (closed set):
 - **Do-not-retry unless:** <new bend version | new clang major | new silicon / lane count | a law proves the reorder | the wall moved | the shader guide's cost model changed>
 - Tally: W<i>/L<j>/N<k>
 - Agent: <name>
+
+
+## Entries (this project)
+
+### NE-001 — integer fast path in the two number printers   [2026-09-20 | PROVISIONAL_LOCAL_WIN]
+- Program / def: `port/f64.bend`, `port/bignat.bend` / `show_toon_fast`, `show_json_fast`, `shortest_fast`, `int.fit`
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores (shared host), GPU none, no bang
+- Exact command: `scripts/incumbent-bench.sh --runs 9 --max-cv 5 --timeout 60 --tag EXP-001 --original <binary of 4bfecef> --threads 1 -- --encode cases/inputs/hand/large_tabular_1500.json --port <binary of 3751630> --threads 1 -- --encode cases/inputs/hand/large_tabular_1500.json` (and the same with the `3751630` binary on both sides for the A/A arm)
+- Kill-switch: env `TOON_SPEC=1` (read once in the shell; `F.twin.on` turns every twin selector off; law `twin_gate_switch`)
+- Measured: 89.8 ms → 53.9 ms (1.67×, 40% below the baseline; precommitted gate ≥ 25%), cv 0.9% / 0.6%, 18 samples per arm in AB/BA pairs, A/A null ratio 1.001; verdict MEASURED (`perf/evidence/EXP-001.ab.json`, `perf/evidence/EXP-001.aa.json`)
+- Correctness: stdout sha `7f28c487efdfb54d` identical on both arms; `All terms check.` (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16); lanes c-1t, c-8t, js PASS 1053/1053 with the switch off and on; `scripts/diff-fuzz.py numbers --switch TOON_SPEC=1`: fast twin, spec twin and the original agree on every generated number text (0 differences)
+- Keep-audit delta: whole program call sites, `4bfecef`→`3751630`: keep 246→255, take 244→248, seal 1679→1687, free 51→54 (the new twin defs; no new keep inside an existing hot def)
+- Disposition: kept behind `TOON_SPEC`; NOT promoted to PERF-LEDGER
+- Why provisional and not WIN: (1) the binding `fast == spec` is ONE quantified gate law plus CLOSED instance laws plus differential runs; no universally quantified equivalence law exists for this twin (the checker's normalizer overflows on bodies with 10^5-scale `Nat` literals); (2) the `3751630` binary carries EXP-001, EXP-002 and EXP-003 together, so this capture does not isolate one lever: the input was chosen to exercise this lever, and the other two also run on it
+- Killing metric: wall on this host at 1 thread
+- **Promote to WIN when:** a quantified `fast == spec` law for the twin checks, OR the owner accepts closed laws + differential runs as the binding in writing; AND the capture is repeated with one lever per artifact
+- Tally: W0/L0/N0 (provisional)
+- Agent: Claude (author session)
+
+### NE-002 — exact small-integer path in the two number readers   [2026-09-20 | PROVISIONAL_LOCAL_WIN]
+- Program / def: `port/f64.bend`, `port/bignat.bend` / `serde.short`, `token.short`, `int_text.ok` (at most 14 digits: 15 digits overflow `Nat`'s 2^48 − 1, found by `TOON_SPEC=1` on `encnum_ints`; the card's "15 digits" was wrong)
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores (shared host), GPU none, no bang
+- Exact command: `scripts/incumbent-bench.sh --runs 9 --max-cv 5 --timeout 60 --tag EXP-002 --original <binary of 4bfecef> --threads 1 -- --decode perf/inputs/large_tabular_1500.toon --port <binary of 3751630> --threads 1 -- --decode perf/inputs/large_tabular_1500.toon` (and the same with the `3751630` binary on both sides for the A/A arm)
+- Kill-switch: env `TOON_SPEC=1` (read once in the shell; `F.twin.on` turns every twin selector off; law `twin_gate_switch`)
+- Measured: 58.2 ms → 37.4 ms (1.56×, 36% below the baseline; precommitted gate ≥ 15%), cv 0.8% / 1.5%, 18 samples per arm in AB/BA pairs, A/A null ratio 0.995; verdict MEASURED (`perf/evidence/EXP-002.ab.json`, `perf/evidence/EXP-002.aa.json`)
+- Correctness: stdout sha `b55987a665c7b80f` identical on both arms; `All terms check.` (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16); lanes c-1t, c-8t, js PASS 1053/1053 with the switch off and on; `scripts/diff-fuzz.py numbers --switch TOON_SPEC=1`: fast twin, spec twin and the original agree on every generated number text (0 differences)
+- Keep-audit delta: whole program call sites, `4bfecef`→`3751630`: keep 246→255, take 244→248, seal 1679→1687, free 51→54 (the new twin defs; no new keep inside an existing hot def)
+- Disposition: kept behind `TOON_SPEC`; NOT promoted to PERF-LEDGER
+- Why provisional and not WIN: (1) the binding `fast == spec` is ONE quantified gate law plus CLOSED instance laws plus differential runs; no universally quantified equivalence law exists for this twin (the checker's normalizer overflows on bodies with 10^5-scale `Nat` literals); (2) the `3751630` binary carries EXP-001, EXP-002 and EXP-003 together, so this capture does not isolate one lever: the input was chosen to exercise this lever, and the other two also run on it
+- Killing metric: wall on this host at 1 thread
+- **Promote to WIN when:** a quantified `fast == spec` law for the twin checks, OR the owner accepts closed laws + differential runs as the binding in writing; AND the capture is repeated with one lever per artifact
+- Tally: W0/L0/N0 (provisional)
+- Agent: Claude (author session)
+
+### NE-003 — division by a power of ten through single-limb short division   [2026-09-20 | PROVISIONAL_LOCAL_WIN]
+- Program / def: `port/f64.bend`, `port/bignat.bend` / `BN.div_pow10`, `F.div_p10`, `F.from_dec_p10`
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores (shared host), GPU none, no bang
+- Exact command: `scripts/incumbent-bench.sh --runs 9 --max-cv 5 --timeout 60 --tag EXP-003 --original <binary of 4bfecef> --threads 1 -- --encode perf/inputs/decimals1_9000.json --port <binary of 3751630> --threads 1 -- --encode perf/inputs/decimals1_9000.json` (and the same with the `3751630` binary on both sides for the A/A arm)
+- Kill-switch: env `TOON_SPEC=1` (read once in the shell; `F.twin.on` turns every twin selector off; law `twin_gate_switch`)
+- Measured: 288.2 ms → 135.6 ms (2.12×, 53% below the baseline; precommitted gate ≥ 30%), cv 0.8% / 0.7%, 18 samples per arm in AB/BA pairs, A/A null ratio 1.004; verdict MEASURED (`perf/evidence/EXP-003.ab.json`, `perf/evidence/EXP-003.aa.json`)
+- Correctness: stdout sha `26ff3ffebdf2bac5` identical on both arms; `All terms check.` (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16); lanes c-1t, c-8t, js PASS 1053/1053 with the switch off and on; `scripts/diff-fuzz.py numbers --switch TOON_SPEC=1`: fast twin, spec twin and the original agree on every generated number text (0 differences)
+- Keep-audit delta: whole program call sites, `4bfecef`→`3751630`: keep 246→255, take 244→248, seal 1679→1687, free 51→54 (the new twin defs; no new keep inside an existing hot def)
+- Disposition: kept behind `TOON_SPEC`; NOT promoted to PERF-LEDGER
+- Why provisional and not WIN: (1) the binding `fast == spec` is ONE quantified gate law plus CLOSED instance laws plus differential runs; no universally quantified equivalence law exists for this twin (the checker's normalizer overflows on bodies with 10^5-scale `Nat` literals); (2) the `3751630` binary carries EXP-001, EXP-002 and EXP-003 together, so this capture does not isolate one lever: the input was chosen to exercise this lever, and the other two also run on it
+- Killing metric: wall on this host at 1 thread
+- **Promote to WIN when:** a quantified `fast == spec` law for the twin checks, OR the owner accepts closed laws + differential runs as the binding in writing; AND the capture is repeated with one lever per artifact
+- Tally: W0/L0/N0 (provisional)
+- Agent: Claude (author session)
+
+### NE-004 — EXP-004 on the folding input: the ratio against the original   [2026-09-20 | NO_EVIDENCE]
+- Program / def: `port/encode.bend` / `keys.kt`, `dotted.set`, folding's sibling test on `T.KT`
+- Provenance: as NE-001
+- Exact command: `scripts/incumbent-bench.sh --runs 7 --max-cv 5 --timeout 60 --tag EXP-004 --original ./oracle/toon -e --key-folding safe perf/inputs/fold_keys_30000.json --port <binary of 1230a0d> --threads 1 -- -e --key-folding safe perf/inputs/fold_keys_30000.json`
+- Kill-switch: none (a carrier of the spec twins)
+- Measured: REFUSED_CV twice (port arm cv 5.2% with 5 pairs, then 6.8% with 7 pairs; the original's arm 2.1%). No ratio is claimed. What the refused captures still show without a ratio: the previous port binary (`3751630`) did not finish this input in its 60 s budget (`perf/evidence/EXP-004.baseline-fold.json`), the merged binary's medians were 307 ms and 303 ms, and stdout was byte-identical to the original's in every sample
+- Correctness: as the PERF-LEDGER rows of EXP-004
+- Disposition: the carrier is kept (it is the spec twin); the RATIO is not ledgered
+- Killing metric: wall on this host at 1 thread
+- **Do-not-retry unless:** the host is quiet (no other agent's build; load below 1) and `--runs 15`; a second refusal under those conditions means the input's allocation pattern is noisy at this size: then capture at 60000 keys
+- Tally: W0/L0/N1
+- Agent: Claude (author session)
 
 ---
 

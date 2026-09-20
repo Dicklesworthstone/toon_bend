@@ -192,7 +192,7 @@ Converts between JSON and TOON formats, byte-for-byte the way the pinned `toon 0
 ### The two equivalences (never conflated)
 
 1. **original == spec** is *golden-tested*: `goldens/` holds the original's captured stdout, stderr and exit code per case in `goldens/cases.tsv`; `scripts/lanes.sh` must pass on every lane (interpreter, C at 1 and N threads, JS). A failing case is a port bug or a spec gap, never a tolerance.
-2. **spec == fast** is *law-proved*: every fast twin is bound to its spec twin in `port/LAWS.bend`, and `$BEND_CLI port/PROOF.bend` must print `All terms check.` The unsafe count from that output and `bend --version` are stated beside every parity or performance claim.
+2. **spec == fast** is *law-bound*: every fast twin is bound to its spec twin in `port/LAWS.bend`, and `$BEND_CLI port/PROOF.bend` must print `All terms check.` Say HOW a twin is bound whenever you claim it: today that is one quantified gate law (`twin_gate_switch`), closed instance laws and differential runs under `TOON_SPEC=1`; none of the three twins has a universally quantified `fast == spec` law, so none is called "proved equal" (`perf/NEGATIVE-EVIDENCE.md` NE-001..003). The unsafe count from that output and `bend --version` are stated beside every parity or performance claim.
 
 A claim says which equivalence it rests on. "Proved" means a law; "golden-tested" means the harness on named lanes; "measured" means an interleaved, cv-gated capture with a checksum. Nothing else is a claim.
 

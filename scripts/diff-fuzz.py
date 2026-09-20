@@ -5,7 +5,8 @@ Every lens compares stdout, stderr and the exit code, byte for byte, of
     <original> ARGV            and            <port...> ARGV
 on generated inputs. Deterministic for a given --seed. The last stdout line is a JSON scorecard.
 
-usage: diff-fuzz.py <lens> [--seed N] [--runs N] [--jobs N] [--original PATH] -- <port command...>
+usage: diff-fuzz.py <lens> [--seed N] [--runs N] [--jobs N] [--original PATH] [--switch VAR=1]
+                    [--slow-floor SECONDS] [--slow-factor X] -- <port command...>
 lenses:
   mutate    corpus documents (stdin files of goldens/cases.tsv) with random edits, their own mode, random options
   docs      structure-aware generated JSON through --encode with random options, then the original's
@@ -15,8 +16,12 @@ lenses:
             environment variable (fast twins vs spec twins vs the original)
   expand    TOON documents over a small key alphabet: dotted keys, quoted keys, duplicates, merges,
             conflicts, strict and lenient, always with --expand-paths safe
-  scale     one large dimension per input (keys, rows, fields, items, digits, blank lines); reports the
-            port's and the original's wall time beside the byte comparison (the quadratic-time lens)
+  collide   the docs and expand generators over a small pool of keys that all collide in the port's key hash
+  scale     one large dimension per input (keys, rows, fields, items, digits, blank lines, keys chosen to
+            COLLIDE in the port's hash, every key repeated); reports the port's and the original's wall
+            time beside the byte comparison; an input is too slow when the port needs more than
+            --slow-floor seconds (1; use 5 for the JavaScript build, whose start alone is 0.25 s) AND more
+            than --slow-factor times the original (40); --runs is the size (the quadratic-time lens)
 Never writes a file: an argv that names an output path other than a device is not generated.
 exit: 0 no difference, 1 differences (the first few are printed), 2 usage.
 """
@@ -37,14 +42,14 @@ def parse(argv):
         sys.exit(0 if argv and argv[0] in ("-h", "--help") else 2)
     cut = argv.index("--")
     head, port = argv[:cut], argv[cut + 1:]
-    opts = {"lens": head[0], "seed": 1, "runs": 2000, "jobs": 4, "original": os.path.join(ROOT, "oracle", "toon"), "switch": None}
+    opts = {"lens": head[0], "seed": 1, "runs": 2000, "jobs": 4, "original": os.path.join(ROOT, "oracle", "toon"), "switch": None, "slow-floor": 1.0, "slow-factor": 40.0}
     i = 1
     while i < len(head):
         key = head[i].lstrip("-")
-        if key not in ("seed", "runs", "jobs", "original", "switch") or i + 1 >= len(head):
+        if key not in opts or key == "lens" or i + 1 >= len(head):
             print(__doc__.strip())
             sys.exit(2)
-        opts[key] = head[i + 1] if key in ("original", "switch") else int(head[i + 1])
+        opts[key] = head[i + 1] if key in ("original", "switch") else (float(head[i + 1]) if key.startswith("slow-") else int(head[i + 1]))
         i += 2
     if not port:
         sys.exit(2)
@@ -324,8 +329,65 @@ def lens_expand(rnd, n):
         yield args, ("\n".join(body(0, "")) + "\n").encode("utf-8"), None
 
 
+def fnv1a(s):
+    h = 2166136261
+    for ch in s:
+        h = ((h ^ ord(ch)) * 16777619) & 0xFFFFFFFF
+    return h
+
+
+def colliding(n, target=0x1234):
+    """n distinct identifier keys whose FNV-1a hashes share their low 16 bits (the bits the port's key tries use).
+    The low 16 bits of the state only depend on the low 16 bits before (16777619 = 403 mod 65536), so the last
+    character is solved for instead of searched (the round 7 reviewer's construction)."""
+    alpha = "abcdefghijklmnopqrstuvwxyz0123456789_"
+    want = (target * pow(403, -1, 65536)) & 0xFFFF
+    out, pref = [], 0
+    while len(out) < n:
+        p = "k%d" % pref
+        pref += 1
+        s0 = fnv1a(p) & 0xFFFF
+        for c1 in alpha:
+            s1 = ((s0 ^ ord(c1)) * 403) & 0xFFFF
+            for c2 in alpha:
+                c3 = (((s1 ^ ord(c2)) * 403) & 0xFFFF) ^ want
+                if c3 < 128 and chr(c3) in alpha:
+                    out.append(p + c1 + c2 + chr(c3))
+    assert all(fnv1a(k) & 0xFFFF == target for k in out[:50])
+    return out[:n]
+
+
+def lens_collide(rnd, n):
+    """the docs and expand generators over a SMALL pool of keys that all collide in the port's 16 hash bits:
+    repeated keys, permuted tabular rows, folded siblings and merged paths all meet inside one bucket"""
+    global KEYS, SEG
+    pool = colliding(12)
+    keys, seg = KEYS, SEG
+    KEYS = pool + [pool[0] + "." + pool[1], pool[2] + "." + pool[3] + "." + pool[4], "plain"]
+    SEG = pool[:6]
+    try:
+        half = n // 2
+        for job in lens_docs(rnd, half):
+            yield job
+        for job in lens_expand(rnd, n - half):
+            yield job
+    finally:
+        KEYS, SEG = keys, seg
+
+
 def lens_scale(rnd, n):
     size = max(1000, n)
+    # hostile keys: every key lands in ONE bucket of the port's hashed key carriers
+    ck = colliding(size // 2)
+    yield ["-e"], json.dumps({k: i for i, k in enumerate(ck)}).encode(), None
+    yield ["-e", "--key-folding", "safe"], json.dumps({k: {"a": {"b": "v"}} for k in ck}).encode(), None
+    yield ["-d", "--expand-paths", "safe"], "".join("a.%s.c: v\n" % k for k in ck).encode(), None
+    yield ["-e"], json.dumps([({k: "v" for k in ck[:size // 8]} if i == 0 else {k: "v" for k in reversed(ck[:size // 8])}) for i in range(4)]).encode(), None
+    # every key of one object repeated (first position, last value): written as text, a dict cannot hold it
+    rep = ",".join('"k%d":%d' % (i, i) for i in range(size // 2))
+    yield ["-e"], ("{" + rep + "," + rep + "}").encode(), None
+    yield ["-d"], ("".join("k%d: a\n" % i for i in range(size // 2)) * 2).encode(), None
+    yield ["-d", "--expand-paths", "safe", "--no-strict"], ("".join("p.k%d: a\n" % i for i in range(size // 2)) * 2).encode(), None
     yield ["-e"], json.dumps({("k%d" % i): i for i in range(size)}).encode(), None
     yield ["-e", "--key-folding", "safe"], json.dumps({("k%d" % i): {"a": {"b": "v"}} for i in range(size)}).encode(), None
     yield ["-d", "--expand-paths", "safe"], "".join("a.k%d.c: v\n" % i for i in range(size)).encode(), None
@@ -344,7 +406,7 @@ def main():
     rnd = random.Random(opts["seed"])
     original = opts["original"]
     lens = opts["lens"]
-    gens = {"mutate": lens_mutate, "docs": lens_docs, "argv": lens_argv, "expand": lens_expand, "scale": lens_scale}
+    gens = {"mutate": lens_mutate, "docs": lens_docs, "argv": lens_argv, "expand": lens_expand, "collide": lens_collide, "scale": lens_scale}
     if lens == "numbers":
         jobs = list(lens_numbers(rnd, opts["runs"], original))
     elif lens in gens:
@@ -383,15 +445,18 @@ def main():
             total += 1
             found += diffs
             if lens == "scale":
-                slow.append({"argv": args, "bytes": size, "original_s": round(to, 2), "port_s": round(tp, 2)})
+                slow.append({"argv": args, "bytes": size, "original_s": round(to, 2), "port_s": round(tp, 2),
+                             "slow": bool(tp > opts["slow-floor"] and tp > opts["slow-factor"] * max(to, 0.01))})
     for args, data, o, p in found[:8]:
         print("DIFF", args, repr(data[:200]))
         print("   original", o[0], o[1][:100], o[2][:160])
         print("   port    ", p[0], p[1][:100], p[2][:160])
     for row in slow:
         print("scale", json.dumps(row))
-    print(json.dumps({"lens": lens, "seed": opts["seed"], "inputs": total, "differences": len(found), "switch": opts["switch"], "verdict": "PASS" if not found else "FAIL"}))
-    return 0 if not found else 1
+    too_slow = [r for r in slow if r["slow"]]
+    ok = not found and not too_slow
+    print(json.dumps({"lens": lens, "seed": opts["seed"], "inputs": total, "differences": len(found), "too_slow": len(too_slow), "switch": opts["switch"], "verdict": "PASS" if ok else "FAIL"}))
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@ port 97 ms, original 5.6 ms; decode of the 76989-byte TOON: port 62 ms, original
 | created (UTC) | 2026-09-20 |
 | agent | Claude (Claude Code session, author) |
 | graveyard sweep | `rg -i 'fast.?path\|integer\|shortest\|digit' perf/NEGATIVE-EVIDENCE.md` → no entry |
-| status | PROPOSED |
+| status | DONE 2026-09-20: gate met (1.67×, 40% below the baseline; A/A 1.001); PROVISIONAL_LOCAL_WIN, `perf/NEGATIVE-EVIDENCE.md` NE-001 |
 | precommitted | true |
 
 ### Hypothesis
@@ -57,7 +57,7 @@ scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-001 --original <baselin
 | created (UTC) | 2026-09-20 |
 | agent | Claude (Claude Code session, author) |
 | graveyard sweep | `rg -i 'fast.?path\|integer\|divis' perf/NEGATIVE-EVIDENCE.md` → no entry |
-| status | PROPOSED |
+| status | DONE 2026-09-20: gate met (1.56×, 36% below; A/A 0.995); PROVISIONAL_LOCAL_WIN, NE-002. The digit bound is 14, not the 15 of this card: a 15-digit text overflows `Nat` (2^48 − 1); `TOON_SPEC=1` on `encnum_ints` caught it before the merge |
 | precommitted | true |
 
 ### Hypothesis
@@ -105,7 +105,7 @@ the shortest-digit generator takes each digit by repeated subtraction over big n
 | created (UTC) | 2026-09-20 |
 | agent | Claude (Claude Code session, author) |
 | graveyard sweep | `rg -i 'divis\|short division\|pow10' perf/NEGATIVE-EVIDENCE.md` → no entry |
-| status | PROPOSED |
+| status | DONE 2026-09-20: gate met (2.12×, 53% below; A/A 1.004); PROVISIONAL_LOCAL_WIN, NE-003 |
 | precommitted | true |
 
 ### Hypothesis
@@ -141,7 +141,7 @@ scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-003 --original <baselin
 | created (UTC) | 2026-09-20 |
 | agent | Claude (Claude Code session, author); the finding is the round 6 non-author reviewer's |
 | graveyard sweep | `rg -i 'hash\|carrier\|key set\|quadratic\|linear walk' perf/NEGATIVE-EVIDENCE.md` → no entry |
-| status | PROPOSED |
+| status | DONE 2026-09-20: three of four inputs meet the whole gate (`perf/PERF-LEDGER.md`); the folding input meets the time criterion and the byte comparison but its capture was REFUSED_CV twice: NO_EVIDENCE for a ratio, NE-004 |
 | precommitted | the gate below was written before the merge into `port/` and before any capture; the scratch implementation existed already (it was written to answer the review finding), so this card is NOT "before the lever" and says so |
 
 ### Hypothesis

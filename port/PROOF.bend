@@ -1403,3 +1403,71 @@ def Laws.golden_jsonerr_overlong_utf8():
 # S2.100 goldens/jsonerr_truncated_utf8
 def Laws.golden_jsonerr_truncated_utf8():
   {==}
+
+# S7.21 the mutation-test bound
+def Laws.div_pow10_even_not_multiple_k1():
+  {==}
+
+# S7.21 the mutation-test bound
+def Laws.div_pow10_pow2_multiple_k7():
+  {==}
+
+# S7.21 the mutation-test bound
+def Laws.div_pow10_sticky_from_remainder():
+  {==}
+
+# S4.131 the mutation-test bound
+def Laws.int_fit_refuses_lost_bit():
+  {==}
+
+# S4.131 the mutation-test bound
+def Laws.int_fit_accepts_2p48_minus_1():
+  {==}
+
+# S4.131 the mutation-test bound
+def Laws.int_fit_refuses_2p48():
+  {==}
+
+# S4.101 the mutation-test bound
+def Laws.int_text_14_digits_ok():
+  {==}
+
+# S4.101 the mutation-test bound
+def Laws.int_text_15_digits_refused():
+  {==}
+
+# S4.101 the mutation-test bound
+def Laws.int_text_fraction_refused():
+  {==}
+
+# S4.131 the mutation-test bound
+def Laws.short_of_digits_drops_trailing_zeros():
+  {==}
+
+# S6.10 the mutation-test bound
+def Laws.kt_collision_not_member():
+  {==}
+
+# S6.10 the mutation-test bound
+def Laws.kt_collision_both_members():
+  {==}
+
+# S6.10 the mutation-test bound
+def Laws.kt_collision_hashes():
+  {==}
+
+# S6.10 goldens/collision_keys_encode
+def Laws.golden_collision_keys_encode():
+  {==}
+
+# S6.10 goldens/encstr_duplicate_keys
+def Laws.golden_encstr_duplicate_keys():
+  {==}
+
+# S6.10 goldens/encstr_duplicate_keys_escaped
+def Laws.golden_encstr_duplicate_keys_escaped():
+  {==}
+
+# S6.10 goldens/encstr_duplicate_keys_replace_container
+def Laws.golden_encstr_duplicate_keys_replace_container():
+  {==}

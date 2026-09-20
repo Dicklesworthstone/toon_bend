@@ -154,7 +154,8 @@ law stats_pct_double_rounding:
 # twins are bound by closed instances (both readers and both divisions against their spec twins, compared
 # through F.bits; the integer printer against pasted texts, because the spec generator does not normalize
 # within any budget: one value ran 25 minutes) and compared natively on generated values and on
-# the whole corpus on every lane with the switch off and on (perf/PERF-LEDGER.md); a universal law for
+# the whole corpus on the compiled lanes with the switch off and on (perf/NEGATIVE-EVIDENCE.md NE-001..003,
+# where the three levers stay PROVISIONAL for exactly this reason; scripts/diff-fuzz.py numbers); a universal law for
 # them needs the correctness theorems of shortest-digit generation and of limb-wise division, which are
 # not attempted.
 
@@ -1442,3 +1443,75 @@ law golden_jsonerr_overlong_utf8:
 # S2.100 goldens/jsonerr_truncated_utf8: the bytes 7b 22 61 22 3a 22 e2 82 22 7d (a sequence cut short)
 law golden_jsonerr_truncated_utf8:
   {C.run_pure(["--encode"], [123, 34, 97, 34, 58, 34, 226, 130, 34, 125]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
+
+# ---------------------------------------------------------------- bounds the mutation test found unpinned (closed): each of these
+# kills a hand-written mutant that every earlier law let live (scratch driver hand_mutants.py, 2026-09-20)
+
+# S7.21 (EXP-003) a multiple of 2^k that is not a multiple of 5^k: only the single-limb remainder can set the sticky flag
+law div_pow10_even_not_multiple_k1:
+  {BN.div_pow10([4], 1n) == BN.div_pow10.spec([4], 1n) : BN.P5}
+
+# S7.21 (EXP-003) 30000128 = 2^7 * 234376 leaves no shifted-out bit and a remainder of 1 under 5^7
+law div_pow10_pow2_multiple_k7:
+  {BN.div_pow10([50176, 457], 7n) == BN.div_pow10.spec([50176, 457], 7n) : BN.P5}
+
+# S7.21 (EXP-003) and the flag itself, not only the agreement of the twins
+law div_pow10_sticky_from_remainder:
+  {BN.div_pow10([4], 1n) == BN.P5{Nil{}, True{}} : BN.P5}
+
+# S4.131 (EXP-001) a lost bit means the value is not an integer: 3 shifted right by one bit
+law int_fit_refuses_lost_bit:
+  {F.int.fit.q(BN.shr([3], 1n)) == F.IntFit{False{}, [1]} : F.IntFit}
+
+# S4.131 (EXP-001) the integer path ends below 2^48 (Nat's largest immediate on the compiled lanes): 2^48 - 1 fits
+law int_fit_accepts_2p48_minus_1:
+  {F.int.fit.q(([65535, 65535, 65535], False{})) == F.IntFit{True{}, [65535, 65535, 65535]} : F.IntFit}
+
+# S4.131 (EXP-001) and 2^48 does not
+law int_fit_refuses_2p48:
+  {F.int.fit.q(([0, 0, 0, 1], False{})) == F.IntFit{False{}, [0, 0, 0, 1]} : F.IntFit}
+
+# S4.101 (EXP-002) a 14-digit integer text takes the Nat path
+law int_text_14_digits_ok:
+  {F.int_text.ok(False{}, "99999999999999", "", F.Pos{0n}) == True{} : Bool}
+
+# S4.101 (EXP-002) a 15-digit text does not (281474976710656 = 2^48 is past Nat's largest immediate)
+law int_text_15_digits_refused:
+  {F.int_text.ok(False{}, "281474976710656", "", F.Pos{0n}) == False{} : Bool}
+
+# S4.101 (EXP-002) a fraction or an exponent keeps the literal path
+law int_text_fraction_refused:
+  {F.int_text.ok(False{}, "42", "5", F.Pos{0n}) == False{} : Bool}
+
+# S4.131 (EXP-001) the digits of an integer lose their trailing zeros and keep the point after all of them
+law short_of_digits_drops_trailing_zeros:
+  {F.short.of_digits([1, 5, 0, 0]) == F.Short{[1, 5], F.Pos{4n}} : F.Short}
+
+# S6.10 "exr" and "jda" share the 16 hash bits the tree uses (FNV-1a 1957071438 and 3907357262, both ...8a4e):
+# a key that lands in a NON-EMPTY bucket without being in it is not a member
+law kt_collision_not_member:
+  {T.kt.has(T.kt.put(T.kt.empty(), "exr"), "jda") == False{} : Bool}
+
+# S6.10 and both colliding keys are members once both are put
+law kt_collision_both_members:
+  {Bool.and(T.kt.has(T.kt.put(T.kt.put(T.kt.empty(), "exr"), "jda"), "jda"), T.kt.has(T.kt.put(T.kt.put(T.kt.empty(), "exr"), "jda"), "exr")) == True{} : Bool}
+
+# S6.10 the two hashes behind the collision laws
+law kt_collision_hashes:
+  {(T.key_hash("exr"), T.key_hash("jda")) == (1957071438, 3907357262) : U32 & U32}
+
+# S6.10, S4.37 the encoder on colliding keys: a tabular header and rows, a folded sibling test, a repeated key
+law golden_collision_keys_encode:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"exr\":\"a\",\"jda\":\"b\",\"exr\":\"c\",\"t\":[{\"exr\":\"p\",\"jda\":\"q\"},{\"jda\":\"r\",\"exr\":\"s\"}]}", Nil{})) == C.Out{0n, "exr: c\njda: b\nt[2]{exr,jda}:\n  p,q\n  s,r\n", ""} : C.Out}
+
+# S6.10 goldens/encstr_duplicate_keys: a repeated JSON key keeps its FIRST position and takes its LAST value, at every depth
+law golden_encstr_duplicate_keys:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":1,\"b\":2,\"a\":3,\"c\":{\"x\":1,\"x\":2}}\n", Nil{})) == C.Out{0n, "a: 3\nb: 2\nc:\n  x: 2\n", ""} : C.Out}
+
+# S6.10 goldens/encstr_duplicate_keys_escaped: keys are compared after unescaping
+law golden_encstr_duplicate_keys_escaped:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"\\u0061\":1,\"b\":2,\"a\":3}\n", Nil{})) == C.Out{0n, "a: 3\nb: 2\n", ""} : C.Out}
+
+# S6.10 goldens/encstr_duplicate_keys_replace_container: a repeated key replaces the whole value, nothing is merged
+law golden_encstr_duplicate_keys_replace_container:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":{\"x\":1},\"b\":2,\"a\":[3],\"b\":{\"y\":1}}\n", Nil{})) == C.Out{0n, "a[1]: 3\nb:\n  y: 1\n", ""} : C.Out}

@@ -42,7 +42,7 @@ A port is only as good as the evidence that it behaves like the original. "The t
 `toon_bend` is built with the *porting-to-bend2* method: the original is pinned and RUN as an oracle (never read while implementing), its behavior is written down as a numbered specification (703 clauses), the Bend code is written from that specification, and it is judged against 1053 captured cases on four executor lanes. Two equivalences are kept apart:
 
 1. **original == spec** is *golden-tested*: `goldens/` holds what the pinned binary printed; a case passes when stdout, stderr and the exit code match byte for byte on the interpreter, the native binary at 1 and 8 threads, and the JavaScript build.
-2. **spec == fast** is *law-proved*: properties that hold for every input are laws in `port/LAWS.bend`, proved in `port/PROOF.bend` (`All terms check.`).
+2. **spec == fast** rests on laws in `port/LAWS.bend`, checked by `port/PROOF.bend` (`All terms check.`), and this README says exactly how far they reach: the three fast twins that exist are bound to their specification twins by ONE quantified law (under `TOON_SPEC=1` every twin selector is off, for every input), by closed instance laws on boundary values, and by running both twins against the original on generated numbers. No universally quantified `fast == spec` law exists for any of them; `perf/NEGATIVE-EVIDENCE.md` NE-001 to NE-003 keep them provisional for that reason.
 
 ### Why Use `toon_bend`?
 
@@ -223,7 +223,7 @@ Exit codes: 0 success, 1 conversion or I/O error, 2 usage error.
 
 ## Configuration
 
-There is no config file and no environment variable that changes a conversion. `TOON_SPEC=1` is the port's kill-switch: it selects the literal specification twin wherever a faster twin exists; both are bound by a law and give identical bytes.
+There is no config file and no environment variable that changes a conversion. `TOON_SPEC=1` is the port's kill-switch: it selects the literal specification twin wherever a faster twin exists. That it does so for every input is a quantified law (`twin_gate_switch`); that the two twins agree is proved on closed instances and golden-tested on the whole corpus under both settings, not proved for every input.
 
 ---
 
@@ -303,7 +303,7 @@ A: On every captured case, byte for byte: see **Status**. Beyond the corpus, dif
 A: Because a port that silently fixes things is a different program. Each oddity is reproduced, numbered in the specification (S10), and listed for the owner, who can accept a `DISC-` with a kill-switch.
 
 **Q: What is proved and what is tested?**
-A: Proved: the laws in `port/LAWS.bend` (they hold for every input, under the checker's assumptions). Golden-tested: everything else, on the captured cases and the named lanes. Measured: performance numbers, each with its capture.
+A: Proved, for every input and under the checker's assumptions: the 14 quantified laws in `port/LAWS.bend` (the first failure ends a pass, lenient mode never reports a body check, the mode flags win, the expansion cap, no `Saved` line without savings, the kill-switch gate). Proved for ONE value each: the closed laws, most of them a captured golden restated as `run_pure(argv, bytes) == (exit code, stdout, stderr)` and computed by the checker itself. A law speaks about Bend's logical semantics, not about the compiled C or the JavaScript build. Golden-tested: everything else, on the captured cases and the named lanes. Measured: performance numbers, each with its capture.
 
 **Q: Why is there a software float?**
 A: Bend 2 has `F32` only. The original holds every number in an `f64`, reads JSON numbers with serde_json's default (not correctly rounded) path, reads TOON tokens correctly rounded, and prints with two shortest-digit algorithms that differ on ties. All of that is reproduced exactly over big naturals.

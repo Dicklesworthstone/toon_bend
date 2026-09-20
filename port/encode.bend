@@ -1,0 +1,723 @@
+# toon_bend — the encoder: a Json value to TOON lines (S4.1–S4.84, S5.1–S5.12).
+#
+# Shape (PROPOSED_ARCHITECTURE): ONE structurally recursive def, `emit`, walks the value. Bend has no
+# mutual recursion and cannot match a computed value in place, so every verdict about a child
+# (its array strategy, its tabular header, whether its key folds and how far) is computed by the PARENT
+# with non-recursive verdict defs and handed down in the context parameter; `emit` only ever matches
+# its own parameters. Key folding descends through the single-field chain structurally (CDesc).
+# Lines are accumulated newest first; every walk whose length the input controls is a loop.
+import Base
+import ./text.bend as T
+import ./f64.bend as F
+import ./json.bend as J
+
+# S3.9 encoder options: indent 0-16, the active delimiter (44 comma, 9 tab, 124 pipe), key folding on or
+# off, and the flatten-depth budget (NUMERIC_PLAN S7.2: saturated, "unlimited" is any value past the input)
+type Opts is Data:
+  Opts{indent: Nat, delim: U32, fold: Bool, budget: Nat}
+
+# S4.12–S4.16 a character that forces quotes wherever it stands: ':' '"' '\' '[' ']' '{' '}' LF CR TAB,
+# or the ACTIVE delimiter
+def bad_char(+c: U32, delim: U32) -> Bool:
+  Bool.or(U32.is_eq(c, delim), Bool.or(U32.is_eq(c, 58), Bool.or(U32.is_eq(c, 34), Bool.or(U32.is_eq(c, 92), Bool.or(U32.is_eq(c, 91), Bool.or(U32.is_eq(c, 93), Bool.or(U32.is_eq(c, 123), Bool.or(U32.is_eq(c, 125), Bool.or(U32.is_eq(c, 10), Bool.or(U32.is_eq(c, 13), U32.is_eq(c, 9)))))))))))
+
+# S4.12–S4.16 the loop of has_bad: stops at the first such character
+def has_bad.go(s: String, +delim: U32, found: Bool) -> Bool:
+  match s found:
+    case _ True{}:
+      True{}
+    case SNil{} False{}:
+      False{}
+    case SCon{Chr{c}, rest} False{}:
+      has_bad.go(rest, delim, bad_char(c, delim))
+
+# S4.12–S4.16 whether a string contains a character that forces quotes
+def has_bad(s: String, delim: U32) -> Bool:
+  has_bad.go(s, delim, False{})
+
+# S4.17 condition 10: the string starts with '-'
+def starts_dash(s: String) -> Bool:
+  match s:
+    case SCon{Chr{c}, rest}:
+      U32.is_eq(c, 45)
+    case SNil{}:
+      False{}
+
+# S4.9 condition 3: exactly true, false or null
+def is_word(+s: String) -> Bool:
+  Bool.or(String.eq(s, "true"), Bool.or(String.eq(s, "false"), String.eq(s, "null")))
+
+# S4.6 the value rule: bare only when none of the ten conditions S4.7–S4.17 holds
+def needs_quote(+s: String, delim: U32) -> Bool:
+  Bool.or(String.is_empty(s), Bool.or(T.has_edge_ws(s), Bool.or(is_word(s), Bool.or(F.is_like(s), Bool.or(has_bad(s, delim), starts_dash(s))))))
+
+# S4.21 a later character of a bare key: ASCII letter, digit, '_' or (when dots are allowed) '.'
+def key_char(+c: U32, dot: Bool) -> Bool:
+  Bool.or(Bool.and(U32.is_ge(c, 97), U32.is_le(c, 122)), Bool.or(Bool.and(U32.is_ge(c, 65), U32.is_le(c, 90)), Bool.or(Bool.and(U32.is_ge(c, 48), U32.is_le(c, 57)), Bool.or(U32.is_eq(c, 95), Bool.and(dot, U32.is_eq(c, 46))))))
+
+# S4.21 the first character of a bare key: ASCII letter or '_'
+def key_first(+c: U32) -> Bool:
+  Bool.or(Bool.and(U32.is_ge(c, 97), U32.is_le(c, 122)), Bool.or(Bool.and(U32.is_ge(c, 65), U32.is_le(c, 90)), U32.is_eq(c, 95)))
+
+# S4.21 the loop over the later characters: stops at the first that does not belong
+def key_rest.go(s: String, +dot: Bool, ok: Bool) -> Bool:
+  match s ok:
+    case _ False{}:
+      False{}
+    case SNil{} True{}:
+      True{}
+    case SCon{Chr{c}, rest} True{}:
+      key_rest.go(rest, dot, key_char(c, dot))
+
+# S4.21 (dot True) the key rule; S4.67 (dot False) the identifier-segment rule
+def is_ident(s: String, dot: Bool) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{Chr{c}, rest}:
+      key_rest.go(rest, dot, key_first(c))
+
+# S4.19 exactly five escapes, per scalar, onto a reversed accumulator; everything else is copied.
+# k is the scalar c as a Nat: a match on U32 literals compiles to a bit tree per arm set (bend #867).
+def esc.ch(k: Nat, c: U32, acc: String) -> String:
+  match k:
+    case 92n:
+      SCon{Chr{92}, SCon{Chr{92}, acc}}
+    case 34n:
+      SCon{Chr{34}, SCon{Chr{92}, acc}}
+    case 10n:
+      SCon{Chr{110}, SCon{Chr{92}, acc}}
+    case 13n:
+      SCon{Chr{114}, SCon{Chr{92}, acc}}
+    case 9n:
+      SCon{Chr{116}, SCon{Chr{92}, acc}}
+    case _:
+      SCon{Chr{c}, acc}
+
+# S4.19 the escaped text, reversed, onto acc (a loop over the text)
+def esc.go(s: String, acc: String) -> String:
+  match s:
+    case SNil{}:
+      acc
+    case SCon{Chr{+c}, rest}:
+      esc.go(rest, esc.ch(U32.to_nat(c), c, acc))
+
+# S4.20 the quoted form onto a reversed accumulator
+def put.quoted(s: String, acc: String) -> String:
+  SCon{Chr{34}, esc.go(s, SCon{Chr{34}, acc})}
+
+# S4.5 a string value: bare or quoted, from the verdict
+def put.value.if(q: Bool, s: String, acc: String) -> String:
+  match q:
+    case True{}:
+      put.quoted(s, acc)
+    case False{}:
+      T.rev_onto(s, acc)
+
+# S4.5 a string value under the value rule with the active delimiter
+def put.value(+s: String, delim: U32, acc: String) -> String:
+  put.value.if(needs_quote(s, delim), s, acc)
+
+# S4.21 a key: bare when the key rule allows, else quoted
+def put.key(+k: String, acc: String) -> String:
+  put.value.if(Bool.not(is_ident(k, True{})), k, acc)
+
+# S4.3–S4.5 a primitive's text: null, true, false, the number's TOON text (S4.130), or a string
+def put.prim(j: J.Json, delim: U32, acc: String) -> String:
+  match j:
+    case J.JBool{True{}}:
+      T.rev_onto("true", acc)
+    case J.JBool{False{}}:
+      T.rev_onto("false", acc)
+    case J.JNum{f}:
+      T.rev_onto(F.show_toon(f), acc)
+    case J.JStr{s}:
+      put.value(s, delim, acc)
+    case other:
+      T.rev_onto("null", acc)
+
+# ---------------------------------------------------------------- S4.24–S4.39 arrays
+
+# S3.7 a primitive is a string, a number, a boolean or null
+def is_prim(j: J.Json) -> Bool:
+  match j:
+    case J.JNull{}:
+      True{}
+    case J.JBool{b}:
+      True{}
+    case J.JNum{f}:
+      True{}
+    case J.JStr{s}:
+      True{}
+    case other:
+      False{}
+
+# S3.7 an object (empty or not)
+def is_obj(j: J.Json) -> Bool:
+  match j:
+    case J.JObj{e}:
+      True{}
+    case other:
+      False{}
+
+# S3.7 the loop of all_prim: stops at the first item that is not a primitive
+def all_prim.go(c: J.Json, ok: Bool) -> Bool:
+  match c ok:
+    case _ False{}:
+      False{}
+    case J.JCons{h, t} True{}:
+      all_prim.go(t, is_prim(h))
+    case _ True{}:
+      True{}
+
+# S3.7 every item is a primitive (true for the empty chain)
+def all_prim(c: J.Json) -> Bool:
+  all_prim.go(c, True{})
+
+# S3.7 the loop of all_obj
+def all_obj.go(c: J.Json, ok: Bool) -> Bool:
+  match c ok:
+    case _ False{}:
+      False{}
+    case J.JCons{h, t} True{}:
+      all_obj.go(t, is_obj(h))
+    case _ True{}:
+      True{}
+
+# S3.7 every item is an object (true for the empty chain)
+def all_obj(c: J.Json) -> Bool:
+  all_obj.go(c, True{})
+
+# S6.35 the keys of an entry chain (order is irrelevant to the "any equals" tests that use it)
+def keys.go(c: J.Json, acc: List<&2, String>) -> List<&2, String>:
+  match c:
+    case J.JECons{k, q, v, t}:
+      keys.go(t, k <> acc)
+    case other:
+      acc
+
+# S6.31 the keys of an entry chain in field order (the tabular header comes from the FIRST row's order)
+def keys(c: J.Json) -> List<&2, String>:
+  List.reverse(&2, String, keys.go(c, Nil{}))
+
+# S4.36 the loop of lookup: the value under a key, null when the key is absent
+def lookup.go(c: J.Json, +k: String, hit: Bool, val: J.Json) -> J.Json:
+  match c hit:
+    case _ True{}:
+      val
+    case J.JECons{key, q, v, t} False{}:
+      lookup.go(t, k, String.eq(key, k), v)
+    case _ False{}:
+      J.JNull{}
+
+# S4.37 the value a row holds under a header key
+def lookup(c: J.Json, k: String) -> J.Json:
+  lookup.go(c, k, False{}, J.JNull{})
+
+# S4.36 the loop of has_prim: whether a row holds a PRIMITIVE under a key
+def has_prim.go(c: J.Json, +k: String, hit: Bool, prim: Bool) -> Bool:
+  match c hit:
+    case _ True{}:
+      prim
+    case J.JECons{key, q, v, t} False{}:
+      has_prim.go(t, k, String.eq(key, k), is_prim(v))
+    case _ False{}:
+      False{}
+
+# S4.36 (c)+(d) a row contains a header key and holds a primitive under it
+def has_prim(c: J.Json, k: String) -> Bool:
+  has_prim.go(c, k, False{}, False{})
+
+# S4.36 the loop over the header keys for one row
+def row_keys.go(hdr: List<&2, String>, +entries: J.Json, ok: Bool) -> Bool:
+  match hdr ok:
+    case _ False{}:
+      False{}
+    case Nil{} True{}:
+      True{}
+    case Con{k, rest} True{}:
+      row_keys.go(rest, entries, has_prim(entries, k))
+
+# S4.36 the number of fields of a row
+def count.go(c: J.Json, n: Nat) -> Nat:
+  match c:
+    case J.JECons{k, q, v, t}:
+      count.go(t, 1n+n)
+    case other:
+      n
+
+# S4.36 one row: (a) an object, (b) exactly as many fields as the header, (c)+(d) every header key
+# present with a primitive value. Key ORDER in the row is free.
+def row_ok(row: J.Json, +hdr: List<&2, String>, hn: Nat) -> Bool:
+  match row:
+    case J.JObj{+entries}:
+      Bool.and(Nat.is_eq(count.go(entries, 0n), hn), row_keys.go(hdr, entries, True{}))
+    case other:
+      False{}
+
+# S4.36 the loop over the rows: one failing row sends the whole array to list form
+def rows_ok.go(c: J.Json, +hdr: List<&2, String>, +hn: Nat, ok: Bool) -> Bool:
+  match c ok:
+    case _ False{}:
+      False{}
+    case J.JCons{h, t} True{}:
+      rows_ok.go(t, hdr, hn, row_ok(h, hdr, hn))
+    case _ True{}:
+      True{}
+
+# S4.35 the header: the first row must be a NON-empty object; its keys in its own order
+def tab_hdr(items: J.Json) -> List<&2, String>:
+  match items:
+    case J.JCons{J.JObj{entries}, t}:
+      keys(entries)
+    case other:
+      Nil{}
+
+# S4.30 what a value is and how it will be written; VTab carries the tabular header
+type VK is Data:
+  VPrim{}
+  VArr0{}
+  VInline{}
+  VTab{hdr: List<&2, String>}
+  VList{}
+  VObj0{}
+  VObj{}
+
+# S4.34 tabular or list form
+def vk.tab.if(ok: Bool, hdr: List<&2, String>) -> VK:
+  match ok:
+    case True{}:
+      VTab{hdr}
+    case False{}:
+      VList{}
+
+# S4.34 tabular when a header can be extracted and every row is uniform; an empty header (first row {})
+# is never tabular (S4.35)
+def vk.tab(+hdr: List<&2, String>, items: J.Json) -> VK:
+  +hn = List.length(&2, String, hdr)
+  vk.tab.if(Bool.and(Bool.not(Nat.is_eq(hn, 0n)), rows_ok.go(items, hdr, hn, True{})), hdr)
+
+
+# S4.30 the five steps in order for an array chain: empty, all primitive (inline), everything that is
+# not "all objects" goes to list form (step 3 is byte-identical to list form, S4.39), all objects are
+# tabular when the tests pass. `tab_ok` is False for an array that is itself a list item (S4.42).
+def vk.arr(empty: Bool, prims: Bool, objs: Bool, tab_ok: Bool, +items: J.Json) -> VK:
+  match empty prims objs tab_ok:
+    case True{} _ _ _:
+      VArr0{}
+    case False{} True{} _ _:
+      VInline{}
+    case False{} False{} True{} True{}:
+      vk.tab(tab_hdr(items), items)
+    case _ _ _ _:
+      VList{}
+
+# S4.30 the kind of a value
+def vkind(v: J.Json, tab_ok: Bool) -> VK:
+  match v:
+    case J.JArr{n, +items}:
+      vk.arr(J.is_nil(items), all_prim(items), all_obj(items), tab_ok, items)
+    case J.JObj{J.JNil{}}:
+      VObj0{}
+    case J.JObj{other}:
+      VObj{}
+    case other:
+      VPrim{}
+
+# S4.61 the start of a line: indent x depth spaces, then "- " on a hyphen line
+def ln(d: Nat, hy: Bool, opt: Opts) -> String:
+  match hy opt:
+    case False{} Opts{indent, delim, fo, budget}:
+      T.pad_onto(Nat.mul(indent, d), Chr{32}, SNil{})
+    case True{} Opts{indent, delim, fo, budget}:
+      SCon{Chr{32}, SCon{Chr{45}, T.pad_onto(Nat.mul(indent, d), Chr{32}, SNil{})}}
+
+# S4.25 the delimiter marker inside the brackets: nothing for comma, the character itself otherwise
+def put.marker(comma: Bool, delim: U32, acc: String) -> String:
+  match comma:
+    case True{}:
+      acc
+    case False{}:
+      SCon{Chr{delim}, acc}
+
+# S4.26 the field names, each under the key rule, separated by ONE active delimiter
+def put.fields(hdr: List<&2, String>, +delim: U32, first: Bool, acc: String) -> String:
+  match hdr first:
+    case Nil{} _:
+      acc
+    case Con{k, rest} True{}:
+      put.fields(rest, delim, False{}, put.key(k, acc))
+    case Con{k, rest} False{}:
+      put.fields(rest, delim, False{}, put.key(k, SCon{Chr{delim}, acc}))
+
+# S4.26 the field list of a tabular header: { names }; nothing for the other forms
+def put.fieldlist(hdr: List<&2, String>, delim: U32, acc: String) -> String:
+  match hdr:
+    case Nil{}:
+      acc
+    case Con{k, rest}:
+      SCon{Chr{125}, put.fields(k <> rest, delim, True{}, SCon{Chr{123}, acc})}
+
+# S4.24 the key in front of a header, when the array has one
+def put.optkey(hk: Bool, key: String, acc: String) -> String:
+  match hk:
+    case True{}:
+      put.key(key, acc)
+    case False{}:
+      acc
+
+# S4.24 key (when there is one), '[', length, marker, ']', field list (tabular), ':'
+def put.header(hk: Bool, key: String, n: Nat, hdr: List<&2, String>, +delim: U32, acc: String) -> String:
+  SCon{Chr{58}, put.fieldlist(hdr, delim, SCon{Chr{93}, put.marker(U32.is_eq(delim, 44), delim, T.rev_onto(Nat.show(n), SCon{Chr{91}, put.optkey(hk, key, acc)}))})}
+
+# S4.28 the join of a chain of primitives: ONE delimiter between items, nothing after the last
+def put.join(c: J.Json, +delim: U32, first: Bool, acc: String) -> String:
+  match c first:
+    case J.JCons{h, t} True{}:
+      put.join(t, delim, False{}, put.prim(h, delim, acc))
+    case J.JCons{h, t} False{}:
+      put.join(t, delim, False{}, put.prim(h, delim, SCon{Chr{delim}, acc}))
+    case _ _:
+      acc
+
+# S4.37 the cells of one row, taken in HEADER order (not in the row's own key order)
+def put.cells(hdr: List<&2, String>, +entries: J.Json, +delim: U32, first: Bool, acc: String) -> String:
+  match hdr first:
+    case Nil{} _:
+      acc
+    case Con{k, rest} True{}:
+      put.cells(rest, entries, delim, False{}, put.prim(lookup(entries, k), delim, acc))
+    case Con{k, rest} False{}:
+      put.cells(rest, entries, delim, False{}, put.prim(lookup(entries, k), delim, SCon{Chr{delim}, acc}))
+
+# S4.37 one row line at depth d: no marker, no keys
+def row.line(row: J.Json, hdr: List<&2, String>, d: Nat, +opt: Opts) -> String:
+  match row opt:
+    case J.JObj{entries} Opts{indent, delim, fo, budget}:
+      String.reverse(put.cells(hdr, entries, delim, True{}, ln(d, False{}, opt)))
+    case _ _:
+      String.reverse(ln(d, False{}, opt))
+
+# S4.37 the row lines of a tabular array, in item order (a loop over the rows; the Phase 5 seam, S11.2)
+def rows(c: J.Json, +hdr: List<&2, String>, +d: Nat, +opt: Opts, acc: List<&2, String>) -> List<&2, String>:
+  match c:
+    case J.JCons{h, t}:
+      rows(t, hdr, d, opt, row.line(h, hdr, d, opt) <> acc)
+    case other:
+      acc
+
+
+# ---------------------------------------------------------------- S4.63–S4.84 key folding
+
+# S4.70–S4.78 what a body knows about folding: whether folding is on, the budget, the root-literal
+# set (present only below the root object, absent inside list items, S4.73), and the path prefix
+type FCtx is Data:
+  FCtx{on: Bool, budget: Nat, has_set: Bool, set: List<&2, String>, has_pre: Bool, pre: String}
+
+# S4.65 the chain walk: while there is room and the value is an object with EXACTLY one field, take that
+# field's key and enter its value. Segments are collected newest first. Arrays are never entered.
+def walk(v: J.Json, room: Nat, acc: List<&2, String>) -> List<&2, String>:
+  match v room:
+    case J.JObj{J.JECons{k, q, v2, J.JNil{}}} 1n+r:
+      walk(v2, r, k <> acc)
+    case _ _:
+      acc
+
+# S4.65 the value the walk stops at, n levels below v
+def leaf_of(v: J.Json, n: Nat) -> J.Json:
+  match v n:
+    case J.JObj{J.JECons{k, q, v2, t}} 1n+p:
+      leaf_of(v2, p)
+    case other _:
+      other
+
+# S4.67 every collected segment must be an identifier segment (no dot)
+def segs_ok.go(segs: List<&2, String>, ok: Bool) -> Bool:
+  match segs ok:
+    case _ False{}:
+      False{}
+    case Nil{} True{}:
+      True{}
+    case Con{s, rest} True{}:
+      segs_ok.go(rest, is_ident(s, False{}))
+
+# S4.68 one segment in front of what is already joined
+def join_segs.one(s: String, acc: String) -> String:
+  match acc:
+    case SNil{}:
+      s
+    case SCon{c, t}:
+      s ++ "." ++ SCon{c, t}
+
+# S4.68 the segments (newest first) joined with single dots, in walk order
+def join_segs(segs: List<&2, String>, acc: String) -> String:
+  match segs:
+    case Nil{}:
+      acc
+    case Con{s, rest}:
+      join_segs(rest, join_segs.one(s, acc))
+
+
+# S4.69 the loop of any_eq: exact string equality against a list, stopping at the first hit
+def any_eq.go(xs: List<&2, String>, +k: String, hit: Bool) -> Bool:
+  match xs hit:
+    case _ True{}:
+      True{}
+    case Nil{} False{}:
+      False{}
+    case Con{x, rest} False{}:
+      any_eq.go(rest, k, String.eq(x, k))
+
+# S4.69, S4.72 membership by exact string equality (S6.34, S6.35: never iterated into output)
+def any_eq(xs: List<&2, String>, k: String) -> Bool:
+  any_eq.go(xs, k, False{})
+
+# S4.71 a path: the prefix, a dot, the key; the key alone when there is no prefix
+def path(has_pre: Bool, pre: String, k: String) -> String:
+  match has_pre:
+    case True{}:
+      pre ++ "." ++ k
+    case False{}:
+      k
+
+# S3.16 the verdict of a fold attempt: the segment count (0 = no fold) and the folded key
+type Fold is Data:
+  Fold{segs: Nat, fkey: String}
+
+# S4.84 the refusal tests have one common outcome, so their order is not observable: at least two
+# segments (S4.66), all identifier segments (S4.67), no sibling collision (S4.69), not a root literal (S4.72)
+def fold.check(two: Bool, idents: Bool, sib: Bool, lit: Bool, n: Nat, fkey: String) -> Fold:
+  match two idents sib lit:
+    case True{} True{} False{} False{}:
+      Fold{n, fkey}
+    case _ _ _ _:
+      Fold{0n, SNil{}}
+
+# S4.68–S4.72 judge the collected segments
+def fold.go(fc: FCtx, +segs: List<&2, String>, sibs: List<&2, String>) -> Fold:
+  match fc:
+    case FCtx{on, budget, has_set, set, has_pre, pre}:
+      +n = List.length(&2, String, segs)
+      +fkey = join_segs(segs, SNil{})
+      fold.check(Nat.is_ge(n, 2n), segs_ok.go(segs, True{}), any_eq(sibs, fkey), Bool.and(has_set, any_eq(set, path(has_pre, pre, fkey))), n, fkey)
+
+# S4.64 the preconditions that do not depend on the value: folding is on and the budget is at least 2
+def fc.can(fc: FCtx) -> Bool:
+  match fc:
+    case FCtx{on, budget, has_set, set, has_pre, pre}:
+      Bool.and(on, Nat.is_ge(budget, 2n))
+
+# S4.65 how many more segments the walk may take after the starting key: budget - 1, none when folding is off
+def fc.room(fc: FCtx) -> Nat:
+  match fc:
+    case FCtx{True{}, budget, has_set, set, has_pre, pre}:
+      Nat.sub(budget, 1n)
+    case FCtx{False{}, budget, has_set, set, has_pre, pre}:
+      0n
+
+# S4.64 attempt or not
+def fold.if(can: Bool, segs: List<&2, String>, fc: FCtx, sibs: List<&2, String>) -> Fold:
+  match can:
+    case False{}:
+      Fold{0n, SNil{}}
+    case True{}:
+      fold.go(fc, segs, sibs)
+
+# S4.63 the fold attempt of one field of an object body
+def fold(k: String, +v: J.Json, +fc: FCtx, sibs: List<&2, String>) -> Fold:
+  fold.if(Bool.and(fc.can(fc), is_obj(v)), walk(v, fc.room(fc), k <> Nil{}), fc, sibs)
+
+# S4.78 the body under a NON-folded object field: the same budget, the prefix extended by the raw key
+def fctx.child(fc: FCtx, k: String) -> FCtx:
+  match fc:
+    case FCtx{on, budget, has_set, set, has_pre, pre}:
+      FCtx{on, budget, has_set, set, True{}, path(has_pre, pre, k)}
+
+# S4.77 the body under a partial fold: budget minus the segment count (never below 0), prefix + folded key
+def fctx.rem(fc: FCtx, segs: Nat, fkey: String) -> FCtx:
+  match fc:
+    case FCtx{on, budget, has_set, set, has_pre, pre}:
+      FCtx{on, Nat.sub(budget, segs), has_set, set, True{}, path(has_pre, pre, fkey)}
+
+# S4.73 bodies started from a list item: no root-literal set, no prefix, the budget reset to the option
+def fctx.item(opt: Opts) -> FCtx:
+  match opt:
+    case Opts{indent, delim, fo, budget}:
+      FCtx{fo, budget, False{}, Nil{}, False{}, SNil{}}
+
+# S4.70 add a root key to the set when it contains a dot
+def dotted.add(has: Bool, k: String, acc: List<&2, String>) -> List<&2, String>:
+  match has:
+    case True{}:
+      k <> acc
+    case False{}:
+      acc
+
+# S4.70 the root keys that contain a dot anywhere
+def dotted.go(c: J.Json, acc: List<&2, String>) -> List<&2, String>:
+  match c:
+    case J.JECons{+k, q, v, t}:
+      dotted.go(t, dotted.add(T.has_char(k, 46), k, acc))
+    case other:
+      acc
+
+
+# S4.70 the fold context of the root object's body: the root-literal set, no prefix, the full budget
+def fctx.root(opt: Opts, j: J.Json) -> FCtx:
+  match opt j:
+    case Opts{indent, delim, fo, budget} J.JObj{entries}:
+      FCtx{fo, budget, True{}, dotted.go(entries, Nil{}), False{}, SNil{}}
+    case Opts{indent, delim, fo, budget} other:
+      FCtx{fo, budget, False{}, Nil{}, False{}, SNil{}}
+
+# ---------------------------------------------------------------- S4.40–S4.62 the emitter
+
+# S4.30–S4.59 how `emit` treats the node it is given; every field is a verdict the PARENT computed.
+# hk/key: whether the line carries a key, and the raw key (the key rule is applied when it is written);
+# d: depth of the line; hy: whether the line starts with "- "; dc: depth of what the node nests.
+type Ctx is Data:
+  CPrim{hk: Bool, key: String, d: Nat, hy: Bool}
+  CArr0{hk: Bool, key: String, d: Nat, hy: Bool}
+  CInline{hk: Bool, key: String, d: Nat, hy: Bool}
+  CTab{hk: Bool, key: String, d: Nat, hy: Bool, dc: Nat, hdr: List<&2, String>}
+  CList{hk: Bool, key: String, d: Nat, hy: Bool, dc: Nat}
+  CObj0{hk: Bool, key: String, d: Nat, hy: Bool}
+  CObjK{key: String, d: Nat, hy: Bool, dc: Nat, fc: FCtx}
+  CObjRoot{fc: FCtx}
+  CObjItem{d: Nat}
+  CDesc{n: Nat, leaf: Ctx}
+  CFields{d: Nat, fc: FCtx, sibs: List<&2, String>}
+  CItems{d: Nat}
+
+# S4.44 a non-empty object without a key: the root object's body, or a list item whose first field
+# goes on the hyphen line
+def ctx.obj(hk: Bool, hy: Bool, key: String, d: Nat, dc: Nat, fc: FCtx) -> Ctx:
+  match hk hy:
+    case True{} _:
+      CObjK{key, d, hy, dc, fc}
+    case False{} True{}:
+      CObjItem{d}
+    case False{} False{}:
+      CObjRoot{fc}
+
+# S4.30 the context for a value from its kind verdict
+def ctx.vk(vk: VK, hk: Bool, key: String, d: Nat, hy: Bool, dc: Nat, fc: FCtx) -> Ctx:
+  match vk:
+    case VPrim{}:
+      CPrim{hk, key, d, hy}
+    case VArr0{}:
+      CArr0{hk, key, d, hy}
+    case VInline{}:
+      CInline{hk, key, d, hy}
+    case VTab{hdr}:
+      CTab{hk, key, d, hy, dc, hdr}
+    case VList{}:
+      CList{hk, key, d, hy, dc}
+    case VObj0{}:
+      CObj0{hk, key, d, hy}
+    case VObj{}:
+      ctx.obj(hk, hy, key, d, dc, fc)
+
+# S4.74–S4.77 a field that folds: descend segs - 1 single-field objects to the leaf or remainder, which
+# is then written under the folded key at the field's own depth; S4.80 a field that does not fold is
+# written normally and its body keeps the budget
+def ctx.field.of(f: Fold, +k: String, +v: J.Json, +d: Nat, +fc: FCtx) -> Ctx:
+  match f:
+    case Fold{0n, fkey}:
+      ctx.vk(vkind(v, True{}), True{}, k, d, False{}, 1n+d, fctx.child(fc, k))
+    case Fold{1n++m, +fkey}:
+      CDesc{Nat.sub(m, 1n), ctx.vk(vkind(leaf_of(v, m), True{}), True{}, fkey, d, False{}, 1n+d, fctx.rem(fc, 1n+m, fkey))}
+
+# S4.63 the context of one field of an object body at depth d
+def ctx.field(+k: String, +v: J.Json, d: Nat, +fc: FCtx, sibs: List<&2, String>) -> Ctx:
+  ctx.field.of(fold(k, v, fc, sibs), k, v, d, fc)
+
+# S4.44–S4.51 the first field of a list-item object at depth d: on the hyphen line, never folded, what
+# it nests two levels deeper; an array of uniform objects may be tabular here (S4.48)
+def ctx.first(k: String, +v: J.Json, +d: Nat, opt: Opts) -> Ctx:
+  ctx.vk(vkind(v, True{}), True{}, k, d, True{}, 2n+d, fctx.item(opt))
+
+# S4.40–S4.43 an item of a list array at depth d; an array that is itself a list item is never tabular
+def ctx.item(+h: J.Json, +d: Nat, opt: Opts) -> Ctx:
+  ctx.vk(vkind(h, False{}), False{}, SNil{}, d, True{}, 1n+d, fctx.item(opt))
+
+# S4.60 the root value: no key, no hyphen, depth 0
+def ctx.root(+j: J.Json, +opt: Opts) -> Ctx:
+  ctx.vk(vkind(j, True{}), False{}, SNil{}, 0n, False{}, 1n, fctx.root(opt, j))
+
+# S3.10 the active delimiter
+def opt.delim(opt: Opts) -> U32:
+  match opt:
+    case Opts{indent, delim, fo, budget}:
+      delim
+
+# S4.56 `key: ` in front of a value, when the line carries a key
+def put.keycolon(hk: Bool, key: String, acc: String) -> String:
+  match hk:
+    case True{}:
+      SCon{Chr{32}, SCon{Chr{58}, put.key(key, acc)}}
+    case False{}:
+      acc
+
+# S4.40, S4.45, S4.56, S4.60 a primitive's line
+def line.prim(hk: Bool, key: String, d: Nat, hy: Bool, v: J.Json, +opt: Opts) -> String:
+  String.reverse(put.prim(v, opt.delim(opt), put.keycolon(hk, key, ln(d, hy, opt))))
+
+# S4.24 a header line (empty array, tabular header, list header)
+def line.hdr(hk: Bool, key: String, n: Nat, hdr: List<&2, String>, d: Nat, hy: Bool, +opt: Opts) -> String:
+  String.reverse(put.header(hk, key, n, hdr, opt.delim(opt), ln(d, hy, opt)))
+
+# S4.29 an inline array line: the header, ONE space, the join
+def line.inline(hk: Bool, key: String, n: Nat, items: J.Json, d: Nat, hy: Bool, +opt: Opts) -> String:
+  String.reverse(put.join(items, opt.delim(opt), True{}, SCon{Chr{32}, put.header(hk, key, n, Nil{}, opt.delim(opt), ln(d, hy, opt))}))
+
+# S4.58, S4.59, S4.50, S4.51 `key:` alone
+def line.key(key: String, d: Nat, hy: Bool, opt: Opts) -> String:
+  String.reverse(SCon{Chr{58}, put.key(key, ln(d, hy, opt))})
+
+# S4.59 an empty object: `key:` when keyed; S4.43 `-` alone as a list item; S4.60 no line at the root
+def lines.obj0(hk: Bool, hy: Bool, key: String, d: Nat, opt: Opts, acc: List<&2, String>) -> List<&2, String>:
+  match hk hy:
+    case True{} _:
+      line.key(key, d, hy, opt) <> acc
+    case False{} True{}:
+      String.reverse(SCon{Chr{45}, ln(d, False{}, opt)}) <> acc
+    case False{} False{}:
+      acc
+
+# S4.30–S4.62 the lines of a node, newest first. ONE def over Json; `ctx` says what the node is.
+# Every recursive call is on a matched part of `j`; sibling chains are tail calls.
+def emit(j: J.Json, cx: Ctx, +opt: Opts, acc: List<&2, String>) -> List<&2, String>:
+  match j cx:
+    case v CPrim{hk, key, d, hy}:
+      line.prim(hk, key, d, hy, v, opt) <> acc
+    case v CArr0{hk, key, d, hy}:
+      line.hdr(hk, key, 0n, Nil{}, d, hy, opt) <> acc
+    case J.JArr{n, items} CInline{hk, key, d, hy}:
+      line.inline(hk, key, n, items, d, hy, opt) <> acc
+    case J.JArr{n, items} CTab{hk, key, d, hy, dc, +hdr}:
+      rows(items, hdr, dc, opt, line.hdr(hk, key, n, hdr, d, hy, opt) <> acc)
+    case J.JArr{n, items} CList{hk, key, d, hy, dc}:
+      emit(items, CItems{dc}, opt, line.hdr(hk, key, n, Nil{}, d, hy, opt) <> acc)
+    case v CObj0{hk, key, d, hy}:
+      lines.obj0(hk, hy, key, d, opt, acc)
+    case J.JObj{+entries} CObjK{key, d, hy, dc, fc}:
+      emit(entries, CFields{dc, fc, keys.go(entries, Nil{})}, opt, line.key(key, d, hy, opt) <> acc)
+    case J.JObj{+entries} CObjRoot{fc}:
+      emit(entries, CFields{0n, fc, keys.go(entries, Nil{})}, opt, acc)
+    case J.JObj{J.JECons{k, q, +v, +rest}} CObjItem{+d}:
+      emit(rest, CFields{1n+d, fctx.item(opt), keys.go(rest, Nil{})}, opt, emit(v, ctx.first(k, v, d, opt), opt, acc))
+    case J.JObj{J.JECons{k, q, v, t}} CDesc{0n, leaf}:
+      emit(v, leaf, opt, acc)
+    case J.JObj{J.JECons{k, q, v, t}} CDesc{1n+p, leaf}:
+      emit(v, CDesc{p, leaf}, opt, acc)
+    case J.JECons{k, q, +v, t} CFields{+d, +fc, +sibs}:
+      emit(t, CFields{d, fc, sibs}, opt, emit(v, ctx.field(k, v, d, fc, sibs), opt, acc))
+    case J.JCons{+h, t} CItems{+d}:
+      emit(t, CItems{d}, opt, emit(h, ctx.item(h, d, opt), opt, acc))
+    case _ _:
+      acc
+
+# S4.60 the TOON lines of a value, in order (an empty root object gives no line)
+def encode(+j: J.Json, +opt: Opts) -> List<&2, String>:
+  List.reverse(&2, String, emit(j, ctx.root(j, opt), opt, Nil{}))

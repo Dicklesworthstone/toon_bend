@@ -383,15 +383,23 @@ def serde_value(neg: Bool, ints: String, fracs: String, exp: Int) -> Maybe<&2, F
 
 # ---------------------------------------------------------------- S4.141–S4.144 the value of a TOON number token
 
+# S4.143 the loop of strip_zeros: h is the character before `rest`, zero says whether it is '0'
+def strip_zeros.go(rest: String, zero: Bool, h: U32) -> String:
+  match rest zero:
+    case r False{}:
+      SCon{Chr{h}, r}
+    case SNil{} True{}:
+      SNil{}
+    case SCon{Chr{+c}, more} True{}:
+      strip_zeros.go(more, U32.is_eq(c, 48), c)
+
 # S4.143 leading zeros carry no value
 def strip_zeros(s: String) -> String:
   match s:
     case SNil{}:
       SNil{}
-    case SCon{Chr{48}, rest}:
-      strip_zeros(rest)
-    case SCon{c, rest}:
-      SCon{c, rest}
+    case SCon{Chr{+c}, rest}:
+      strip_zeros.go(rest, U32.is_eq(c, 48), c)
 
 # S4.142 an infinite result makes the token a string (None); S4.144 a zero of either sign is +0
 def token.done(f: F64) -> Maybe<&2, F64>:
@@ -717,3 +725,166 @@ def show_json(f: F64) -> String:
       "0.0"
     case FNum{n, tb, Con{h, t}}:
       json.short(shortest(h <> t, tb, False{}), n)
+
+# ---------------------------------------------------------------- S4.141, S4.161 the two numeric grammars
+
+# S4.141 lexer state. Phases: 0 a digit is required, 1 the integer part is the single digit 0, 2 integer
+# digits, 3 after '.', 4 fraction digits, 5 after e/E, 6 after the exponent sign, 7 exponent digits,
+# 8 rejected, 9 accepted early (S4.161's leading-zero shortcut). Digits are kept reversed; X saturates
+# at 10^9, far past every range decision of S4.142, so a long exponent cannot reach Nat's wall.
+# Phases and classes are Nat: a match on U32 literals compiles to a bit tree per arm set (bend #867).
+type Lex is Data:
+  Lex{ph: Nat, ints: String, fracs: String, eneg: Bool, x: Nat}
+
+# S4.141 character classes: 0 '0', 1 '1'-'9', 2 '.', 3 'e' or 'E', 4 '+', 5 '-', 6 other
+def lex.cls(+c: U32) -> Nat:
+  Bool.pick(Nat, U32.is_eq(c, 48), 0n, Bool.pick(Nat, Bool.and(U32.is_ge(c, 49), U32.is_le(c, 57)), 1n, Bool.pick(Nat, U32.is_eq(c, 46), 2n, Bool.pick(Nat, Bool.or(U32.is_eq(c, 101), U32.is_eq(c, 69)), 3n, Bool.pick(Nat, U32.is_eq(c, 43), 4n, Bool.pick(Nat, U32.is_eq(c, 45), 5n, 6n))))))
+
+# S4.141 an exponent digit, saturating
+def lex.x(x: Nat, d: Nat) -> Nat:
+  Nat.min(Nat.add(Nat.mul(x, 10n), d), 1000000000n)
+
+# S4.141 a digit right after a leading zero: the decoder's grammar rejects it; S4.161 accepts at once
+def lex.zero_digit(like: Bool, ints: String, fracs: String, eneg: Bool, x: Nat) -> Lex:
+  match like:
+    case True{}:
+      Lex{9n, ints, fracs, eneg, x}
+    case False{}:
+      Lex{8n, ints, fracs, eneg, x}
+
+# S4.141 the transition table: phase x class
+def lex.tr(ph: Nat, k: Nat, +c: U32, like: Bool, ints: String, fracs: String, eneg: Bool, x: Nat) -> Lex:
+  match ph k:
+    case 0n 0n:
+      Lex{1n, SCon{Chr{48}, ints}, fracs, eneg, x}
+    case 0n 1n:
+      Lex{2n, SCon{Chr{c}, ints}, fracs, eneg, x}
+    case 1n 0n:
+      lex.zero_digit(like, ints, fracs, eneg, x)
+    case 1n 1n:
+      lex.zero_digit(like, ints, fracs, eneg, x)
+    case 1n 2n:
+      Lex{3n, ints, fracs, eneg, x}
+    case 1n 3n:
+      Lex{5n, ints, fracs, eneg, x}
+    case 2n 0n:
+      Lex{2n, SCon{Chr{48}, ints}, fracs, eneg, x}
+    case 2n 1n:
+      Lex{2n, SCon{Chr{c}, ints}, fracs, eneg, x}
+    case 2n 2n:
+      Lex{3n, ints, fracs, eneg, x}
+    case 2n 3n:
+      Lex{5n, ints, fracs, eneg, x}
+    case 3n 0n:
+      Lex{4n, ints, SCon{Chr{48}, fracs}, eneg, x}
+    case 3n 1n:
+      Lex{4n, ints, SCon{Chr{c}, fracs}, eneg, x}
+    case 4n 0n:
+      Lex{4n, ints, SCon{Chr{48}, fracs}, eneg, x}
+    case 4n 1n:
+      Lex{4n, ints, SCon{Chr{c}, fracs}, eneg, x}
+    case 4n 3n:
+      Lex{5n, ints, fracs, eneg, x}
+    case 5n 4n:
+      Lex{6n, ints, fracs, False{}, x}
+    case 5n 5n:
+      Lex{6n, ints, fracs, True{}, x}
+    case 5n 0n:
+      Lex{7n, ints, fracs, eneg, 0n}
+    case 5n 1n:
+      Lex{7n, ints, fracs, eneg, U32.to_nat((c - 48 : U32))}
+    case 6n 0n:
+      Lex{7n, ints, fracs, eneg, 0n}
+    case 6n 1n:
+      Lex{7n, ints, fracs, eneg, U32.to_nat((c - 48 : U32))}
+    case 7n 0n:
+      Lex{7n, ints, fracs, eneg, lex.x(x, 0n)}
+    case 7n 1n:
+      Lex{7n, ints, fracs, eneg, lex.x(x, U32.to_nat((c - 48 : U32)))}
+    case 9n _:
+      Lex{9n, ints, fracs, eneg, x}
+    case _ _:
+      Lex{8n, ints, fracs, eneg, x}
+
+# S4.141 one character
+def lex.step(st: Lex, +c: U32, like: Bool) -> Lex:
+  match st:
+    case Lex{ph, ints, fracs, eneg, x}:
+      lex.tr(ph, lex.cls(c), c, like, ints, fracs, eneg, x)
+
+# S4.141 the whole text through the lexer (a loop over the text)
+def lex.go(s: String, st: Lex, +like: Bool) -> Lex:
+  match s:
+    case SNil{}:
+      st
+    case SCon{Chr{c}, rest}:
+      lex.go(rest, lex.step(st, c, like), like)
+
+# S4.141 the text matched completely when the lexer ends in phase 1, 2, 4, 7 (or 9)
+def lex.ok(ph: Nat) -> Bool:
+  match ph:
+    case 1n:
+      True{}
+    case 2n:
+      True{}
+    case 4n:
+      True{}
+    case 7n:
+      True{}
+    case 9n:
+      True{}
+    case _:
+      False{}
+
+# S4.161 numeric-like: optional '-', digits with the leading-zero shortcut, optional fraction and exponent
+def is_like.body(st: Lex) -> Bool:
+  match st:
+    case Lex{ph, ints, fracs, eneg, x}:
+      lex.ok(ph)
+
+# S4.141 a leading '-' is outside the lexer: run it over the rest, or over the whole text
+def lex.run(dash: Bool, c: U32, rest: String, like: Bool) -> Lex:
+  match dash:
+    case True{}:
+      lex.go(rest, Lex{0n, SNil{}, SNil{}, False{}, 0n}, like)
+    case False{}:
+      lex.go(SCon{Chr{c}, rest}, Lex{0n, SNil{}, SNil{}, False{}, 0n}, like)
+
+# S4.161 whether a string is numeric-like (the encoder then quotes it, S4.160)
+def is_like(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{Chr{+c}, rest}:
+      is_like.body(lex.run(U32.is_eq(c, 45), c, rest, True{}))
+
+# S4.109 the written exponent as an Int
+def lex.exp(eneg: Bool, x: Nat) -> Int:
+  match eneg:
+    case True{}:
+      Int.diff(0n, x)
+    case False{}:
+      Pos{x}
+
+# S4.142 a token that matches the grammar is a number only when its value is finite
+def literal.value(ok: Bool, neg: Bool, ints: String, fracs: String, eneg: Bool, x: Nat) -> Maybe<&2, F64>:
+  match ok:
+    case False{}:
+      None{}
+    case True{}:
+      token_value(neg, String.reverse(ints), String.reverse(fracs), lex.exp(eneg, x))
+
+# S4.141 the grammar's verdict and the pieces it collected
+def literal.body(st: Lex, neg: Bool) -> Maybe<&2, F64>:
+  match st:
+    case Lex{ph, ints, fracs, eneg, x}:
+      literal.value(lex.ok(ph), neg, ints, fracs, eneg, x)
+
+# S4.141–S4.144 the number a (trimmed) TOON token denotes, or None when the token is not a finite
+# numeric literal and therefore a string
+def literal(s: String) -> Maybe<&2, F64>:
+  match s:
+    case SNil{}:
+      None{}
+    case SCon{Chr{+c}, rest}:
+      literal.body(lex.run(U32.is_eq(c, 45), c, rest, False{}), U32.is_eq(c, 45))

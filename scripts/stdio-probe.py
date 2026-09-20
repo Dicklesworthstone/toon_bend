@@ -152,17 +152,25 @@ def main():
     row("stdin is open WRITE-only, encode", "", wrong_mode(0, ["-e"]))
     row("stdout is open READ-only", "DISC-006", wrong_mode(1, ["-e"]))
     row("stderr is open READ-only, a success line to write", "DISC-003", wrong_mode(2, ["-e", "-o", os.path.join(work, "out2.toon")]))
-    def seqpacket(n):
+    def seqpacket(payload, args=("-e",)):
+        """One SEQPACKET message: a read shorter than the message discards its rest, so the original (which
+        asks for 32 bytes first) and the port (one read of 1 MiB) see DIFFERENT bytes. DISC-015."""
         def f(cmd):
             a, b = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
             with a, b:
-                b.sendall(("[" + ",".join("1" for _ in range(n)) + "]").encode())
+                b.sendall(payload)
                 b.shutdown(socket.SHUT_WR)
-                return run(cmd, ["-e"], stdin=a.fileno())
+                return run(cmd, list(args), stdin=a.fileno())
         return f
 
-    row("stdin is a SEQPACKET socket, one message of 31 bytes", "", seqpacket(15))
-    row("stdin is a SEQPACKET socket, one message of 41 bytes (the original's first read asks for 32)", "DISC-015", seqpacket(20))
+    def arr(n):
+        return ("[" + ",".join("1" for _ in range(n)) + "]").encode()
+
+    row("stdin is a SEQPACKET socket, one message of 31 bytes", "", seqpacket(arr(15)))
+    row("stdin is a SEQPACKET socket, one message of 41 bytes: the original sees a cut-off document", "DISC-015", seqpacket(arr(20)))
+    row("stdin is a SEQPACKET socket, one message of 45 bytes: the original sees a COMPLETE document and stops", "DISC-015", seqpacket(arr(15) + b"\n" + b" " * 13 + b"x"))
+    row("stdin is a SEQPACKET socket, one message of 44 TOON bytes: both exit 0 and the bytes differ", "DISC-015",
+        seqpacket(b"aaaaaaa: 1\nbbbbbbb: 2\nccccccc: 3\nddddddd: 4\n", ("-d",)))
     row("INPUT is /dev/fd/9, which nobody opened", "", lambda cmd: run(cmd, ["-d", "/dev/fd/9"], stdin=subprocess.DEVNULL))
 
     def caller_fd9(cmd):

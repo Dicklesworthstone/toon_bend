@@ -305,23 +305,62 @@ type Down is Data:
   DGo{f: F64, k: Nat}
   DEnd{r: Maybe<&2, F64>}
 
+# S8.2 THE gate of every numeric fast twin: a fast twin is selected only when the kill-switch is off
+# AND its own applicability verdict holds. Law twin_gate_switch: twin.on(True, ok) == False for every ok.
+def twin.on(spec: Bool, ok: Bool) -> Bool:
+  match spec:
+    case True{}:
+      False{}
+    case False{}:
+      ok
+
+# S4.114 the fast twin's quotient: the dividend shifted so that at least 56 quotient bits remain
+# (10^k has fewer than 4k + 1 bits), divided by 10^k exactly, remainder folded into the sticky flag
+def div_p10.fin(st: BN.P5, neg: Bool, e2b: Nat) -> F64:
+  match st:
+    case BN.P5{q, sticky}:
+      round(neg, q, e2b, sticky)
+
+# S4.114 the fast twin of div(f, pow10(k)) for k <= 22, where the table entry IS 10^k: exact quotient
+# of the significand by 10^k, one RNE. EXP-003.
+def div_p10.go(neg: Bool, +ma: List<&2, U32>, +ta: Nat, +k: Nat) -> F64:
+  +s = Nat.sub(Nat.add(57n, Nat.mul(4n, k)), BN.bitlen(ma, 0n))
+  div_p10.fin(BN.div_pow10(BN.shl(ma, s), k), neg, Nat.sub(ta, s))
+
+# S4.114 the gate selects the fast quotient
+def div_p10.pick(fast: Bool, neg: Bool, ma: List<&2, U32>, ta: Nat, +k: Nat) -> F64:
+  match fast:
+    case True{}:
+      div_p10.go(neg, ma, ta, k)
+    case False{}:
+      div(FNum{neg, ta, ma}, pow10(k))
+
+# S4.114 ONE IEEE division by the table entry P(k): the spec twin is div(f, pow10(k)); the fast twin
+# applies to a nonzero finite f and k <= 22 (where the table entry IS 10^k), through the gate
+def div_p10(f: F64, +k: Nat, spec: Bool) -> F64:
+  match f:
+    case FNum{neg, ta, Con{h, t}}:
+      div_p10.pick(twin.on(spec, Nat.is_le(k, 22n)), neg, h <> t, ta, k)
+    case other:
+      div(other, pow10(k))
+
 # S4.115 one step from the two verdicts "more than 308 remain" and "F is zero"
-def serde.down.pick(more: Bool, fzero: Bool, f: F64, +k: Nat, neg: Bool) -> Down:
+def serde.down.pick(more: Bool, fzero: Bool, f: F64, +k: Nat, neg: Bool, spec: Bool) -> Down:
   match more fzero:
     case False{} _:
-      DEnd{serde.done(div(f, pow10(k)), neg)}
+      DEnd{serde.done(div_p10(f, k, spec), neg)}
     case True{} True{}:
       DEnd{Some{FNum{False{}, 98926n, Nil{}}}}
     case True{} False{}:
       DGo{div(f, pow10(308n)), Nat.sub(k, 308n)}
 
 # S4.115 one step of the loop; a finished state stays finished
-def serde.down.step(st: Down, neg: Bool) -> Down:
+def serde.down.step(st: Down, neg: Bool, spec: Bool) -> Down:
   match st:
     case DEnd{r}:
       DEnd{r}
     case DGo{+f, +k}:
-      serde.down.pick(Nat.is_gt(k, 308n), is_zero(f), f, k, neg)
+      serde.down.pick(Nat.is_gt(k, 308n), is_zero(f), f, k, neg, spec)
 
 # S4.115 F0 < 2^64, so two divisions by P(308) always give zero: four steps of fuel cannot run out
 # in the dividing state, and if they did the value would be that zero (the spec's own bound)
@@ -333,12 +372,12 @@ def serde.down.end(st: Down) -> Maybe<&2, F64>:
       Some{FNum{False{}, 98926n, Nil{}}}
 
 # S4.115 T < -308: while more than 308 remain, stop with zero when F = 0, else divide by P(308)
-def serde.down(fuel: Nat, st: Down, +neg: Bool) -> Maybe<&2, F64>:
+def serde.down(fuel: Nat, st: Down, +neg: Bool, +spec: Bool) -> Maybe<&2, F64>:
   match fuel:
     case 0n:
       serde.down.end(st)
     case 1n+g:
-      serde.down(g, serde.down.step(st, neg), neg)
+      serde.down(g, serde.down.step(st, neg, spec), neg, spec)
 
 # S4.116 T > 308: zero when F0 = 0, otherwise "number out of range"
 def serde.over(fzero: Bool) -> Maybe<&2, F64>:
@@ -357,32 +396,76 @@ def serde.up(big: Bool, +f0: F64, k: Nat, neg: Bool) -> Maybe<&2, F64>:
       serde.done(mul(f0, pow10(k)), neg)
 
 # S4.113–S4.116 the value G(S, T) from F0 = RNE(S) and the total decimal exponent T
-def serde.g(neg: Bool, f0: F64, t: Int) -> Maybe<&2, F64>:
+def serde.g(neg: Bool, f0: F64, t: Int, spec: Bool) -> Maybe<&2, F64>:
   match t:
     case Pos{+k}:
       serde.up(Nat.is_gt(k, 308n), f0, k, neg)
     case Neg{k}:
-      serde.down(4n, DGo{f0, k}, neg)
+      serde.down(4n, DGo{f0, k}, neg, spec)
 
 # S4.109 T = E10 + the written exponent, with E10 = dropped integer digits - accepted fraction digits
-def serde.finish(a: SAcc, dropped: Nat, neg: Bool, exp: Int) -> Maybe<&2, F64>:
+def serde.finish(a: SAcc, dropped: Nat, neg: Bool, exp: Int, spec: Bool) -> Maybe<&2, F64>:
   match a:
     case SAcc{s, accepted, stop}:
-      serde.g(neg, from_big(False{}, s), Int.add(Int.diff(dropped, accepted), exp))
+      serde.g(neg, from_big(False{}, s), Int.add(Int.diff(dropped, accepted), exp), spec)
 
 # S4.105 the fraction starts from the S the integer part left, whether or not digits were dropped
-def serde.frac.start(a: SAcc, fracs: String, neg: Bool, exp: Int) -> Maybe<&2, F64>:
+def serde.frac.start(a: SAcc, fracs: String, neg: Bool, exp: Int, spec: Bool) -> Maybe<&2, F64>:
   match a:
     case SAcc{s, dropped, stop}:
-      serde.finish(serde.frac(fracs, SAcc{s, 0n, False{}}), dropped, neg, exp)
+      serde.finish(serde.frac(fracs, SAcc{s, 0n, False{}}), dropped, neg, exp, spec)
+
+# S4.101 the literal path of the JSON number reader: digits into S with the fit test, then G(S, T)
+def serde.literal(neg: Bool, ints: String, fracs: String, exp: Int, spec: Bool) -> Maybe<&2, F64>:
+  serde.frac.start(serde.int(ints, SAcc{Nil{}, 0n, False{}}), fracs, neg, exp, spec)
+
+# ---------------------------------------------------------------- S4.141–S4.144 the value of a TOON number token
+
+# ---------------------------------------------------------------- S4.101, S4.143 fast twin: short integer texts
+# EXP-002. A number text with no fraction digit, a written exponent of 0 and at most 14 integer digits
+# denotes an integer below 10^14 < 2^48 exactly (a Nat ends at 2^48 - 1 = 281474976710655, so 15 digits
+# do not fit: the corpus case encnum_ints holds 281474976710656): both readers (S4.101: F0 = RNE(S), no scaling;
+# S4.143: the exact decimal rounded once) return that integer, so it is built from a Nat. Zero keeps
+# the spec twins (the sign rules of S4.118 and S4.144 live there).
+
+# S4.101 whether the written exponent is 0
+def exp.is_zero(e: Int) -> Bool:
+  match e:
+    case Pos{0n}:
+      True{}
+    case other:
+      False{}
+
+# S4.101 whether the short-integer twin applies, before the value is looked at (through the gate)
+def int_text.ok(spec: Bool, +ints: String, fracs: String, e: Int) -> Bool:
+  twin.on(spec, Bool.and(String.is_empty(fracs), Bool.and(exp.is_zero(e), Nat.is_le(T.str_len(ints, 0n), 14n))))
+
+# S4.101 a non-zero integer below 10^14 with its sign
+def int_text.value(v: Nat, neg: Bool) -> Maybe<&2, F64>:
+  Some{with_sign(neg, from_nat(v))}
+
+# S4.101 zero keeps the literal path; any other short integer text is built from its Nat value
+def serde.short.value(v: Nat, neg: Bool, ints: String, fracs: String, e: Int) -> Maybe<&2, F64>:
+  match v:
+    case 0n:
+      serde.literal(neg, ints, fracs, e, False{})
+    case 1n++p:
+      int_text.value(1n+p, neg)
+
+# S4.101 the Nat value is only computed for a text the fast twin accepts (at most 14 digits)
+def serde.short(ok: Bool, neg: Bool, +ints: String, fracs: String, e: Int, spec: Bool) -> Maybe<&2, F64>:
+  match ok:
+    case False{}:
+      serde.literal(neg, ints, fracs, e, spec)
+    case True{}:
+      serde.short.value(T.nat_of(ints, 0n), neg, ints, fracs, e)
 
 # S4.101 the binary64 value of a JSON number literal given as its sign, integer digits, fraction digits
 # and written exponent (a magnitude the reader has already kept within 2147483647, S4.107);
-# None is "number out of range" (S9.200, S9.201)
-def serde_value(neg: Bool, ints: String, fracs: String, exp: Int) -> Maybe<&2, F64>:
-  serde.frac.start(serde.int(ints, SAcc{Nil{}, 0n, False{}}), fracs, neg, exp)
-
-# ---------------------------------------------------------------- S4.141–S4.144 the value of a TOON number token
+# None is "number out of range" (S9.200, S9.201). spec is the kill-switch: with it, every number
+# takes the literal path with the restoring division.
+def serde_value(neg: Bool, +ints: String, +fracs: String, +exp: Int, +spec: Bool) -> Maybe<&2, F64>:
+  serde.short(int_text.ok(spec, ints, fracs, exp), neg, ints, fracs, exp, spec)
 
 # S4.143 the loop of strip_zeros: h is the character before `rest`, zero says whether it is '0'
 def strip_zeros.go(rest: String, zero: Bool, h: U32) -> String:
@@ -461,59 +544,98 @@ def clamp.of(t: Take) -> Clamp:
     case Take{head, SCon{+c, +rest}}:
       clamp.tail(any_nonzero.go(SCon{c, rest}, False{}), head, SCon{c, rest})
 
+# S4.143 the fast twin of from_dec for a negative decimal exponent: d / 10^eabs as an exact quotient by
+# short division (EXP-003); the dividend is shifted so that at least 56 quotient bits remain
+def from_dec_p10.go(neg: Bool, +d: List<&2, U32>, +eabs: Nat) -> F64:
+  +s = Nat.sub(Nat.add(57n, Nat.mul(4n, eabs)), BN.bitlen(d, 0n))
+  div_p10.fin(BN.div_pow10(BN.shl(d, s), eabs), neg, Nat.sub(100000n, s))
+
+# S4.143 the gate selects the short division
+def from_dec_p10.pick(fast: Bool, eneg: Bool, neg: Bool, d: List<&2, U32>, eabs: Nat) -> F64:
+  match fast:
+    case True{}:
+      from_dec_p10.go(neg, d, eabs)
+    case False{}:
+      from_dec(eneg, neg, d, eabs)
+
+# S4.143 the correctly rounded binary64 of d * 10^(+-eabs): the spec twin is from_dec; the fast twin
+# applies to a negative decimal exponent, through the gate
+def from_dec_p10(+eneg: Bool, neg: Bool, d: List<&2, U32>, eabs: Nat, spec: Bool) -> F64:
+  from_dec_p10.pick(twin.on(spec, eneg), eneg, neg, d, eabs)
+
 # S4.143 the exact decimal D * 10^E rounded once
-def token.round.e(neg: Bool, digits: String, e: Int) -> Maybe<&2, F64>:
+def token.round.e(neg: Bool, digits: String, e: Int, spec: Bool) -> Maybe<&2, F64>:
   match e:
     case Pos{k}:
-      token.done(from_dec(False{}, neg, BN.from_dec(digits, Nil{}), k))
+      token.done(from_dec_p10(False{}, neg, BN.from_dec(digits, Nil{}), k, spec))
     case Neg{k}:
-      token.done(from_dec(True{}, neg, BN.from_dec(digits, Nil{}), k))
+      token.done(from_dec_p10(True{}, neg, BN.from_dec(digits, Nil{}), k, spec))
 
 # S4.143 the clamped digits with the exponent moved by the dropped count
-def token.round.c(neg: Bool, c: Clamp, e: Int) -> Maybe<&2, F64>:
+def token.round.c(neg: Bool, c: Clamp, e: Int, spec: Bool) -> Maybe<&2, F64>:
   match c:
     case Clamp{digits, dropped}:
-      token.round.e(neg, digits, Int.add(e, Pos{dropped}))
+      token.round.e(neg, digits, Int.add(e, Pos{dropped}), spec)
 
 # S4.143 the exact decimal D * 10^E rounded once
-def token.round(neg: Bool, digits: String, e: Int) -> Maybe<&2, F64>:
-  token.round.c(neg, clamp.of(take.go(800n, digits, SNil{})), e)
+def token.round(neg: Bool, digits: String, e: Int, spec: Bool) -> Maybe<&2, F64>:
+  token.round.c(neg, clamp.of(take.go(800n, digits, SNil{})), e, spec)
 
 # S4.142, S4.143 with `lead` = the decimal exponent of the first significant digit + 346 (a Nat):
 # above 10^309 the value is infinite and below 10^-345 it is zero, decided without big arithmetic
-def token.range(huge: Bool, tiny: Bool, neg: Bool, digits: String, e: Int) -> Maybe<&2, F64>:
+def token.range(huge: Bool, tiny: Bool, neg: Bool, digits: String, e: Int, spec: Bool) -> Maybe<&2, F64>:
   match huge tiny:
     case True{} _:
       None{}
     case False{} True{}:
       Some{FNum{False{}, 98926n, Nil{}}}
     case False{} False{}:
-      token.round(neg, digits, e)
+      token.round(neg, digits, e, spec)
 
 # S4.143 lead = nd + E; infinite when lead - 1 > 309, zero when lead - 1 < -345
-def token.lead.of(l: Int, neg: Bool, digits: String, e: Int) -> Maybe<&2, F64>:
+def token.lead.of(l: Int, neg: Bool, digits: String, e: Int, spec: Bool) -> Maybe<&2, F64>:
   match l:
     case Pos{n}:
-      token.range(Nat.is_gt(n, 310n), False{}, neg, digits, e)
+      token.range(Nat.is_gt(n, 310n), False{}, neg, digits, e, spec)
     case Neg{n}:
-      token.range(False{}, Nat.is_gt(n, 344n), neg, digits, e)
+      token.range(False{}, Nat.is_gt(n, 344n), neg, digits, e, spec)
 
 # S4.143 position of the first significant digit: nd + E - 1, as an Int
-def token.lead(neg: Bool, +digits: String, +e: Int) -> Maybe<&2, F64>:
-  token.lead.of(Int.add(Pos{T.str_len(digits, 0n)}, e), neg, digits, e)
+def token.lead(neg: Bool, +digits: String, +e: Int, spec: Bool) -> Maybe<&2, F64>:
+  token.lead.of(Int.add(Pos{T.str_len(digits, 0n)}, e), neg, digits, e, spec)
 
 # S4.143 no significant digit: the value is zero
-def token.nz(digits: String, neg: Bool, e: Int) -> Maybe<&2, F64>:
+def token.nz(digits: String, neg: Bool, e: Int, spec: Bool) -> Maybe<&2, F64>:
   match digits:
     case SNil{}:
       Some{FNum{False{}, 98926n, Nil{}}}
     case SCon{c, rest}:
-      token.lead(neg, SCon{c, rest}, e)
+      token.lead(neg, SCon{c, rest}, e, spec)
+
+# S4.143 the literal path of the token reader: the exact decimal, rounded once
+def token.literal(neg: Bool, ints: String, +fracs: String, exp: Int, spec: Bool) -> Maybe<&2, F64>:
+  token.nz(strip_zeros(T.cat([ints, fracs])), neg, Int.add(exp, Int.diff(0n, T.str_len(fracs, 0n))), spec)
+
+# S4.143 zero keeps the literal path (S4.144); any other short integer text is built from its Nat value
+def token.short.value(v: Nat, neg: Bool, ints: String, fracs: String, e: Int) -> Maybe<&2, F64>:
+  match v:
+    case 0n:
+      token.literal(neg, ints, fracs, e, False{})
+    case 1n++p:
+      int_text.value(1n+p, neg)
+
+# S4.143 the Nat value is only computed for a text the fast twin accepts (at most 14 digits)
+def token.short(ok: Bool, neg: Bool, +ints: String, fracs: String, e: Int, spec: Bool) -> Maybe<&2, F64>:
+  match ok:
+    case False{}:
+      token.literal(neg, ints, fracs, e, spec)
+    case True{}:
+      token.short.value(T.nat_of(ints, 0n), neg, ints, fracs, e)
 
 # S4.143 the correctly rounded value of a numeric token given as its sign, integer digits, fraction
-# digits and written exponent; None when the value is not finite (S4.142)
-def token_value(neg: Bool, ints: String, +fracs: String, exp: Int) -> Maybe<&2, F64>:
-  token.nz(strip_zeros(T.cat([ints, fracs])), neg, Int.add(exp, Int.diff(0n, T.str_len(fracs, 0n))))
+# digits and written exponent; None when the value is not finite (S4.142). spec is the kill-switch.
+def token_value(neg: Bool, +ints: String, +fracs: String, +exp: Int, +spec: Bool) -> Maybe<&2, F64>:
+  token.short(int_text.ok(spec, ints, fracs, exp), neg, ints, fracs, exp, spec)
 
 # ---------------------------------------------------------------- S4.131 shortest round-trip digits
 # Free-format generation after Burger and Dybvig over big naturals. The value is r/s, the distances to
@@ -724,6 +846,74 @@ def toon.short(sh: Short, neg: Bool) -> String:
     case Short{+ds, k}:
       signed(neg, plain(ds, k, List.length(&2, U32, ds), ""))
 
+# ---------------------------------------------------------------- S4.131 fast twin: integers below 2^48
+# EXP-001. The spec twin is shortest. TOON_SPEC=1 selects it everywhere. Laws: shortest_fast_*.
+
+# S4.131 the decimal digits of a Nat, most significant first (at most fuel of them)
+def nat.digits(fuel: Nat, n: Nat, acc: List<&2, U32>) -> List<&2, U32>:
+  match fuel n:
+    case 0n _:
+      acc
+    case 1n+p 0n:
+      acc
+    case 1n+p +m:
+      nat.digits(p, Nat.div(m, 10n), U32.from_nat(Nat.mod(m, 10n)) <> acc)
+
+# S4.131 whether a digit list starts with 0
+def zero_head(ds: List<&2, U32>) -> Bool:
+  match ds:
+    case Nil{}:
+      False{}
+    case Con{d, rest}:
+      U32.is_eq(d, 0)
+
+# S4.131 the loop of drop_zeros: stops at the first digit that is not 0
+def drop_zeros.go(ds: List<&2, U32>, zero: Bool) -> List<&2, U32>:
+  match ds zero:
+    case Con{d, +rest} True{}:
+      drop_zeros.go(rest, zero_head(rest))
+    case other _:
+      other
+
+# S4.131 drop the leading zeros of a digit list
+def drop_zeros(+ds: List<&2, U32>) -> List<&2, U32>:
+  drop_zeros.go(ds, zero_head(ds))
+
+# S4.131 the shortest digits of an integer are its own digits without the trailing zeros, and the
+# decimal point sits after ALL of its digits
+def short.of_digits(+ds: List<&2, U32>) -> Short:
+  Short{List.reverse(&2, U32, drop_zeros(List.reverse(&2, U32, ds))), Pos{T.llen(&2, U32, ds, 0n)}}
+
+# S4.131 whether a finite value is an integer below 2^48: a binary exponent in -52..0 whose shifted-out
+# bits are all zero, and at most 48 bits left
+type IntFit is Data:
+  IntFit{ok: Bool, q: List<&2, U32>}
+
+# S4.131 the shifted significand and its verdict
+def int.fit.q(p: List<&2, U32> & Bool) -> IntFit:
+  (+q, sticky) = p
+  IntFit{Bool.and(Bool.not(sticky), Nat.is_le(BN.bitlen(q, 0n), 48n)), q}
+
+# S4.131 only exponents -52..0 can denote such an integer with a 53-bit significand
+def int.fit(in_range: Bool, man: List<&2, U32>, tb: Nat) -> IntFit:
+  match in_range:
+    case False{}:
+      IntFit{False{}, Nil{}}
+    case True{}:
+      int.fit.q(BN.shr(man, Nat.sub(100000n, tb)))
+
+# S4.131 an integer below 2^48 prints its own digits; every other value takes the spec twin
+def shortest.pick(fit: IntFit, man: List<&2, U32>, tb: Nat, tie_up: Bool) -> Short:
+  match fit:
+    case IntFit{True{}, q}:
+      short.of_digits(nat.digits(16n, BN.to_nat(q), Nil{}))
+    case IntFit{False{}, q}:
+      shortest(man, tb, tie_up)
+
+# S4.131 the fast twin of shortest: an integer below 2^48 (a binary exponent in -52..0) through the gate
+def shortest_fast(+man: List<&2, U32>, +tb: Nat, tie_up: Bool, spec: Bool) -> Short:
+  shortest.pick(int.fit(twin.on(spec, Bool.and(Nat.is_le(tb, 100000n), Nat.is_ge(tb, 99948n))), man, tb), man, tb, tie_up)
+
 # S4.130 the TOON text of a number: 0 for zero, null for a non-finite value, else the shortest digits
 # with exact ties going up (S4.132), laid out per S5.31
 def show_toon(f: F64) -> String:
@@ -734,6 +924,16 @@ def show_toon(f: F64) -> String:
       "0"
     case FNum{n, tb, Con{h, t}}:
       toon.short(shortest(h <> t, tb, True{}), n)
+
+# S4.130 the fast twin of show_toon: the same layout over shortest_fast
+def show_toon_fast(f: F64, spec: Bool) -> String:
+  match f:
+    case FInf{n}:
+      "null"
+    case FNum{n, tb, Nil{}}:
+      "0"
+    case FNum{n, tb, Con{h, t}}:
+      toon.short(shortest_fast(h <> t, tb, True{}, spec), n)
 
 # S5.40 d1, then a point and the other digits when there are any
 def expo.mant(ds: List<&2, U32>) -> String:
@@ -785,6 +985,16 @@ def show_json(f: F64) -> String:
       "0.0"
     case FNum{n, tb, Con{h, t}}:
       json.short(shortest(h <> t, tb, False{}), n)
+
+# S4.170 the fast twin of show_json: the same layout over shortest_fast
+def show_json_fast(f: F64, spec: Bool) -> String:
+  match f:
+    case FInf{n}:
+      "null"
+    case FNum{n, tb, Nil{}}:
+      "0.0"
+    case FNum{n, tb, Con{h, t}}:
+      json.short(shortest_fast(h <> t, tb, False{}, spec), n)
 
 # ---------------------------------------------------------------- S4.141, S4.161 the two numeric grammars
 
@@ -927,27 +1137,27 @@ def lex.exp(eneg: Bool, x: Nat) -> Int:
       Pos{x}
 
 # S4.142 a token that matches the grammar is a number only when its value is finite
-def literal.value(ok: Bool, neg: Bool, ints: String, fracs: String, eneg: Bool, x: Nat) -> Maybe<&2, F64>:
+def literal.value(ok: Bool, neg: Bool, ints: String, fracs: String, eneg: Bool, x: Nat, spec: Bool) -> Maybe<&2, F64>:
   match ok:
     case False{}:
       None{}
     case True{}:
-      token_value(neg, String.reverse(ints), String.reverse(fracs), lex.exp(eneg, x))
+      token_value(neg, String.reverse(ints), String.reverse(fracs), lex.exp(eneg, x), spec)
 
 # S4.141 the grammar's verdict and the pieces it collected
-def literal.body(st: Lex, neg: Bool) -> Maybe<&2, F64>:
+def literal.body(st: Lex, neg: Bool, spec: Bool) -> Maybe<&2, F64>:
   match st:
     case Lex{ph, ints, fracs, eneg, x}:
-      literal.value(lex.ok(ph), neg, ints, fracs, eneg, x)
+      literal.value(lex.ok(ph), neg, ints, fracs, eneg, x, spec)
 
 # S4.141–S4.144 the number a (trimmed) TOON token denotes, or None when the token is not a finite
-# numeric literal and therefore a string
-def literal(s: String) -> Maybe<&2, F64>:
+# numeric literal and therefore a string. spec is the numeric kill-switch (TOON_SPEC=1).
+def literal(s: String, spec: Bool) -> Maybe<&2, F64>:
   match s:
     case SNil{}:
       None{}
     case SCon{Chr{+c}, rest}:
-      literal.body(lex.run(U32.is_eq(c, 45), c, rest, False{}), U32.is_eq(c, 45))
+      literal.body(lex.run(U32.is_eq(c, 45), c, rest, False{}), U32.is_eq(c, 45), spec)
 
 # ---------------------------------------------------------------- S1.74, S4.315, S4.316 the CLI's binary64 arithmetic
 
@@ -1018,3 +1228,31 @@ def fixed1(f: F64) -> String:
       fixed1.text(BN.to_nat(fixed1.tenths(Nat.is_ge(tb, 100000n), BN.mul_small(man, 10, 0), tb)))
     case FInf{neg}:
       "inf"
+
+# ---------------------------------------------------------------- S7.20 a text form of the exact value, for laws
+
+# S7.20 the limbs of a significand as text, least significant first
+def bits.limbs(m: List<&2, U32>, acc: String) -> String:
+  match m:
+    case Nil{}:
+      acc
+    case Con{x, t}:
+      bits.limbs(t, T.cat([acc, " ", U32.show(x)]))
+
+# S7.20 sign, biased binary exponent and limbs of a value as one text. Two values are the same binary64
+# exactly when their texts are equal. Laws compare these texts: the checker cannot compare two biased
+# exponents directly (a Nat near 100000 is expanded in unary when two terms are compared).
+def bits(f: F64) -> String:
+  match f:
+    case FInf{neg}:
+      Bool.pick(String, neg, "-inf", "inf")
+    case FNum{neg, tb, man}:
+      T.cat([Bool.pick(String, neg, "-", "+"), Nat.show(tb), ":", bits.limbs(man, SNil{})])
+
+# S7.20 the same for a value that may be absent
+def bits.opt(m: Maybe<&2, F64>) -> String:
+  match m:
+    case None{}:
+      "none"
+    case Some{f}:
+      bits(f)

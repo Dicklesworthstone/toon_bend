@@ -157,18 +157,28 @@ def converted(r: C.CR, +o: C.Opts) -> IO(Unit):
       put.out(C.o.has_out(o), out, o, stext)
 
 # S8.7, S8.8 the conversion starts only after the whole input was read
-def got.input(rb: RB, +o: C.Opts) -> IO(Unit):
+def got.input(rb: RB, +o: C.Opts, spec: Bool) -> IO(Unit):
   match rb:
     case RBFail{n, text}:
       IO.die(Unit, 1, read.msg(C.o.has_in(o), C.o.input(o), n, text))
     case RBOk{bytes}:
-      converted(C.convert(o, bytes), o)
+      converted(C.convert(o, bytes, spec), o)
+
+# S8.2 the numeric kill-switch: TOON_SPEC=1 makes every number take its spec twin (the bytes are the
+# same either way; the switch exists so that the two can be compared on the whole corpus)
+def spec.on(r: Result<&1, &1, U32 & String, String>) -> Bool:
+  match r:
+    case Done{v}:
+      T.str_eq(v, "1")
+    case Fail{e}:
+      False{}
 
 # S1.135 no input is read before the whole argv was accepted
 def run.opts(+o: C.Opts) -> IO(Unit):
   do IO<Unit>:
+    sw : Result<&1, &1, U32 & String, String> <- IO.get_env("TOON_SPEC")
     rb : RB <- read.input(C.o.has_in(o), C.o.input(o))
-    got.input(rb, o)
+    got.input(rb, o, spec.on(sw))
 
 # S1.20 help and version go to stdout with exit code 0; every argv error to stderr with exit code 2
 def run(p: C.Parsed) -> IO(Unit):

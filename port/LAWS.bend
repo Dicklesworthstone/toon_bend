@@ -10,6 +10,7 @@
 # and conform.sh. The scaffold's placeholder law over its stub core was replaced together with the stub.
 import Base
 import ./bignat.bend as BN
+import ./f64.bend as F
 import ./text.bend as T
 import ./json.bend as J
 import ./decode.bend as D
@@ -50,7 +51,8 @@ law json_error_is_sticky:
   for c: Nat
   for root: Maybe<&2, J.Json>
   for b: U32
-  {J.step(J.St{J.MErr{msg, el, ec}, stack, depth, l, c, root}, b) == J.St{J.MErr{msg, el, ec}, stack, depth, l, c, root} : J.St}
+  for spec: Bool
+  {J.step(J.St{J.MErr{msg, el, ec}, stack, depth, l, c, root}, b, spec) == J.St{J.MErr{msg, el, ec}, stack, depth, l, c, root} : J.St}
 
 # ---------------------------------------------------------------- modes
 
@@ -142,6 +144,139 @@ law stats_pct_18_75:
 # S4.315 two binary64 operations, not the exact ratio: 23/80 prints 28.7 (exact 28.75 would print 28.8)
 law stats_pct_double_rounding:
   {C.percent(23n, 80n) == "28.7" : String}
+
+# ---------------------------------------------------------------- fast == spec (Phase 5)
+#
+# TOON_SPEC=1 is read once by the shell and reaches every numeric fast twin as `spec`. The gate laws hold
+# for EVERY input. (A law "fast(x, True) == spec(x)" per twin cannot be checked: comparing the two sides
+# unfolds bodies that hold 100000-scale Nat literals over abstract arguments, and the checker's stack
+# overflows expanding them; the gate keeps the provable part apart.) With the switch off the
+# twins are bound by closed instances (both readers and both divisions against their spec twins, compared
+# through F.bits; the integer printer against pasted texts, because the spec generator does not normalize
+# within any budget: one value ran 25 minutes) and compared natively on generated values and on
+# the whole corpus on every lane with the switch off and on (perf/PERF-LEDGER.md); a universal law for
+# them needs the correctness theorems of shortest-digit generation and of limb-wise division, which are
+# not attempted.
+
+# S8.2 (EXP-001, EXP-002, EXP-003) with the switch on, NO fast twin is selected, whatever its own
+# applicability verdict says: every fast twin is a two-arm match on this gate (F.shortest_fast through
+# F.int.fit, F.int_text.ok, F.div_p10, F.from_dec_p10), and the other arm is its spec twin
+law twin_gate_switch:
+  for ok: Bool
+  {F.twin.on(True{}, ok) == False{} : Bool}
+
+# S8.2 with the switch off the gate is the twin's own verdict
+law twin_gate_open:
+  for ok: Bool
+  {F.twin.on(False{}, ok) == ok : Bool}
+
+# S4.131 (EXP-001) the integer twin prints an integer's own digits: 1500 is 1500 (trailing zeros return as layout)
+law show_toon_fast_1500:
+  {F.show_toon_fast(F.from_nat(1500n), False{}) == "1500" : String}
+
+# S4.170 (EXP-001) and the JSON layout adds .0
+law show_json_fast_1500:
+  {F.show_json_fast(F.from_nat(1500n), False{}) == "1500.0" : String}
+
+# S4.131 (EXP-001) one digit
+law show_toon_fast_one:
+  {F.show_toon_fast(F.from_nat(1n), False{}) == "1" : String}
+
+# S4.101 (EXP-002) the short-integer twin of the JSON number reader equals the literal path, bit for bit
+law serde_short_42:
+  {F.bits.opt(F.serde_value(False{}, "42", "", F.Pos{0n}, False{})) == F.bits.opt(F.serde_value(False{}, "42", "", F.Pos{0n}, True{})) : String}
+
+# S4.118 (EXP-002) a negative zero keeps the literal path in both settings
+law serde_short_zero:
+  {F.bits.opt(F.serde_value(True{}, "0", "", F.Pos{0n}, False{})) == F.bits.opt(F.serde_value(True{}, "0", "", F.Pos{0n}, True{})) : String}
+
+# S4.143 (EXP-002) the short-integer twin of the token reader equals the literal path
+law token_short_42:
+  {F.bits.opt(F.token_value(False{}, "42", "", F.Pos{0n}, False{})) == F.bits.opt(F.token_value(False{}, "42", "", F.Pos{0n}, True{})) : String}
+
+# S4.143 (EXP-002) with a sign
+law token_short_neg7:
+  {F.bits.opt(F.token_value(True{}, "7", "", F.Pos{0n}, False{})) == F.bits.opt(F.token_value(True{}, "7", "", F.Pos{0n}, True{})) : String}
+
+# S4.114 (EXP-003) 37 / 10 by short division equals the one IEEE division by the table entry
+law div_p10_37_1:
+  {F.bits(F.div_p10(F.from_nat(37n), 1n, False{})) == F.bits(F.div_p10(F.from_nat(37n), 1n, True{})) : String}
+
+# S4.114 (EXP-003) five factors of ten
+law div_p10_k5:
+  {F.bits(F.div_p10(F.from_nat(123457n), 5n, False{})) == F.bits(F.div_p10(F.from_nat(123457n), 5n, True{})) : String}
+
+# S4.114 (EXP-003) more than one single-limb division
+law div_p10_k7:
+  {F.bits(F.div_p10(F.from_nat(3n), 7n, False{})) == F.bits(F.div_p10(F.from_nat(3n), 7n, True{})) : String}
+
+# S4.143 (EXP-003) 37e-1 through the short division equals from_dec
+law from_dec_p10_37:
+  {F.bits(F.from_dec_p10(True{}, False{}, [37], 1n, False{})) == F.bits(F.from_dec(True{}, False{}, [37], 1n)) : String}
+
+# S4.143 (EXP-003) a 20-digit significand times 10^-30, negative
+law from_dec_p10_k30:
+  {F.bits(F.from_dec_p10(True{}, True{}, [2770, 60191, 43404, 43860], 30n, False{})) == F.bits(F.from_dec(True{}, True{}, [2770, 60191, 43404, 43860], 30n)) : String}
+
+# S4.101, S4.114 (EXP-003) the whole JSON number path on 3.7: fast twins and spec twins give the same bits
+law serde_decimal_3_7:
+  {F.bits.opt(F.serde_value(False{}, "3", "7", F.Pos{0n}, False{})) == F.bits.opt(F.serde_value(False{}, "3", "7", F.Pos{0n}, True{})) : String}
+
+# S4.143 (EXP-003) the whole token path on 3.7
+law token_decimal_3_7:
+  {F.bits.opt(F.token_value(False{}, "3", "7", F.Pos{0n}, False{})) == F.bits.opt(F.token_value(False{}, "3", "7", F.Pos{0n}, True{})) : String}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_a20_k0:
+  {BN.div_pow10([2770, 60191, 43404, 43860], 0n) == BN.div_pow10.spec([2770, 60191, 43404, 43860], 0n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_a20_k1:
+  {BN.div_pow10([2770, 60191, 43404, 43860], 1n) == BN.div_pow10.spec([2770, 60191, 43404, 43860], 1n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_a20_k5:
+  {BN.div_pow10([2770, 60191, 43404, 43860], 5n) == BN.div_pow10.spec([2770, 60191, 43404, 43860], 5n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_a20_k6:
+  {BN.div_pow10([2770, 60191, 43404, 43860], 6n) == BN.div_pow10.spec([2770, 60191, 43404, 43860], 6n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_a20_k7:
+  {BN.div_pow10([2770, 60191, 43404, 43860], 7n) == BN.div_pow10.spec([2770, 60191, 43404, 43860], 7n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_a20_k12:
+  {BN.div_pow10([2770, 60191, 43404, 43860], 12n) == BN.div_pow10.spec([2770, 60191, 43404, 43860], 12n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_a20_k19:
+  {BN.div_pow10([2770, 60191, 43404, 43860], 19n) == BN.div_pow10.spec([2770, 60191, 43404, 43860], 19n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_a20_k22:
+  {BN.div_pow10([2770, 60191, 43404, 43860], 22n) == BN.div_pow10.spec([2770, 60191, 43404, 43860], 22n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_a20_k23:
+  {BN.div_pow10([2770, 60191, 43404, 43860], 23n) == BN.div_pow10.spec([2770, 60191, 43404, 43860], 23n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_multiple_k7:
+  {BN.div_pow10([50048, 457], 7n) == BN.div_pow10.spec([50048, 457], 7n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_below_multiple_k7:
+  {BN.div_pow10([50047, 457], 7n) == BN.div_pow10.spec([50047, 457], 7n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_one_k1:
+  {BN.div_pow10([1], 1n) == BN.div_pow10.spec([1], 1n) : BN.P5}
+
+# S7.21 (EXP-003) the short division equals the restoring division
+law div_pow10_zero_k3:
+  {BN.div_pow10(Nil{}, 3n) == BN.div_pow10.spec(Nil{}, 3n) : BN.P5}
 
 # ---------------------------------------------------------------- closed goldens of the WHOLE pure core
 #

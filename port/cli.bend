@@ -581,7 +581,7 @@ def int.show(neg: Bool, +c: String) -> String:
 def indent.small(short: Bool, c: String) -> Nat:
   match short:
     case True{}:
-      D.nat.of(c, 0n)
+      T.nat_of(c, 0n)
     case False{}:
       17n
 
@@ -644,7 +644,7 @@ def budget.reason(kind: Nat, large: Bool) -> String:
 def budget.value(short: Bool, c: String) -> Nat:
   match short:
     case True{}:
-      D.nat.of(c, 0n)
+      T.nat_of(c, 0n)
     case False{}:
       1000n
 
@@ -1108,20 +1108,20 @@ def enc.read(p: J.Parsed, o: E.Opts, stats: Bool, text: String) -> CR:
 
 # S9.3 a TOON failure is the decoder's message verbatim; S5.101 otherwise the JSON text and one LF.
 # The writer's escape table follows the consumer (S3.24): writer B after path expansion.
-def dec.done(r: D.DR, indent: Nat, expand: Bool) -> CR:
+def dec.done(r: D.DR, indent: Nat, expand: Bool, spec: Bool) -> CR:
   match r:
     case D.DErr{msg}:
       CErr{msg}
     case D.DOk{v}:
-      COk{J.write_ln(v, indent, expand), SNil{}}
+      COk{J.write_ln(v, indent, expand, spec), SNil{}}
 
 # S4.200 (5) path expansion only with --expand-paths safe
-def dec.run(expand: Bool, text: String, strict: Bool, indent: Nat) -> D.DR:
+def dec.run(expand: Bool, text: String, strict: Bool, indent: Nat, spec: Bool) -> D.DR:
   match expand:
     case True{}:
-      D.decode_expanded(text, strict, indent)
+      D.decode_expanded(text, strict, indent, spec)
     case False{}:
-      D.decode(text, strict, indent)
+      D.decode(text, strict, indent, spec)
 
 # S9.7, S9.8 the UTF-8 failure names stdin or the path as typed
 def utf8.msg(has_in: Bool, input: String) -> String:
@@ -1133,18 +1133,19 @@ def utf8.msg(has_in: Bool, input: String) -> String:
 
 # S8.7 the complete input is validated as UTF-8 before any parsing (S9.10); S8.8 then the conversion,
 # a pure function of the text and the options
-def convert.text(m: Maybe<&2, String>, o: Opts, bytes: List<&2, U32>) -> CR:
+def convert.text(m: Maybe<&2, String>, o: Opts, bytes: List<&2, U32>, +spec: Bool) -> CR:
   match m o:
     case None{} Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
       CErr{utf8.msg(has_in, input)}
     case Some{rev} Opts{has_in, input, has_out, output, False{}, delim, indent, strict, fold, budget, expand, stats}:
-      enc.read(J.read(bytes), E.Opts{indent, delim, fold, budget}, stats, String.reverse(rev))
+      enc.read(J.read(bytes, spec), E.Opts{indent, delim, fold, budget, spec}, stats, String.reverse(rev))
     case Some{rev} Opts{has_in, input, has_out, output, True{}, delim, +indent, strict, fold, budget, +expand, stats}:
-      dec.done(dec.run(expand, String.reverse(rev), strict, indent), indent, expand)
+      dec.done(dec.run(expand, String.reverse(rev), strict, indent, spec), indent, expand, spec)
 
-# S8.7, S8.8 input bytes to output text
-def convert(o: Opts, +bytes: List<&2, U32>) -> CR:
-  convert.text(T.utf8.finish(T.utf8.bytes(bytes, T.utf8.init())), o, bytes)
+# S8.7, S8.8 input bytes to output text. spec is the numeric kill-switch (TOON_SPEC=1, read once by the
+# shell): with it every number takes its spec twin; the bytes are the same either way.
+def convert(o: Opts, +bytes: List<&2, U32>, spec: Bool) -> CR:
+  convert.text(T.utf8.finish(T.utf8.bytes(bytes, T.utf8.init())), o, bytes, spec)
 
 # S5.107 the input label: the literal `stdin`, or the INPUT word exactly as typed
 def label.in(has_in: Bool, input: String) -> String:
@@ -1212,7 +1213,7 @@ def run.parsed(p: Parsed, bytes: List<&2, U32>) -> Out:
     case PExit{code, out, err}:
       Out{code, out, err}
     case PRun{o}:
-      run.cr(convert(o, bytes))
+      run.cr(convert(o, bytes, False{}))
 
 # S5.112 argv and input bytes to the program's observable result (without the success line of -o)
 def run_pure(argv: List<&2, String>, bytes: List<&2, U32>) -> Out:

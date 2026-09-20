@@ -3,6 +3,7 @@
 # "All terms check." (state the unsafe count from the same output beside every parity claim).
 import Base
 import ./bignat.bend as BN
+import ./f64.bend as F
 import ./text.bend as T
 import ./json.bend as J
 import ./decode.bend as D
@@ -47,7 +48,7 @@ def Laws.decode_root_ends_pass(ls, b, v):
           {==}
 
 # S2.45 the first arm of step
-def Laws.json_error_is_sticky(msg, el, ec, stack, depth, l, c, root, b):
+def Laws.json_error_is_sticky(msg, el, ec, stack, depth, l, c, root, b, spec):
   {==}
 
 # S4.217 the first arm of close.msg
@@ -130,6 +131,124 @@ def Laws.stats_pct_18_75():
 
 # S4.315
 def Laws.stats_pct_double_rounding():
+  {==}
+
+# ---------------------------------------------------------------- fast == spec (Phase 5)
+
+# S8.2 the first arm of the gate
+def Laws.twin_gate_switch(ok):
+  {==}
+
+# S8.2 the second arm of the gate
+def Laws.twin_gate_open(ok):
+  {==}
+
+# S4.131 computed
+def Laws.show_toon_fast_1500():
+  {==}
+
+# S4.170 computed
+def Laws.show_json_fast_1500():
+  {==}
+
+# S4.131 computed
+def Laws.show_toon_fast_one():
+  {==}
+
+# S4.101 computed
+def Laws.serde_short_42():
+  {==}
+
+# S4.118 computed
+def Laws.serde_short_zero():
+  {==}
+
+# S4.143 computed
+def Laws.token_short_42():
+  {==}
+
+# S4.143 computed
+def Laws.token_short_neg7():
+  {==}
+
+# S4.114 computed
+def Laws.div_p10_37_1():
+  {==}
+
+# S4.114 computed
+def Laws.div_p10_k5():
+  {==}
+
+# S4.114 computed
+def Laws.div_p10_k7():
+  {==}
+
+# S4.143 computed
+def Laws.from_dec_p10_37():
+  {==}
+
+# S4.143 computed
+def Laws.from_dec_p10_k30():
+  {==}
+
+# S4.101, computed
+def Laws.serde_decimal_3_7():
+  {==}
+
+# S4.143 computed
+def Laws.token_decimal_3_7():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_a20_k0():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_a20_k1():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_a20_k5():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_a20_k6():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_a20_k7():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_a20_k12():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_a20_k19():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_a20_k22():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_a20_k23():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_multiple_k7():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_below_multiple_k7():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_one_k1():
+  {==}
+
+# S7.21 both sides computed
+def Laws.div_pow10_zero_k3():
   {==}
 
 # ---------------------------------------------------------------- closed goldens of the whole pure core:

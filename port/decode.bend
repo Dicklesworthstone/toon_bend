@@ -258,7 +258,7 @@ def prim.num(m: Maybe<&2, F.F64>, t: String) -> RV:
       RVOk{J.JStr{t}}
 
 # S2.124 (3) exactly true, false or null, case-sensitive
-def prim.word(tr: Bool, fa: Bool, nu: Bool, +t: String) -> RV:
+def prim.word(tr: Bool, fa: Bool, nu: Bool, +t: String, spec: Bool) -> RV:
   match tr fa nu:
     case True{} _ _:
       RVOk{J.JBool{True{}}}
@@ -267,31 +267,31 @@ def prim.word(tr: Bool, fa: Bool, nu: Bool, +t: String) -> RV:
     case False{} False{} True{}:
       RVOk{J.JNull{}}
     case False{} False{} False{}:
-      prim.num(F.literal(t), t)
+      prim.num(F.literal(t, spec), t)
 
 # S2.124 a bare token: a word, a number, or itself
-def prim.bare(+t: String) -> RV:
-  prim.word(T.str_eq(t, "true"), T.str_eq(t, "false"), T.str_eq(t, "null"), t)
+def prim.bare(+t: String, spec: Bool) -> RV:
+  prim.word(T.str_eq(t, "true"), T.str_eq(t, "false"), T.str_eq(t, "null"), t, spec)
 
 # S2.124 (2) a token that starts with a double quote is a string literal, errors included
-def prim.first(q: Bool, c: U32, rest: String) -> RV:
+def prim.first(q: Bool, c: U32, rest: String, spec: Bool) -> RV:
   match q:
     case True{}:
       prim.lit(lit(rest))
     case False{}:
-      prim.bare(SCon{Chr{c}, rest})
+      prim.bare(SCon{Chr{c}, rest}, spec)
 
 # S2.124 the primitive a TRIMMED token denotes; (1) the empty token is the empty string
-def prim.t(t: String) -> RV:
+def prim.t(t: String, spec: Bool) -> RV:
   match t:
     case SNil{}:
       RVOk{J.JStr{SNil{}}}
     case SCon{Chr{+c}, rest}:
-      prim.first(U32.is_eq(c, 34), c, rest)
+      prim.first(U32.is_eq(c, 34), c, rest, spec)
 
 # S2.124 the primitive a token denotes
-def prim(token: String) -> RV:
-  prim.t(T.trim(token))
+def prim(token: String, spec: Bool) -> RV:
+  prim.t(T.trim(token), spec)
 
 # S2.125 splitter state: inside quotes; the previous character was a backslash inside quotes; the
 # current value, reversed; the finished values, newest first
@@ -570,14 +570,6 @@ def hdr.g(fr: FRes, has_key: Bool, key: String, quoted: Bool, n: Nat, delim: U32
     case FROk{rev}:
       HOk{has_key, key, quoted, n, delim, has_seg, List.reverse(&2, Field, rev), inline}
 
-# S7.34 the value of a short digit string
-def nat.of(s: String, acc: Nat) -> Nat:
-  match s:
-    case SNil{}:
-      acc
-    case SCon{Chr{c}, rest}:
-      nat.of(rest, Nat.add(Nat.mul(acc, 10n), U32.to_nat((c - 48 : U32))))
-
 # S2.136 the cap: a canonical length above 100000000 fails in both modes (S9.107 prints it as parsed,
 # without `+` and without leading zeros); S2.137 then the field names, split with the header's delimiter
 def hdr.f(over: Bool, +digits: String, has_key: Bool, key: String, quoted: Bool, +delim: U32, has_seg: Bool, seg: String, inline: String) -> Hdr:
@@ -585,7 +577,7 @@ def hdr.f(over: Bool, +digits: String, has_key: Bool, key: String, quoted: Bool,
     case True{}:
       HErr{"Declared array length " ++ digits ++ " exceeds maximum allowed (100000000)"}
     case False{}:
-      hdr.g(fields.go(split(seg, delim), FROk{Nil{}}), has_key, key, quoted, nat.of(digits, 0n), delim, has_seg, inline)
+      hdr.g(fields.go(split(seg, delim), FROk{Nil{}}), has_key, key, quoted, T.nat_of(digits, 0n), delim, has_seg, inline)
 
 # S2.135 what stands between the brackets: usable or not, the delimiter, the canonical digits
 type HL is Data:
@@ -671,7 +663,7 @@ def len.over(long: Bool, digits: String) -> Bool:
     case True{}:
       True{}
     case False{}:
-      Nat.is_gt(nat.of(digits, 0n), 100000000n)
+      Nat.is_gt(T.nat_of(digits, 0n), 100000000n)
 
 # S2.139 (4) bad bracket content is "not a header", silently; (5) then the cap
 def hdr.e(l: HL, has_key: Bool, key: String, quoted: Bool, has_seg: Bool, seg: String, inline: String) -> Hdr:
@@ -812,9 +804,15 @@ type Frame is Data:
   FList{rev: J.Json, n: Nat, cnt: Nat, t: Nat, first: Nat}
 
 # S3.29 what does not change shape during the pass: strict mode, the blank-line numbers (ascending),
-# and the number of the line consumed last
+# the number of the line consumed last, and the numeric kill-switch (TOON_SPEC=1)
 type G is Data:
-  G{strict: Bool, blanks: List<&2, Nat>, last: Nat}
+  G{strict: Bool, blanks: List<&2, Nat>, last: Nat, spec: Bool}
+
+# S3.29 the numeric kill-switch (TOON_SPEC=1)
+def g.spec(g: G) -> Bool:
+  match g:
+    case G{strict, blanks, last, spec}:
+      spec
 
 # S3.29 one line of look-ahead: the next unread line's depth and content, or the end
 type Peek is Data:
@@ -977,10 +975,10 @@ def pop(frames: List<&2, Frame>, +pk: Peek, g: G) -> Step:
       SErr{"internal: nothing to close"}
     case Con{FObj{rev, d, item, key, q}, more} g0:
       attach(J.JObj{J.rev_entries(rev, J.JNil{})}, more, pk, g0)
-    case Con{FTab{rev, +n, +cnt, r, fields, nf, delim, first}, more} G{+strict, +blanks, +last}:
-      close.fin(close.msg(strict, Nat.is_ne(cnt, n), blank.in(blanks, first, last), surplus.tab(pk, r, delim), True{}, n, cnt), J.JArr{cnt, J.rev_items(rev, J.JNil{})}, more, pk, G{strict, blanks, last})
-    case Con{FList{rev, +n, +cnt, t, first}, more} G{+strict, +blanks, +last}:
-      close.fin(close.msg(strict, Nat.is_ne(cnt, n), blank.in(blanks, first, last), surplus.list(pk, t), False{}, n, cnt), J.JArr{cnt, J.rev_items(rev, J.JNil{})}, more, pk, G{strict, blanks, last})
+    case Con{FTab{rev, +n, +cnt, r, fields, nf, delim, first}, more} G{+strict, +blanks, +last, spec}:
+      close.fin(close.msg(strict, Nat.is_ne(cnt, n), blank.in(blanks, first, last), surplus.tab(pk, r, delim), True{}, n, cnt), J.JArr{cnt, J.rev_items(rev, J.JNil{})}, more, pk, G{strict, blanks, last, spec})
+    case Con{FList{rev, +n, +cnt, t, first}, more} G{+strict, +blanks, +last, spec}:
+      close.fin(close.msg(strict, Nat.is_ne(cnt, n), blank.in(blanks, first, last), surplus.list(pk, t), False{}, n, cnt), J.JArr{cnt, J.rev_items(rev, J.JNil{})}, more, pk, G{strict, blanks, last, spec})
 
 # S4.211 the primitives of a value list so far (newest first) and their count, or the first failure
 type PR is Data:
@@ -996,14 +994,14 @@ def prims.add(r: RV, rev: J.Json, cnt: Nat) -> PR:
       PRErr{msg}
 
 # S4.211, S9.143 EVERY value becomes a primitive, leftmost failure first, before anything is counted
-def prims.go(vals: List<&2, String>, st: PR) -> PR:
+def prims.go(vals: List<&2, String>, st: PR, +spec: Bool) -> PR:
   match vals st:
     case Nil{} s:
       s
     case Con{v, rest} PRErr{msg}:
       PRErr{msg}
     case Con{v, rest} PROk{rev, cnt}:
-      prims.go(rest, prims.add(prim(v), rev, cnt))
+      prims.go(rest, prims.add(prim(v, spec), rev, cnt), spec)
 
 # S4.211 strict: the number of values must equal N (S9.108); lenient: all values are kept
 def inline.fin(bad: Bool, +n: Nat, +cnt: Nat, rev: J.Json, frames: List<&2, Frame>, pk: Peek, g: G) -> Step:
@@ -1018,16 +1016,16 @@ def inline(pr: PR, +n: Nat, frames: List<&2, Frame>, pk: Peek, g: G) -> Step:
   match pr g:
     case PRErr{msg} g0:
       SErr{msg}
-    case PROk{rev, +cnt} G{+strict, blanks, last}:
-      inline.fin(Bool.and(strict, Nat.is_ne(cnt, n)), n, cnt, rev, frames, pk, G{strict, blanks, last})
+    case PROk{rev, +cnt} G{+strict, blanks, last, spec}:
+      inline.fin(Bool.and(strict, Nat.is_ne(cnt, n)), n, cnt, rev, frames, pk, G{strict, blanks, last, spec})
 
 # S4.210 the body of a parsed header at base depth d: inline values win even over a fields segment
 # (S10.87); else a tabular body when there is at least one field name; else a list body (also for
 # `k[0]:` and `k[N]{}:`, S4.216). Rows and items are expected at depth d + 1.
-def array(has_inline: Bool, has_fields: Bool, n: Nat, +delim: U32, +fields: List<&2, Field>, inline_text: String, d: Nat, frames: List<&2, Frame>, pk: Peek, g: G) -> Step:
+def array(has_inline: Bool, has_fields: Bool, n: Nat, +delim: U32, +fields: List<&2, Field>, inline_text: String, d: Nat, frames: List<&2, Frame>, pk: Peek, +g: G) -> Step:
   match has_inline has_fields:
     case True{} _:
-      inline(prims.go(split(inline_text, delim), PROk{J.JNil{}, 0n}), n, frames, pk, g)
+      inline(prims.go(split(inline_text, delim), PROk{J.JNil{}, 0n}, g.spec(g)), n, frames, pk, g)
     case False{} True{}:
       decide(FTab{J.JNil{}, n, 0n, 1n+d, fields, T.llen(&2, Field, fields, 0n), delim, 0n} <> frames, pk, g)
     case False{} False{}:
@@ -1052,10 +1050,10 @@ def deeper(pk: Peek, d: Nat) -> Nat:
 
 # S4.205 (b) a non-empty value text is a primitive (never split on delimiters); an empty one is a
 # nested object when the next line is deeper, else the empty object
-def eat.kv.val(empty: Bool, dd: Nat, val: String, frames: List<&2, Frame>, pk: Peek, g: G) -> Step:
+def eat.kv.val(empty: Bool, dd: Nat, val: String, frames: List<&2, Frame>, pk: Peek, +g: G) -> Step:
   match empty dd:
     case False{} _:
-      eat.prim(prim(val), frames, pk, g)
+      eat.prim(prim(val, g.spec(g)), frames, pk, g)
     case True{} 0n:
       attach(J.JObj{J.JNil{}}, frames, pk, g)
     case True{} 1n+p:
@@ -1100,18 +1098,18 @@ def row.fin(pr: PR, +num: Nat, rev: J.Json, n: Nat, cnt: Nat, r: Nat, +fields: L
       decide(FTab{J.JCons{J.JObj{J.rev_entries(row.zip(fields, J.rev_items(prev, J.JNil{}), J.JNil{}), J.JNil{})}, rev}, n, 1n+cnt, r, fields, nf, delim, Bool.pick(Nat, Nat.is_eq(first, 0n), num, first)} <> more, pk, g)
 
 # S4.212, S9.144 strict: the width is checked BEFORE the values are turned into primitives (S9.109)
-def row.width(bad: Bool, +vals: List<&2, String>, num: Nat, rev: J.Json, n: Nat, cnt: Nat, r: Nat, fields: List<&2, Field>, +nf: Nat, delim: U32, first: Nat, more: List<&2, Frame>, pk: Peek, g: G) -> Step:
+def row.width(bad: Bool, +vals: List<&2, String>, num: Nat, rev: J.Json, n: Nat, cnt: Nat, r: Nat, fields: List<&2, Field>, +nf: Nat, delim: U32, first: Nat, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
   match bad:
     case True{}:
       SErr{"Expected " ++ Nat.show(nf) ++ " tabular row values, but got " ++ Nat.show(T.llen(&2, String, vals, 0n))}
     case False{}:
-      row.fin(prims.go(vals, PROk{J.JNil{}, 0n}), num, rev, n, cnt, r, fields, nf, delim, first, more, pk, g)
+      row.fin(prims.go(vals, PROk{J.JNil{}, 0n}, g.spec(g)), num, rev, n, cnt, r, fields, nf, delim, first, more, pk, g)
 
 # S4.212 one row: the line split with the header's delimiter
 def eat.row(+vals: List<&2, String>, num: Nat, rev: J.Json, n: Nat, cnt: Nat, r: Nat, fields: List<&2, Field>, +nf: Nat, delim: U32, first: Nat, more: List<&2, Frame>, pk: Peek, g: G) -> Step:
   match g:
-    case G{+strict, blanks, last}:
-      row.width(Bool.and(strict, Nat.is_ne(T.llen(&2, String, vals, 0n), nf)), vals, num, rev, n, cnt, r, fields, nf, delim, first, more, pk, G{strict, blanks, last})
+    case G{+strict, blanks, last, spec}:
+      row.width(Bool.and(strict, Nat.is_ne(T.llen(&2, String, vals, 0n), nf)), vals, num, rev, n, cnt, r, fields, nf, delim, first, more, pk, G{strict, blanks, last, spec})
 
 # S4.221 the text after the two-character marker `- ` (nothing for the bare marker `-`), not trimmed
 def item.rest(content: String) -> String:
@@ -1127,7 +1125,7 @@ def item.rest(content: String) -> String:
 # an unquoted ':' is a nested array at base depth t; a header with a key AND a fields segment opens an
 # item object whose first field is that array at base depth t + 1; a ':' outside quotes makes R the
 # first key-value line of an item object at base depth t + 1; anything else is a primitive.
-def item.route(blank: Bool, h: Hdr, br: Bool, colon: Bool, r: String, lst: Frame, more: List<&2, Frame>, +t: Nat, pk: Peek, g: G) -> Step:
+def item.route(blank: Bool, h: Hdr, br: Bool, colon: Bool, r: String, lst: Frame, more: List<&2, Frame>, +t: Nat, pk: Peek, +g: G) -> Step:
   match blank h br colon:
     case True{} _ _ _:
       attach(J.JObj{J.JNil{}}, lst <> more, pk, g)
@@ -1140,7 +1138,7 @@ def item.route(blank: Bool, h: Hdr, br: Bool, colon: Bool, r: String, lst: Frame
     case False{} h0 _ True{}:
       eat.kv(h0, r, pk, J.JNil{}, 1n+t, True{}, lst <> more, g)
     case False{} h0 _ False{}:
-      eat.prim(prim(r), lst <> more, pk, g)
+      eat.prim(prim(r, g.spec(g)), lst <> more, pk, g)
 
 # S4.220–S4.226 one list item
 def eat.item(+r: String, lst: Frame, more: List<&2, Frame>, t: Nat, pk: Peek, g: G) -> Step:
@@ -1152,12 +1150,12 @@ def eat(l: Line, pk: Peek, frames: List<&2, Frame>, g: G) -> Step:
   match l frames g:
     case Line{num, depth, content} Nil{} g0:
       SErr{"internal: a line with nothing open"}
-    case Line{num, depth, +content} Con{FObj{rev, d, item, key, q}, more} G{strict, blanks, last}:
-      eat.kv(header(content), content, pk, rev, d, item, more, G{strict, blanks, num})
-    case Line{num, depth, content} Con{FTab{rev, n, cnt, r, fields, nf, +delim, first}, more} G{strict, blanks, last}:
-      eat.row(split(content, delim), num, rev, n, cnt, r, fields, nf, delim, first, more, pk, G{strict, blanks, num})
-    case Line{+num, depth, content} Con{FList{rev, n, cnt, +t, +first}, more} G{strict, blanks, last}:
-      eat.item(item.rest(content), FList{rev, n, cnt, t, Bool.pick(Nat, Nat.is_eq(first, 0n), num, first)}, more, t, pk, G{strict, blanks, num})
+    case Line{num, depth, +content} Con{FObj{rev, d, item, key, q}, more} G{strict, blanks, last, spec}:
+      eat.kv(header(content), content, pk, rev, d, item, more, G{strict, blanks, num, spec})
+    case Line{num, depth, content} Con{FTab{rev, n, cnt, r, fields, nf, +delim, first}, more} G{strict, blanks, last, spec}:
+      eat.row(split(content, delim), num, rev, n, cnt, r, fields, nf, delim, first, more, pk, G{strict, blanks, num, spec})
+    case Line{+num, depth, content} Con{FList{rev, n, cnt, +t, +first}, more} G{strict, blanks, last, spec}:
+      eat.item(item.rest(content), FList{rev, n, cnt, t, Bool.pick(Nat, Nat.is_eq(first, 0n), num, first)}, more, t, pk, G{strict, blanks, num, spec})
 
 # S4.200 (4) the outcome of decoding
 type DR is Data:
@@ -1218,53 +1216,53 @@ def root.prim(r: RV) -> DR:
 # S4.203 exactly ONE non-blank line that is not key-value by the root rule is the root primitive;
 # S4.204 every other document is a root object: its first line is a field at base depth 0 whatever
 # its own depth
-def root.object(single: Bool, is_kv: Bool, line: Line, rest: List<&2, Line>, g: G) -> DR:
+def root.object(single: Bool, is_kv: Bool, line: Line, rest: List<&2, Line>, +g: G) -> DR:
   match single is_kv line:
     case True{} False{} Line{num, depth, content}:
-      root.prim(prim(content))
+      root.prim(prim(content, g.spec(g)))
     case _ _ l:
       run(l <> rest, 8n, SEat{FObj{J.JNil{}, 0n, False{}, SNil{}, False{}} <> Nil{}, g})
 
 # S4.202 the root-array test, third part: the first line parses as a header (failures surface): the
 # array is decoded at base depth 0 whatever the line's own depth. A content that is not a header falls
 # through to S4.203 / S4.204.
-def root.array(h: Hdr, +num: Nat, depth: Nat, +content: String, +rest: List<&2, Line>, strict: Bool, blanks: List<&2, Nat>) -> DR:
+def root.array(h: Hdr, +num: Nat, depth: Nat, +content: String, +rest: List<&2, Line>, strict: Bool, blanks: List<&2, Nat>, spec: Bool) -> DR:
   match h:
     case HErr{msg}:
       DErr{msg}
     case HOk{hk, key, quoted, n, delim, has_seg, +fields, +inline_text}:
-      run(rest, 8n, array(Bool.not(String.is_empty(inline_text)), Bool.not(List.is_empty(&2, Field, fields)), n, delim, fields, inline_text, 0n, Nil{}, peek(rest), G{strict, blanks, num}))
+      run(rest, 8n, array(Bool.not(String.is_empty(inline_text)), Bool.not(List.is_empty(&2, Field, fields)), n, delim, fields, inline_text, 0n, Nil{}, peek(rest), G{strict, blanks, num, spec}))
     case HNot{}:
-      root.object(List.is_empty(&2, Line, rest), root.is_kv(content), Line{num, depth, content}, rest, G{strict, blanks, 0n})
+      root.object(List.is_empty(&2, Line, rest), root.is_kv(content), Line{num, depth, content}, rest, G{strict, blanks, 0n, spec})
 
 # S4.202 the root-array test, first two parts: after leading White_Space the content starts with '['
 # and it has a ':' outside quotes
-def root.first(arr: Bool, +num: Nat, depth: Nat, +content: String, +rest: List<&2, Line>, strict: Bool, blanks: List<&2, Nat>) -> DR:
+def root.first(arr: Bool, +num: Nat, depth: Nat, +content: String, +rest: List<&2, Line>, strict: Bool, blanks: List<&2, Nat>, spec: Bool) -> DR:
   match arr:
     case True{}:
-      root.array(header(content), num, depth, content, rest, strict, blanks)
+      root.array(header(content), num, depth, content, rest, strict, blanks, spec)
     case False{}:
-      root.object(List.is_empty(&2, Line, rest), root.is_kv(content), Line{num, depth, content}, rest, G{strict, blanks, 0n})
+      root.object(List.is_empty(&2, Line, rest), root.is_kv(content), Line{num, depth, content}, rest, G{strict, blanks, 0n, spec})
 
 # S4.201 no non-blank line is the empty object; otherwise the FIRST non-blank line selects the root form
-def root(lines: List<&2, Line>, strict: Bool, blanks: List<&2, Nat>) -> DR:
+def root(lines: List<&2, Line>, strict: Bool, blanks: List<&2, Nat>, spec: Bool) -> DR:
   match lines:
     case Nil{}:
       DOk{J.JObj{J.JNil{}}}
     case Con{Line{num, depth, +content}, rest}:
-      root.first(Bool.and(T.head_is(T.trim_start(content), 91), has_colon(content)), num, depth, content, rest, strict, blanks)
+      root.first(Bool.and(T.head_is(T.trim_start(content), 91), has_colon(content)), num, depth, content, rest, strict, blanks, spec)
 
 # S4.200 (3), (4) scan everything first (S2.111), then one structural pass
-def decode.scanned(s: Scan, +strict: Bool) -> DR:
+def decode.scanned(s: Scan, +strict: Bool, spec: Bool) -> DR:
   match s:
     case ScanErr{msg}:
       DErr{msg}
     case ScanOk{lines, blanks}:
-      root(lines, strict, blanks)
+      root(lines, strict, blanks, spec)
 
 # S4.200 the value of a TOON text with indent size `unit` (no path expansion)
-def decode(text: String, +strict: Bool, unit: Nat) -> DR:
-  decode.scanned(scan(text, strict, unit), strict)
+def decode(text: String, +strict: Bool, unit: Nat, spec: Bool) -> DR:
+  decode.scanned(scan(text, strict, unit), strict, spec)
 
 # ---------------------------------------------------------------- S4.240–S4.249 safe path expansion
 #
@@ -1617,5 +1615,5 @@ def decode.x(r: DR, strict: Bool) -> DR:
       decode.x.fin(expand(v, XVal{256n}, strict))
 
 # S4.200 (5) the value of a TOON text under `--expand-paths safe`
-def decode_expanded(text: String, +strict: Bool, unit: Nat) -> DR:
-  decode.x(decode(text, strict, unit), strict)
+def decode_expanded(text: String, +strict: Bool, unit: Nat, spec: Bool) -> DR:
+  decode.x(decode(text, strict, unit, spec), strict)

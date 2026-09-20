@@ -224,7 +224,9 @@ def find_law_mentions(laws_path):
     # Comments and unrelated defs are not evidence that a law names a twin.
     _, blocks = parse(laws_path)
     law_text = '\n'.join(b.header + '\n' + b.text() for b in blocks if b.kind == 'law')
-    names = set(re.findall(r"\b(?:L\.)?([A-Za-z_][\w.]*)\(", law_text))
+    # A law names a def through its import alias (`L.f(`, `BN.div_pow10(`, `C.run_pure(`): aliases are
+    # capitalized, def names here are not, so one leading capitalized segment is the alias.
+    names = set(re.findall(r"\b(?:[A-Z][A-Za-z0-9]*\.)?([a-z_][\w.]*)\(", law_text))
     law_lines = [(i, t) for i, t in enumerate(text.split("\n"), 1)]
     return names, law_lines
 

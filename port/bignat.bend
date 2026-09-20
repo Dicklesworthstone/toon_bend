@@ -321,3 +321,70 @@ def to_nat.go(hi_first: List<&2, U32>, acc: Nat) -> Nat:
 # S7.7 the value of a SMALL big natural as a Nat (the caller bounds it below 2^48)
 def to_nat(a: List<&2, U32>) -> Nat:
   to_nat.go(List.reverse(&2, U32, a), 0n)
+
+# ---------------------------------------------------------------- S7.21 fast twin: division by a power of ten
+# EXP-003. The spec twin is divmod. floor(floor(a/x)/y) = floor(a/(x*y)), and a mod (x*y) is nonzero
+# exactly when a mod x is nonzero or floor(a/x) mod y is: so 10^k is taken as k bits and ceil(k/6)
+# single-limb divisors 5^6.
+
+# S7.21 one single-limb division, from the most significant limb down: r < d <= 65535 keeps
+# r * 65536 + limb below 2^32
+def div_small.go(hi_first: List<&2, U32>, +d: U32, r: U32, acc: List<&2, U32>) -> List<&2, U32> & U32:
+  match hi_first:
+    case Nil{}:
+      (acc, r)
+    case Con{x, t}:
+      +cur = ((r << 16n) .|. x : U32)
+      div_small.go(t, d, U32.mod(cur, d), U32.div(cur, d) <> acc)
+
+# S7.21 a quotient so far and whether any remainder was nonzero
+type P5 is Data:
+  P5{a: List<&2, U32>, sticky: Bool}
+
+# S7.21 fold one single-limb division into the state
+def p5.fold(p: List<&2, U32> & U32, sticky: Bool) -> P5:
+  (q, r) = p
+  P5{strip(q), Bool.or(sticky, Bool.not(U32.is_eq(r, 0)))}
+
+# S7.21 divide the state by a single limb d > 1
+def p5.step(st: P5, d: U32) -> P5:
+  match st:
+    case P5{a, sticky}:
+      p5.fold(div_small.go(List.reverse(&2, U32, a), d, 0, Nil{}), sticky)
+
+# S7.21 divide by 5^k: six factors at a time, then the rest
+def div_pow5(k: Nat, st: P5) -> P5:
+  match k:
+    case 0n:
+      st
+    case 1n:
+      p5.step(st, 5)
+    case 2n:
+      p5.step(st, 25)
+    case 3n:
+      p5.step(st, 125)
+    case 4n:
+      p5.step(st, 625)
+    case 5n:
+      p5.step(st, 3125)
+    case 6n+p:
+      div_pow5(p, p5.step(st, 15625))
+
+# S7.21 the shifted-out bits are the first remainder
+def p5.of_shift(p: List<&2, U32> & Bool) -> P5:
+  (q, sticky) = p
+  P5{q, sticky}
+
+# S7.21 floor(a / 10^k) and whether a is not a multiple of 10^k
+def div_pow10(a: List<&2, U32>, +k: Nat) -> P5:
+  div_pow5(k, p5.of_shift(shr(a, k)))
+
+# S7.21 the spec twin of div_pow10: the restoring division by the big natural 10^k
+def div_pow10.spec.of(st: DivSt) -> P5:
+  match st:
+    case DivSt{r, b, q}:
+      P5{q, Bool.not(is_zero(r))}
+
+# S7.21 floor(a / 10^k) and whether a is not a multiple of 10^k, through divmod
+def div_pow10.spec(a: List<&2, U32>, k: Nat) -> P5:
+  div_pow10.spec.of(divmod(a, pow10(k, [1])))

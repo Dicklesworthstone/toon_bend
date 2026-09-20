@@ -274,3 +274,11 @@ def cat.go(parts: List<&2, String>, acc: String) -> String:
 # operand, a stack wall on the JS and interpreter lanes for an input-controlled text)
 def cat(parts: List<&2, String>) -> String:
   cat.go(parts, SNil{})
+
+# S7.34 the value of a SHORT digit string (the caller bounds its length: a Nat ends at 2^48)
+def nat_of(s: String, acc: Nat) -> Nat:
+  match s:
+    case SNil{}:
+      acc
+    case SCon{Chr{c}, rest}:
+      nat_of(rest, Nat.add(Nat.mul(acc, 10n), U32.to_nat((c - 48 : U32))))

@@ -559,12 +559,12 @@ def num.wrap(m: Maybe<&2, F.F64>) -> Maybe<&2, Json>:
       Some{JNum{f}}
 
 # S4.101 the value of a finished token; phase 8 is the harmless exponent overflow, whose value is zero
-def num.value(num: Num) -> Maybe<&2, Json>:
+def num.value(num: Num, spec: Bool) -> Maybe<&2, Json>:
   match num:
     case Num{8n, neg, ints, fracs, eneg, x, nz}:
       Some{JNum{F.zero()}}
     case Num{ph, neg, ints, fracs, eneg, x, nz}:
-      num.wrap(F.serde_value(neg, String.reverse(ints), String.reverse(fracs), num.exp_int(eneg, x)))
+      num.wrap(F.serde_value(neg, String.reverse(ints), String.reverse(fracs), num.exp_int(eneg, x), spec))
 
 # S2.13 after the token's value is pushed, the byte that ended it is judged by the enclosing context
 def step.after(st: St, k: Nat) -> St:
@@ -583,7 +583,7 @@ def num.end(v: Maybe<&2, Json>, stack: List<&2, Frame>, depth: Nat, l0: Nat, c0:
       step.after(push(j, stack, depth, l1, c1, root), k)
 
 # S2.8 route the outcome of one byte
-def num.route(r: NR, stack: List<&2, Frame>, depth: Nat, l0: Nat, c0: Nat, +l1: Nat, +c1: Nat, root: Maybe<&2, Json>, k: Nat) -> St:
+def num.route(r: NR, stack: List<&2, Frame>, depth: Nat, l0: Nat, c0: Nat, +l1: Nat, +c1: Nat, root: Maybe<&2, Json>, k: Nat, spec: Bool) -> St:
   match r:
     case NGo{num}:
       St{MNum{num}, stack, depth, l1, c1, root}
@@ -592,12 +592,12 @@ def num.route(r: NR, stack: List<&2, Frame>, depth: Nat, l0: Nat, c0: Nat, +l1: 
     case NRange{}:
       fail("number out of range", l1, c1)
     case NEnd{num}:
-      num.end(num.value(num), stack, depth, l0, c0, l1, c1, root, k)
+      num.end(num.value(num, spec), stack, depth, l0, c0, l1, c1, root, k)
 
 # S2.6 one byte in the current mode. (l0, c0) is the position before the byte, (l1, c1) after it:
 # every offending-byte error is reported at (l1, c1) (S2.41). k is the class of byte b (byte.cls), for
 # the defs that dispatch on it.
-def step.mode(mode: Mode, stack: List<&2, Frame>, depth: Nat, l0: Nat, c0: Nat, l1: Nat, c1: Nat, root: Maybe<&2, Json>, k: Nat, +b: U32) -> St:
+def step.mode(mode: Mode, stack: List<&2, Frame>, depth: Nat, l0: Nat, c0: Nat, l1: Nat, c1: Nat, root: Maybe<&2, Json>, k: Nat, +b: U32, spec: Bool) -> St:
   match mode:
     case MVal{ctx}:
       value(ctx, stack, depth, l1, c1, root, k, b)
@@ -620,7 +620,7 @@ def step.mode(mode: Mode, stack: List<&2, Frame>, depth: Nat, l0: Nat, c0: Nat, 
     case MHiU{rev, key, hi}:
       hiu(rev, key, hi, stack, depth, l1, c1, root, U32.is_eq(b, 117))
     case MNum{num}:
-      num.route(num.next(num, b), stack, depth, l0, c0, l1, c1, root, k)
+      num.route(num.next(num, b), stack, depth, l0, c0, l1, c1, root, k, spec)
     case MErr{msg, l, c}:
       St{MErr{msg, l, c}, stack, depth, l0, c0, root}
 
@@ -641,21 +641,21 @@ def pos.col(lf: Bool, c: Nat) -> Nat:
       1n+c
 
 # S2.45 one byte; an error state is sticky
-def step(st: St, +b: U32) -> St:
+def step(st: St, +b: U32, spec: Bool) -> St:
   match st:
     case St{MErr{msg, el, ec}, stack, depth, l, c, root}:
       St{MErr{msg, el, ec}, stack, depth, l, c, root}
     case St{mode, stack, depth, +l, +c, root}:
       +lf = U32.is_eq(b, 10)
-      step.mode(mode, stack, depth, l, c, pos.line(lf, l), pos.col(lf, c), root, byte.cls(b), b)
+      step.mode(mode, stack, depth, l, c, pos.line(lf, l), pos.col(lf, c), root, byte.cls(b), b, spec)
 
 # S2.45 one pass over the bytes, first error wins. Measure: the byte list.
-def run(bytes: List<&2, U32>, st: St) -> St:
+def run(bytes: List<&2, U32>, st: St, +spec: Bool) -> St:
   match bytes:
     case Nil{}:
       st
     case Con{b, rest}:
-      run(rest, step(st, b))
+      run(rest, step(st, b, spec), spec)
 
 # S2.4 the result of reading: a value, or the serde_json message with its line and column
 type Parsed is Data:
@@ -690,7 +690,7 @@ def eof.num(v: Maybe<&2, Json>, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c:
 
 # S2.42 which phases of a number may end at the end of input: 1, 2, 4, 7 and 8 complete the token;
 # 0 (after '-'), 3 (after '.'), 5 and 6 (after e/E or its sign) are `EOF while parsing a value`
-def eof.num.ph(num: Num, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> Parsed:
+def eof.num.ph(num: Num, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>, spec: Bool) -> Parsed:
   match num:
     case Num{0n, neg, ints, fracs, eneg, x, nz}:
       PErr{"EOF while parsing a value", l, c}
@@ -701,7 +701,7 @@ def eof.num.ph(num: Num, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, r
     case Num{6n, neg, ints, fracs, eneg, x, nz}:
       PErr{"EOF while parsing a value", l, c}
     case Num{ph, neg, ints, fracs, eneg, x, nz}:
-      eof.num(num.value(Num{ph, neg, ints, fracs, eneg, x, nz}), stack, depth, l, c, root)
+      eof.num(num.value(Num{ph, neg, ints, fracs, eneg, x, nz}, spec), stack, depth, l, c, root)
 
 # S2.42 where a key is awaited: right after '{' it is the object's EOF, right after ',' a value's
 def eof.key(first: Bool, l: Nat, c: Nat) -> Parsed:
@@ -720,7 +720,7 @@ def eof.val(ctx: Nat, l: Nat, c: Nat) -> Parsed:
       PErr{"EOF while parsing a value", l, c}
 
 # S2.42 every end-of-input error is reported at i = len: the position after the last byte
-def finish(st: St) -> Parsed:
+def finish(st: St, spec: Bool) -> Parsed:
   match st:
     case St{MErr{msg, el, ec}, stack, depth, l, c, root}:
       PErr{msg, el, ec}
@@ -735,13 +735,13 @@ def finish(st: St) -> Parsed:
     case St{MLit{rest, val}, stack, depth, l, c, root}:
       PErr{"EOF while parsing a value", l, c}
     case St{MNum{num}, stack, depth, l, c, root}:
-      eof.num.ph(num, stack, depth, l, c, root)
+      eof.num.ph(num, stack, depth, l, c, root, spec)
     case St{other, stack, depth, l, c, root}:
       PErr{"EOF while parsing a string", l, c}
 
 # S2.4 read ONE JSON text from bytes that have already passed the UTF-8 gate (S2.2)
-def read(bytes: List<&2, U32>) -> Parsed:
-  finish(run(bytes, St{MVal{0n}, Nil{}, 0n, 1n, 0n, None{}}))
+def read(bytes: List<&2, U32>, +spec: Bool) -> Parsed:
+  finish(run(bytes, St{MVal{0n}, Nil{}, 0n, 1n, 0n, None{}}, spec), spec)
 
 # ---------------------------------------------------------------- S5.50–S5.78 the JSON writers
 # S5.73: for equal values the two writers print identical bytes except for their escape tables, so
@@ -880,7 +880,7 @@ def is_nil(j: Json) -> Bool:
 # S5.54–S5.60 the text of a value, onto acc. ONE def over Json (values and their chains): for a
 # value `depth` is its own depth; for a chain it is the depth of the elements. Siblings are a tail
 # call; only nesting recurses.
-def w(j: Json, first: Bool, +n: Nat, +tab_b: Bool, +depth: Nat, acc: String) -> String:
+def w(j: Json, first: Bool, +n: Nat, +tab_b: Bool, +depth: Nat, +spec: Bool, acc: String) -> String:
   match j:
     case JNull{}:
       SCon{Chr{108}, SCon{Chr{108}, SCon{Chr{117}, SCon{Chr{110}, acc}}}}
@@ -889,25 +889,25 @@ def w(j: Json, first: Bool, +n: Nat, +tab_b: Bool, +depth: Nat, acc: String) -> 
     case JBool{False{}}:
       SCon{Chr{101}, SCon{Chr{115}, SCon{Chr{108}, SCon{Chr{97}, SCon{Chr{102}, acc}}}}}
     case JNum{f}:
-      T.rev_onto(F.show_json(f), acc)
+      T.rev_onto(F.show_json_fast(f, spec), acc)
     case JStr{s}:
       w.str(s, tab_b, acc)
     case JArr{cnt, +items}:
-      w.close(is_nil(items), 91, 93, n, depth, w(items, True{}, n, tab_b, 1n+depth, SCon{Chr{91}, acc}))
+      w.close(is_nil(items), 91, 93, n, depth, w(items, True{}, n, tab_b, 1n+depth, spec, SCon{Chr{91}, acc}))
     case JObj{+entries}:
-      w.close(is_nil(entries), 123, 125, n, depth, w(entries, True{}, n, tab_b, 1n+depth, SCon{Chr{123}, acc}))
+      w.close(is_nil(entries), 123, 125, n, depth, w(entries, True{}, n, tab_b, 1n+depth, spec, SCon{Chr{123}, acc}))
     case JNil{}:
       acc
     case JCons{h, t}:
-      w(t, False{}, n, tab_b, depth, w(h, True{}, n, tab_b, depth, w.nl(n, depth, w.comma(first, acc))))
+      w(t, False{}, n, tab_b, depth, spec, w(h, True{}, n, tab_b, depth, spec, w.nl(n, depth, w.comma(first, acc))))
     case JECons{k, q, v, t}:
-      w(t, False{}, n, tab_b, depth, w(v, True{}, n, tab_b, depth, w.colon(n, w.str(k, tab_b, w.nl(n, depth, w.comma(first, acc))))))
+      w(t, False{}, n, tab_b, depth, spec, w(v, True{}, n, tab_b, depth, spec, w.colon(n, w.str(k, tab_b, w.nl(n, depth, w.comma(first, acc))))))
 
 # S5.51 the JSON text of a value at indent N under writer A's table (tab_b False) or writer B's
-def write(j: Json, n: Nat, tab_b: Bool) -> String:
-  String.reverse(w(j, True{}, n, tab_b, 0n, SNil{}))
+def write(j: Json, n: Nat, tab_b: Bool, spec: Bool) -> String:
+  String.reverse(w(j, True{}, n, tab_b, 0n, spec, SNil{}))
 
 # S5.101 the JSON text followed by exactly one LF (pushed before the single reversal: `++` would
 # recurse to the depth of the whole text)
-def write_ln(j: Json, n: Nat, tab_b: Bool) -> String:
-  String.reverse(SCon{Chr{10}, w(j, True{}, n, tab_b, 0n, SNil{})})
+def write_ln(j: Json, n: Nat, tab_b: Bool, spec: Bool) -> String:
+  String.reverse(SCon{Chr{10}, w(j, True{}, n, tab_b, 0n, spec, SNil{})})

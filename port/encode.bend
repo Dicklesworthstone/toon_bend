@@ -12,9 +12,10 @@ import ./f64.bend as F
 import ./json.bend as J
 
 # S3.9 encoder options: indent 0-16, the active delimiter (44 comma, 9 tab, 124 pipe), key folding on or
-# off, and the flatten-depth budget (NUMERIC_PLAN S7.2: saturated, "unlimited" is any value past the input)
+# off, the flatten-depth budget (NUMERIC_PLAN S7.2: saturated, "unlimited" is any value past the input), and
+# the numeric kill-switch (TOON_SPEC=1: every number takes its spec twin)
 type Opts is Data:
-  Opts{indent: Nat, delim: U32, fold: Bool, budget: Nat}
+  Opts{indent: Nat, delim: U32, fold: Bool, budget: Nat, spec: Bool}
 
 # S4.12–S4.16 a character that forces quotes wherever it stands: ':' '"' '\' '[' ']' '{' '}' LF CR TAB,
 # or the ACTIVE delimiter
@@ -101,14 +102,14 @@ def put.key(+k: String, acc: String) -> String:
   put.value.if(Bool.not(T.is_ident(k, True{})), k, acc)
 
 # S4.3–S4.5 a primitive's text: null, true, false, the number's TOON text (S4.130), or a string
-def put.prim(j: J.Json, delim: U32, acc: String) -> String:
+def put.prim(j: J.Json, delim: U32, spec: Bool, acc: String) -> String:
   match j:
     case J.JBool{True{}}:
       T.rev_onto("true", acc)
     case J.JBool{False{}}:
       T.rev_onto("false", acc)
     case J.JNum{f}:
-      T.rev_onto(F.show_toon(f), acc)
+      T.rev_onto(F.show_toon_fast(f, spec), acc)
     case J.JStr{s}:
       put.value(s, delim, acc)
     case other:
@@ -305,9 +306,9 @@ def vkind(v: J.Json, tab_ok: Bool) -> VK:
 # S4.61 the start of a line: indent x depth spaces, then "- " on a hyphen line
 def ln(d: Nat, hy: Bool, opt: Opts) -> String:
   match hy opt:
-    case False{} Opts{indent, delim, fo, budget}:
+    case False{} Opts{indent, delim, fo, budget, spec}:
       T.pad_onto(Nat.mul(indent, d), Chr{32}, SNil{})
-    case True{} Opts{indent, delim, fo, budget}:
+    case True{} Opts{indent, delim, fo, budget, spec}:
       SCon{Chr{32}, SCon{Chr{45}, T.pad_onto(Nat.mul(indent, d), Chr{32}, SNil{})}}
 
 # S4.25 the delimiter marker inside the brackets: nothing for comma, the character itself otherwise
@@ -349,30 +350,30 @@ def put.header(hk: Bool, key: String, n: Nat, hdr: List<&2, String>, +delim: U32
   SCon{Chr{58}, put.fieldlist(hdr, delim, SCon{Chr{93}, put.marker(U32.is_eq(delim, 44), delim, T.rev_onto(Nat.show(n), SCon{Chr{91}, put.optkey(hk, key, acc)}))})}
 
 # S4.28 the join of a chain of primitives: ONE delimiter between items, nothing after the last
-def put.join(c: J.Json, +delim: U32, first: Bool, acc: String) -> String:
+def put.join(c: J.Json, +delim: U32, +spec: Bool, first: Bool, acc: String) -> String:
   match c first:
     case J.JCons{h, t} True{}:
-      put.join(t, delim, False{}, put.prim(h, delim, acc))
+      put.join(t, delim, spec, False{}, put.prim(h, delim, spec, acc))
     case J.JCons{h, t} False{}:
-      put.join(t, delim, False{}, put.prim(h, delim, SCon{Chr{delim}, acc}))
+      put.join(t, delim, spec, False{}, put.prim(h, delim, spec, SCon{Chr{delim}, acc}))
     case _ _:
       acc
 
 # S4.37 the cells of one row, taken in HEADER order (not in the row's own key order)
-def put.cells(hdr: List<&2, String>, +entries: J.Json, +delim: U32, first: Bool, acc: String) -> String:
+def put.cells(hdr: List<&2, String>, +entries: J.Json, +delim: U32, +spec: Bool, first: Bool, acc: String) -> String:
   match hdr first:
     case Nil{} _:
       acc
     case Con{k, rest} True{}:
-      put.cells(rest, entries, delim, False{}, put.prim(lookup(entries, k), delim, acc))
+      put.cells(rest, entries, delim, spec, False{}, put.prim(lookup(entries, k), delim, spec, acc))
     case Con{k, rest} False{}:
-      put.cells(rest, entries, delim, False{}, put.prim(lookup(entries, k), delim, SCon{Chr{delim}, acc}))
+      put.cells(rest, entries, delim, spec, False{}, put.prim(lookup(entries, k), delim, spec, SCon{Chr{delim}, acc}))
 
 # S4.37 one row line at depth d: no marker, no keys
 def row.line(row: J.Json, hdr: List<&2, String>, d: Nat, +opt: Opts) -> String:
   match row opt:
-    case J.JObj{entries} Opts{indent, delim, fo, budget}:
-      String.reverse(put.cells(hdr, entries, delim, True{}, ln(d, False{}, opt)))
+    case J.JObj{entries} Opts{indent, delim, fo, budget, spec}:
+      String.reverse(put.cells(hdr, entries, delim, spec, True{}, ln(d, False{}, opt)))
     case _ _:
       String.reverse(ln(d, False{}, opt))
 
@@ -520,7 +521,7 @@ def fctx.rem(fc: FCtx, segs: Nat, fkey: String) -> FCtx:
 # S4.73 bodies started from a list item: no root-literal set, no prefix, the budget reset to the option
 def fctx.item(opt: Opts) -> FCtx:
   match opt:
-    case Opts{indent, delim, fo, budget}:
+    case Opts{indent, delim, fo, budget, spec}:
       FCtx{fo, budget, False{}, Nil{}, False{}, SNil{}}
 
 # S4.70 add a root key to the set when it contains a dot
@@ -543,9 +544,9 @@ def dotted.go(c: J.Json, acc: List<&2, String>) -> List<&2, String>:
 # S4.70 the fold context of the root object's body: the root-literal set, no prefix, the full budget
 def fctx.root(opt: Opts, j: J.Json) -> FCtx:
   match opt j:
-    case Opts{indent, delim, fo, budget} J.JObj{entries}:
+    case Opts{indent, delim, fo, budget, spec} J.JObj{entries}:
       FCtx{fo, budget, True{}, dotted.go(entries, Nil{}), False{}, SNil{}}
-    case Opts{indent, delim, fo, budget} other:
+    case Opts{indent, delim, fo, budget, spec} other:
       FCtx{fo, budget, False{}, Nil{}, False{}, SNil{}}
 
 # ---------------------------------------------------------------- S4.40–S4.62 the emitter
@@ -626,8 +627,14 @@ def ctx.root(+j: J.Json, +opt: Opts) -> Ctx:
 # S3.10 the active delimiter
 def opt.delim(opt: Opts) -> U32:
   match opt:
-    case Opts{indent, delim, fo, budget}:
+    case Opts{indent, delim, fo, budget, spec}:
       delim
+
+# S4.130 the numeric kill-switch (TOON_SPEC=1)
+def opt.spec(opt: Opts) -> Bool:
+  match opt:
+    case Opts{indent, delim, fo, budget, spec}:
+      spec
 
 # S4.56 `key: ` in front of a value, when the line carries a key
 def put.keycolon(hk: Bool, key: String, acc: String) -> String:
@@ -639,7 +646,7 @@ def put.keycolon(hk: Bool, key: String, acc: String) -> String:
 
 # S4.40, S4.45, S4.56, S4.60 a primitive's line
 def line.prim(hk: Bool, key: String, d: Nat, hy: Bool, v: J.Json, +opt: Opts) -> String:
-  String.reverse(put.prim(v, opt.delim(opt), put.keycolon(hk, key, ln(d, hy, opt))))
+  String.reverse(put.prim(v, opt.delim(opt), opt.spec(opt), put.keycolon(hk, key, ln(d, hy, opt))))
 
 # S4.24 a header line (empty array, tabular header, list header)
 def line.hdr(hk: Bool, key: String, n: Nat, hdr: List<&2, String>, d: Nat, hy: Bool, +opt: Opts) -> String:
@@ -647,7 +654,7 @@ def line.hdr(hk: Bool, key: String, n: Nat, hdr: List<&2, String>, d: Nat, hy: B
 
 # S4.29 an inline array line: the header, ONE space, the join
 def line.inline(hk: Bool, key: String, n: Nat, items: J.Json, d: Nat, hy: Bool, +opt: Opts) -> String:
-  String.reverse(put.join(items, opt.delim(opt), True{}, SCon{Chr{32}, put.header(hk, key, n, Nil{}, opt.delim(opt), ln(d, hy, opt))}))
+  String.reverse(put.join(items, opt.delim(opt), opt.spec(opt), True{}, SCon{Chr{32}, put.header(hk, key, n, Nil{}, opt.delim(opt), ln(d, hy, opt))}))
 
 # S4.58, S4.59, S4.50, S4.51 `key:` alone
 def line.key(key: String, d: Nat, hy: Bool, opt: Opts) -> String:

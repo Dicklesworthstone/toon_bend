@@ -285,6 +285,7 @@ toon_bend/
 | what no case can express | `python3 scripts/stdio-probe.py -- <port command>` (inherited offsets, sockets, closed and full standard streams: SAME, KNOWN with its DISC, or NEW) · `python3 scripts/diff-fuzz.py <lens> --seed N -- <port command>` (seeded differential fuzzing; the `scale` lens has a time verdict and hostile keys) · `python3 scripts/hand-mutants.py` (do the laws bite?) |
 | convergence | `./scripts/converge.sh docs/PORT_STATE.md` (computed from the rounds table and the OQ/DISC registers; T2: ≥ 5 rounds, last 2 clean, ≥ 1 non-author round) |
 | the pins | `./scripts/pin-check.sh docs/PIN.toml` |
+| the board | `python3 scripts/board-refresh.py [--commit SHA --lanes-log FILE]` after adding a law or finishing a lanes run (cites every law on its row; flips `partial` to `present` only on an all-lanes PASS), then `./scripts/parity-board.sh docs/FEATURE_PARITY.md` and `./scripts/law-coverage.sh` |
 | the state file | `./scripts/state-check.sh docs/PORT_STATE.md` before ending a session (no placeholders, gate lines pasted, one executable next action) |
 | the words | `./scripts/claims-lint.sh docs/PORT_STATE.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md docs/PORT_REPORT.md perf/*.md README.md` before committing any claim (the claim-bearing documents; the spec's clauses are not claims) |
 

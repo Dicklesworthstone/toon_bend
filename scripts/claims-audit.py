@@ -12,7 +12,7 @@ the ratios of `perf/evidence/*.json`. Then, in every claim-bearing document, it 
 
   COUNTS         a sentence that states one of those numbers must state the current one
   REFERENCES     every DISC-, NE-, EXP-, OQ-, bead, law, case, clause, review report and repository path
-                 that a document names must exist
+                 that a document names must exist, the parity board's goldens and laws columns included
   PASTED LINES   a pasted JSON line of a gate (stdio-probe, converge, lanes, law-coverage, parity-board)
                  must agree with what that gate says today
 
@@ -226,6 +226,30 @@ def audit(files, f, gates, verbose):
                     continue
                 if not os.path.exists(os.path.join(ROOT, ident)):
                     hit(path, n, "names the path %s, which does not exist" % ident, line)
+    # the parity board's own columns: every case it names must be in the corpus, every law in LAWS.bend
+    if "docs/FEATURE_PARITY.md" in files:
+        board = read("docs/FEATURE_PARITY.md")
+        header = None
+        for n, line in enumerate(board.splitlines(), 1):
+            cells = [c.strip() for c in line.strip().strip("|").split(" | ")] if line.startswith("| ") else None
+            if not cells or len(cells) < 7:
+                continue
+            if cells[0].lower() == "feature":
+                header = cells
+                continue
+            if header is None or set(cells[0]) <= set("-: "):
+                continue
+            for name in re.split(r"[,\s]+", cells[3]):
+                name = name.strip("`")
+                if name and name != "-" and name not in f["case_names"]:
+                    findings.append({"file": "docs/FEATURE_PARITY.md", "line": n, "text": line.strip()[:160],
+                                     "finding": "the goldens column names %s, which is not a case of goldens/cases.tsv" % name})
+            for name in re.split(r"[,\s]+", cells[4]):
+                name = name.strip("`")
+                if name and name not in ("-", "none") and name not in f["law_names"]:
+                    findings.append({"file": "docs/FEATURE_PARITY.md", "line": n, "text": line.strip()[:160],
+                                     "finding": "the laws column names %s, which is not a law of port/LAWS.bend" % name})
+
     # every number of README's performance section must come from perf/evidence/
     readme = read("README.md")
     a = readme.find("## Performance")

@@ -1,4 +1,13 @@
-# AGENTS.md — the Bend 2 port of Toon
+# AGENTS.md — the Bend 2 port of Toon  (SCAFFOLD COPY, NOT THE PORT'S RULES)
+
+> **This file is not the agent mandate of this repository: `AGENTS.md` in the root is.** It is the copy the
+> porting-to-bend2 scaffold wrote on day one, kept because it shows what the method proposes before a port
+> adapts it; where the two differ, the root file wins (it says, for instance, that the fast twins are
+> law-BOUND and how far that reaches, and that this port has one custom effect). It is left in place and not
+> deleted because deleting a file in this repository needs the owner's exact command (`AGENTS.md`, RULE 1);
+> the open question is the bead `toon_bend-msb`. Like the root file, it quotes the phrases that
+> `scripts/claims-lint.sh` forbids, so it is not one of the documents that gate lints.
+
 
 Read this whole file, then `docs/PORT_STATE.md`, before any work.
 

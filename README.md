@@ -148,7 +148,7 @@ The `--` right after the program name is part of the contract: a compiled Bend b
 
 ## Performance
 
-Every RATIO here is a capture by `scripts/incumbent-bench.sh`: AB/BA pairs, medians, a cv gate of 5 percent per arm (a capture above it is REFUSED and gives no ratio), identical stdout and stderr in every sample. Two columns are NOT such captures and say so: the earlier build's single timed runs in the second table, and the round 7 timings quoted below it. No row is admitted to `perf/PERF-LEDGER.md` yet; everything measured so far is provisional (`perf/NEGATIVE-EVIDENCE.md` NE-001 to NE-005). Host: AMD EPYC-Milan, 8 cores, Linux, shared with other agents' work; 1 thread; bend 2.0.16, clang 21.1.8; 2026-09-20. The JSON lines are in `perf/evidence/`, the cards in `perf/EXPERIMENTS.md`.
+Every RATIO here is a capture by `scripts/incumbent-bench.sh`: AB/BA pairs, medians, a cv gate of 5 percent per arm (a capture above it is REFUSED and gives no ratio), identical stdout and stderr in every sample. Two columns are NOT such captures and say so: the earlier build's single timed runs in the second table, and the round 7 timings quoted below it. No row is admitted to `perf/PERF-LEDGER.md` yet; everything measured so far is provisional or a loss, and each has its entry (`perf/NEGATIVE-EVIDENCE.md` NE-001 to NE-006). Host: AMD EPYC-Milan, 8 cores, Linux, shared with other agents' work; 1 thread; bend 2.0.16, clang 21.1.8; 2026-09-20. The JSON lines are in `perf/evidence/`, the cards in `perf/EXPERIMENTS.md`.
 
 **The port against earlier builds of itself** (the three number levers, commit `4bfecef` → `3751630`):
 
@@ -162,7 +162,7 @@ These three captures compare one binary that carries ALL THREE levers with the b
 
 **Inputs that are large in ONE dimension** (EXP-004, commit `3751630` → `1230a0d`; the earlier build walked a key chain per key):
 
-| input | build of `3751630` (one run) | build of `1230a0d` | the original (`toon 0.2.4` @ `f955c67`, release) | `1230a0d` against the original |
+| input | build of `3751630` (one run) | build of `1230a0d` | the original (`toon 0.2.4` @ `f955c67`, the PINNED `opt-level="z"` release) | `1230a0d` against the pinned original (against the strongest build: below) |
 | --- | --- | --- | --- | --- |
 | `-e`, one object of 16000 keys | 20.5 s | 66 ms | 17 ms | 0.25× the original's speed, MEASURED (cv 3.4% / 2.6%) |
 | `-e`, 20 rows of 1200 fields | 6.5 s | 75 ms | 95 ms | 1.27× the original's speed, MEASURED (cv 4.7% / 1.1%) |
@@ -171,7 +171,7 @@ These three captures compare one binary that carries ALL THREE levers with the b
 
 The non-author round 7 then showed that keys CHOSEN to collide in the carriers' 16 hash bits, and keys repeated in one object, were still quadratic (16000 colliding keys: 21 s; 16000 repeats: 50 s). Every bucket is a balanced tree now and a repeated key is resolved once per object; `python3 scripts/diff-fuzz.py scale --runs 16000 -- <port> --` runs those hostile inputs with a time verdict (too slow = more than 1 s AND more than 40 times the original): 5 inputs too slow on the binary of `1230a0d`, 0 on the current one, bytes identical.
 
-**The port against the original on ordinary inputs** (`toon 0.2.4` @ `f955c67`, release build; the port's build of `4c3cccc`, `--threads 1`; 15 AB/BA pairs; `perf/evidence/INCUMBENT.*.json`). MEASURED:
+**The port against the original on ordinary inputs** (`toon 0.2.4` @ `f955c67`, the pinned release build; the port binary sha256 `27787b9b…`, `--threads 1`; 15 AB/BA pairs; `perf/evidence/INCUMBENT.*.json`). That binary is what `bend port/main.bend -o <dir>/toon` emits from any commit since `a725d10`: the build is byte-reproducible, and the output BASENAME is its only path input (build it as `toon_head` and the bytes differ; build it as `toon` anywhere and they do not). MEASURED:
 
 | input | the original | the port | ratio (original time / port time) |
 | --- | --- | --- | --- |
@@ -180,6 +180,15 @@ The non-author round 7 then showed that keys CHOSEN to collide in the carriers' 
 | `--encode` of 20000 doubles of 15 to 17 digits (378 KB) | 7.7 ms | 1164.6 ms | 0.0066× (the port needs 151 times the original's time; cv 3.2% / 2.8%; 30 samples per arm) |
 
 REFUSED by the cv gate in the same run, as in two earlier attempts, so NO ratio is claimed for them; their medians are orientation, not evidence: `--encode` of 24000 six-digit integers (50.7 ms against 5.9 ms, cv 3.2% / 16.3%); `--encode` of 9000 one-decimal numbers (146.9 ms against 3.4 ms, cv 7.3% / 21.8%); `--encode` of 7000 short strings (37.2 ms against 4.3 ms, cv 19.3% / 21.9%); `--encode` of 5000 scientific-notation numbers (1260.5 ms against 5.0 ms, cv 4.3% / 20.0%); `--version` (0.9 ms against 1.0 ms, cv 19.8% / 31.1%). The original finishes each of those in under 6 ms, which this shared host does not time to 5 percent; the retry predicate is a quiet host and inputs ten times larger. What is structural and will not change: Bend has no `f64`, so every non-integer number goes through big naturals (DISC-013); every input byte is a heap cell of a checked state machine; and the native runtime reserves 8 TiB of address space and uses 47 to 70 bytes of memory per input byte (DISC-011).
+
+**Against the strongest build of the original.** Every ratio above is against the original's *pinned* release profile, which is `opt-level="z"` — tuned for size. The plan promised an `opt-level=3` incumbent so the comparison is against the strongest build; it was built on 2026-09-20 (`cargo build --release --locked --bin toon --config 'profile.release.opt-level=3'`, 862536 bytes against the pinned build's 670376) and it is **1.389× the pinned build's speed** on the one input whose arms are large enough to time to 5 percent (2405 ms → 1732 ms, cv 1.3% / 2.4%, 18 samples; `perf/evidence/INCUMBENT-O3.vs-z-expand.json`). Against that build, re-measured (15 and 9 AB/BA pairs):
+
+| input | the strongest original | the port | ratio against the strongest build | the same ratio against the pinned build |
+| --- | --- | --- | --- | --- |
+| `-d --expand-paths safe`, 40000 dotted lines | 1716 ms | 863 ms | 1.989× (cv 3.1% / 3.1%) | 3.06× |
+| `-e`, 20 rows of 1200 fields | 56 ms | 72 ms | 0.773× — the port is SLOWER (cv 4.4% / 2.3%) | 1.27× |
+
+So one of the two inputs on which the port beat the original does not survive a fair build: the 1.27× was an artifact of the incumbent's size-tuned profile. The `--encode` of the 1500-row table refused the cv gate against this build (the original's arm is 5.2 ms on a shared host) and claims nothing. Entry: `perf/NEGATIVE-EVIDENCE.md` NE-006.
 
 ---
 

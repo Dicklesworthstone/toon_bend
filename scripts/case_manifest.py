@@ -447,6 +447,13 @@ def main():
     if mode == "floor":
         if args.repeat < 1:
             raise ValueError("--repeat must be positive")
+        # The floor runs the ORIGINAL. Without it there is nothing to measure, and running the whole
+        # corpus only to report INCONCLUSIVE hides that (round 12, R12-6).
+        if os.sep in command[0] or os.path.isfile(command[0]):
+            if not (os.path.isfile(command[0]) and os.access(command[0], os.X_OK)):
+                print("floor: the pinned original is not at %s (it is not part of the repository: docs/PIN.toml "
+                      "names its commit and sha256; PLAN §2 has the build command)" % command[0], file=sys.stderr)
+                return 2
         originals = oracle_commands(args.gold)
         if originals and not any(identity(command) == identity(original) for original in originals):
             raise ValueError("floor command differs from the captured original; use the captured command or explicitly recapture")

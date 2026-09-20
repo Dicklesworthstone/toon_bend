@@ -272,7 +272,9 @@ def audit(files, f, gates, verbose):
             findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
                              "finding": "docs/reviews/%s exists and the rounds table has no row %d" % (path, r)})
         else:
-            rows = len(re.findall(r"(?m)^\| R\d+-", read("docs/reviews/" + path)))
+            # A report bolds its HIGH and MEDIUM rows (`| **R12-1** |`): count those too, or a round
+            # with two MEDIUM findings reads as two findings short (round 12, found by this gate).
+            rows = len(re.findall(r"(?m)^\| \*{0,2}R\d+-", read("docs/reviews/" + path)))
             if rows and rows != f["round_findings"][r]:
                 findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
                                  "finding": "round %d: the table says %d findings, docs/reviews/%s lists %d"

@@ -141,7 +141,7 @@ scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-003 --original <baselin
 | created (UTC) | 2026-09-20 |
 | agent | Claude (Claude Code session, author); the finding is the round 6 non-author reviewer's |
 | graveyard sweep | `rg -i 'hash\|carrier\|key set\|quadratic\|linear walk' perf/NEGATIVE-EVIDENCE.md` → no entry |
-| status | DONE 2026-09-20: three of four inputs meet the card's gate; PROVISIONAL, NOT a ledgered WIN (`perf/NEGATIVE-EVIDENCE.md` NE-005: the earlier build was timed once per input, without cv or an A/A arm); the folding input's capture was REFUSED_CV twice: NO_EVIDENCE for a ratio, NE-004 |
+| status | DONE 2026-09-20: three of four inputs meet the card's gate; PROVISIONAL, NOT a ledgered WIN (`perf/NEGATIVE-EVIDENCE.md` NE-005: the earlier build was timed once per input, without cv or an A/A arm); the folding input's capture was REFUSED_CV three times: NO_EVIDENCE for a ratio, NE-004. Re-measured on 2026-09-20 against the `opt-level=3` incumbent that PLAN §2 promised (round 12's R12-13), which is 1.389× the pinned `z` build: the expand row is 1.989× (not 3.06×) and the wide-rows row is **0.773×** — against the strongest build the port is SLOWER on that input, not 1.27× faster (`perf/evidence/INCUMBENT-O3.expand.json`, `.wide-rows.json`; NE-006). The card's gate is about the port against its own earlier build and is unaffected; the ratios against the ORIGINAL are the ones that move |
 | precommitted | the gate below was written before the merge into `port/` and before any capture; the scratch implementation existed already (it was written to answer the review finding), so this card is NOT "before the lever" and says so |
 
 ### Hypothesis

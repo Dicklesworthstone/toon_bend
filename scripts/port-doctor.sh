@@ -69,6 +69,12 @@ THREAD_COUNT="${THREADS#--threads }"
 THREADS="--threads $THREAD_COUNT"
 [[ -z "$CHECKOUT" ]] || CHECKOUT="$(cd "$CHECKOUT" && pwd)" || exit 2
 cd "$ROOT" || { echo "error: no such root $ROOT" >&2; exit 2; }
+# An --original that names a path which is not an executable file cannot run the floor or the kill-switch
+# gate: say so before spending the lane runs, instead of reporting a red table (round 12, R12-6).
+if [[ $ORIGINAL_SET -eq 1 && ( "${ORIG[0]}" == */* || -e "${ORIG[0]}" ) && ! ( -f "${ORIG[0]}" && -x "${ORIG[0]}" ) ]]; then
+  echo "port-doctor: the pinned original is not at ${ORIG[0]} (it is not part of the repository: docs/PIN.toml names its commit and sha256; PLAN §2 has the build command)" >&2
+  exit 2
+fi
 PROOF_DIR="$(dirname "$MAIN")"
 if [[ -n "${BEND_CLI:-}" ]]; then read -ra BEND <<<"$BEND_CLI"
 elif [[ -n "$CHECKOUT" && -f "$CHECKOUT/bend2/main.ts" ]]; then BEND=(bun "$CHECKOUT/bend2/main.ts"); export BEND_CLI="bun $CHECKOUT/bend2/main.ts"

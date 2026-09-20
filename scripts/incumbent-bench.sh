@@ -51,6 +51,15 @@ try:
     oi, pi = raw.index('--original'), raw.index('--port')
     original, port = raw[oi + 1:pi], raw[pi + 1:]
     if oi >= pi or not original or not port: raise ValueError('original and port commands are required')
+    # Neither arm can be timed if its executable is not there. Running all the pairs first and printing
+    # RUN_FAILED never names the missing file (round 12, R12-6).
+    for label, cmd in (('original', original), ('port', port)):
+        exe = cmd[0]
+        if (os.sep in exe or os.path.exists(exe)) and not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
+            sys.stderr.write('incumbent-bench: the %s is not an executable file at %s%s\n' % (
+                label, exe, ' (the pinned original is not part of the repository: docs/PIN.toml names its'
+                ' commit and sha256; PLAN §2 has the build command)' if label == 'original' else ''))
+            sys.exit(2)
     parser = argparse.ArgumentParser()
     parser.add_argument('--runs', type=nonnegative, default=5)
     parser.add_argument('--warmup', type=nonnegative, default=1)

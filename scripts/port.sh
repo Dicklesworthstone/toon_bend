@@ -33,13 +33,19 @@
 #   board                parity-board.sh
 #   converge             converge.sh
 #   state                state-check.sh (and state-json.py --check when present)
-#   claims               claims-lint.sh over docs/*.md perf/*.md README.md
+#   claims               claims-lint.sh over the claim-bearing documents (AGENTS.md's ONE list)
 #   bench                incumbent-bench.sh: ORIGINAL HOT vs the built binary --threads 1 -- HOT, with PIN
 #   report               proof + lanes + board + converge + claims, one gate line each, then a JSON summary
 #   env                  print the resolved configuration
 # exit: the wrapped script's exit code; 2 usage / no port.env / unknown command.
 set -uo pipefail
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || $# -eq 0 ]]; then sed -n '2,/^set -/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; [[ $# -eq 0 ]] && exit 2; exit 0; fi
+
+# The claim-bearing documents: ONE list, the same in AGENTS.md, docs/PARITY_RUNBOOK.md and docs/PORT_REPORT.md.
+# `docs/*.md perf/*.md README.md` is NOT it — the spec's clauses and the scaffold copy are not claims and do contain
+# the lint's words (round 12, R12-9).
+CLAIM_DOCS=(README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md
+            docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md)
 
 ROOT="$PWD"
 if [[ "${1:-}" == "--root" ]]; then
@@ -192,7 +198,7 @@ case "$CMD" in
     "$(S state-check.sh)" docs/PORT_STATE.md; rc=$?
     if J="$(lookup state-json.py 2>/dev/null)"; then "$J" docs/PORT_STATE.md --check | tail -1 || rc=1; fi
     exit $rc;;
-  claims) no_args "$@"; files=(); for f in docs/*.md perf/*.md README.md; do [[ -f "$f" ]] && files+=("$f"); done; exec "$(S claims-lint.sh)" "${files[@]}";;
+  claims) no_args "$@"; files=(); for f in "${CLAIM_DOCS[@]}"; do [[ -f "$f" ]] && files+=("$f"); done; exec "$(S claims-lint.sh)" "${files[@]}";;
   bench) no_args "$@"; need_orig; [[ -n "$HOT" ]] || { echo "port: HOT is not set in port.env" >&2; exit 2; }
     build_dir="$(mktemp -d "${TMPDIR:-/tmp}/port-build.XXXXXX")" || exit 2; bin="$build_dir/port"
     run_bend "$MAIN" -o "$bin" >/dev/null 2>&1 || { echo "port: build of $MAIN failed" >&2; exit 1; }
@@ -203,10 +209,10 @@ case "$CMD" in
     l="$(gate_line "$(S lanes.sh)" "$CASES" "$GOLDENS" "$MAIN" --threads "$THREADS")"; lanes_rc=$?
     b="$(gate_line "$(S parity-board.sh)" docs/FEATURE_PARITY.md)"; board_rc=$?
     c="$(gate_line "$(S converge.sh)" docs/PORT_STATE.md)"; converge_rc=$?
-    files=(); for f in docs/*.md perf/*.md README.md; do [[ -f "$f" ]] && files+=("$f"); done
+    files=(); for f in "${CLAIM_DOCS[@]}"; do [[ -f "$f" ]] && files+=("$f"); done
     k="$(gate_line "$(S claims-lint.sh)" "${files[@]}")"; claims_rc=$?
     echo "| proofs | \`bend $(dirname "$MAIN")/PROOF.bend\` | $p |"; echo "| lanes | \`scripts/lanes.sh $CASES $GOLDENS $MAIN --threads $THREADS\` | $l |"
-    echo "| parity | \`scripts/parity-board.sh docs/FEATURE_PARITY.md\` | $b |"; echo "| converge | \`scripts/converge.sh docs/PORT_STATE.md\` | $c |"; echo "| claims | \`scripts/claims-lint.sh docs/*.md perf/*.md README.md\` | $k |"
+    echo "| parity | \`scripts/parity-board.sh docs/FEATURE_PARITY.md\` | $b |"; echo "| converge | \`scripts/converge.sh docs/PORT_STATE.md\` | $c |"; echo "| claims | \`scripts/claims-lint.sh ${CLAIM_DOCS[*]}\` | $k |"
     jv() { printf '%s' "$1" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])' 2>/dev/null; }
     pv="$(jv "$p")"; lv="$(jv "$l")"; bv="$(jv "$b")"; cv="$(jv "$c")"
     lv="$(python3 -B - "$ARGV_HELPER" "$l" "$THREADS" "$CASES" <<'PY'

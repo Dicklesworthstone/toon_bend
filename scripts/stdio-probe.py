@@ -27,6 +27,9 @@ def main():
             original = head[i + 1]
         elif head[i] == "--timeout":
             limit = float(head[i + 1])
+    if not (os.path.isfile(original) and os.access(original, os.X_OK)):
+        print("stdio-probe: the pinned original is not at %s (it is not part of the repository: docs/PIN.toml names its commit and sha256; pass --original PATH)" % original, file=sys.stderr)
+        return 2
     work = tempfile.mkdtemp(prefix="stdio-probe.")
     doc = "skipped: 1\nkept: 2\nalso: 3\n"
     big = os.path.join(work, "big.json")
@@ -148,6 +151,17 @@ def main():
     row("stdin is open WRITE-only, encode", "", wrong_mode(0, ["-e"]))
     row("stdout is open READ-only", "DISC-006", wrong_mode(1, ["-e"]))
     row("stderr is open READ-only, a success line to write", "DISC-003", wrong_mode(2, ["-e", "-o", os.path.join(work, "out2.toon")]))
+    def seqpacket(n):
+        def f(cmd):
+            a, b = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+            with a, b:
+                b.sendall(("[" + ",".join("1" for _ in range(n)) + "]").encode())
+                b.shutdown(socket.SHUT_WR)
+                return run(cmd, ["-e"], stdin=a.fileno())
+        return f
+
+    row("stdin is a SEQPACKET socket, one message of 31 bytes", "", seqpacket(15))
+    row("stdin is a SEQPACKET socket, one message of 41 bytes (the original's first read asks for 32)", "DISC-015", seqpacket(20))
     row("INPUT is /dev/fd/9, which nobody opened", "", lambda cmd: run(cmd, ["-d", "/dev/fd/9"], stdin=subprocess.DEVNULL))
     row("-o /dev/fd/3, which the caller did not open", "DISC-014", lambda cmd: run(cmd, ["-e", small, "-o", "/dev/fd/3"], stdin=subprocess.DEVNULL))
     row("stdin is a regular file at offset 11", "", offset(11, ["-d"]))

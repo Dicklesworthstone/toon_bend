@@ -403,6 +403,9 @@ def lens_scale(rnd, n):
 
 def main():
     opts, port = parse(sys.argv[1:])
+    if not (os.path.isfile(opts["original"]) and os.access(opts["original"], os.X_OK)):
+        print("diff-fuzz: the pinned original is not at %s (it is not part of the repository: docs/PIN.toml names its commit and sha256; pass --original PATH)" % opts["original"], file=sys.stderr)
+        return 2
     rnd = random.Random(opts["seed"])
     original = opts["original"]
     lens = opts["lens"]

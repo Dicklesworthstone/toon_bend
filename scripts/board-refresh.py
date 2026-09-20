@@ -129,7 +129,8 @@ def finalize(commit, log):
     a = s.index("Last gate run:")
     b = s.index("| feature |")
     cases = lanes["lanes"][0]["passed"] + lanes["lanes"][0]["failed"]
-    head = ("Last gate run: 2026-09-20 at commit `%s` · `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8 --interpreter-timeout 120` → `%s` ·\n"
+    import datetime
+    head = ("Last gate run: " + datetime.date.today().isoformat() + " on the tree of commit `%s` · `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` (alone or inside `scripts/port-doctor.sh`; the pasted line names the timeouts it ran with) → `%s` ·\n"
             "proofs: `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.` with 0 unsafe (0 `@unsafe` + 0 template instances, bend 2.0.16), %d laws "
             "(%d quantified, %d closed unit laws, %d closed whole-pipeline `golden_<case>` laws) · `scripts/law-coverage.sh`: every law cited by a row below, 0 ghost citations ·\n"
             "a row is `present` when the goldens it names pass on EVERY lane of that run and the laws it names are proved; \"laws\" on a row are closed instances unless the row names one of the %d quantified laws.\n\n"
@@ -153,13 +154,13 @@ def finalize(commit, log):
 
     | lane | cases | verdict | date |
     |---|---|---|---|
-    %s| gpu (`--gpu on`) | - | MISSING: no bang is placed (text with data-dependent structure), so there is no device lane to run | 2026-09-20 |
+    %s| gpu (`--gpu on`) | - | MISSING: no bang is placed (text with data-dependent structure), so there is no device lane to run | - |
 
 The two native lanes are ONE sequential execution under two labels: no bang and no parallel let is placed, so `--threads N` changes nothing
 (2 OS threads at `--threads` 1, 8 and 64); `c-8t` is kept because it would catch a parallel twin the day one is added.
     """ % (len(quant), ", ".join("`%s`" % n for n in quant), len(twin), ", ".join("`%s`" % n for n in twin),
            len([n for n in closed if n not in twin]), ", ".join("`%s`" % n for n in closed if n not in twin), len(golden), len(golden),
-           "".join("| %s | %d/%d | %s | 2026-09-20 (commit `%s`) |\n" % (l["lane"], l["passed"], l["passed"] + l["failed"], l["verdict"], commit) for l in lanes["lanes"]))
+           "".join("| %s | %d/%d | %s | %s (tree of `%s`) |\n" % (l["lane"], l["passed"], l["passed"] + l["failed"], l["verdict"], datetime.date.today().isoformat(), commit) for l in lanes["lanes"]))
     tail = "\n".join(l[4:] if l.startswith("    ") else l for l in tail.split("\n"))  # the template above is indented with this def
     s = s[:a] + tail
     write(BOARD, s)

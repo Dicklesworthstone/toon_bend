@@ -13,7 +13,9 @@ Row admission (all mandatory):
    harness interleaving both retained artifacts. A C twin, if cited, is
    labelled as the sequential reference.
 2. Interleaved in both orders with an A/A pair; medians; **cv ≤ 5% or the
-   row is refused** (`scripts/bench-speedup.sh --aa --max-cv 5 --strict`).
+   row is refused** (in this port: `scripts/incumbent-bench.sh --max-cv 5` on two retained binaries, plus the
+   same command with one binary on both sides for the A/A arm; the template's `bench-speedup.sh` is the
+   bend2-mega-skill's and is not in this repository).
 3. Identical stdout bytes across every sample/arm (`same_output: true`),
    with controlled inputs and a separately stated numerical contract.
 4. `bend PROOF.bend` → "All terms check." with relevant law coverage,
@@ -31,8 +33,8 @@ Row admission (all mandatory):
 
 CV/A/A thresholds screen captures; they do not prove statistical
 significance. Review the retained paired samples and proof assumptions
-(including 2.0.16 template warnings). `ledger-row.sh` formats a provisional
-row and cannot verify these admission requirements or promote it to WIN.
+(including 2.0.16 template warnings). (The mega-skill's `ledger-row.sh`, not in this repository, formats a
+provisional row; nothing promotes a row to WIN but a review against the rules above.)
 
 ---
 

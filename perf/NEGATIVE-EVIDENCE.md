@@ -100,7 +100,7 @@ Outcome taxonomy (closed set):
 - Exact command: `scripts/incumbent-bench.sh --runs 7 --max-cv 5 --timeout 60 --tag EXP-004 --original ./oracle/toon -e --key-folding safe perf/inputs/fold_keys_30000.json --port <binary of 1230a0d> --threads 1 -- -e --key-folding safe perf/inputs/fold_keys_30000.json`
 - Kill-switch: none (a carrier of the spec twins)
 - Measured: REFUSED_CV twice (port arm cv 5.2% with 5 pairs, then 6.8% with 7 pairs; the original's arm 2.1%). No ratio is claimed. What the refused captures still show without a ratio: the previous port binary (`3751630`) did not finish this input in its 60 s budget (`perf/evidence/EXP-004.baseline-fold.json`), the merged binary's medians were 307 ms and 303 ms, and stdout was byte-identical to the original's in every sample A THIRD capture (15 pairs, load about 3) was refused too: cv 7.5% / 5.6% (original / port), medians 668 ms and 452 ms.
-- Correctness: as the PERF-LEDGER rows of EXP-004
+- Correctness: as NE-005's
 - Disposition: the carrier is kept (it is the spec twin); the RATIO is not ledgered
 - Killing metric: wall on this host at 1 thread
 - **Do-not-retry unless:** the host is quiet (no other agent's build; load below 1) and `--runs 15`; a second refusal under those conditions means the input's allocation pattern is noisy at this size: then capture at 60000 keys

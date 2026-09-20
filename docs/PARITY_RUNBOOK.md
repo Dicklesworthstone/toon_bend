@@ -1,15 +1,17 @@
 # Keeping Toon-bend at parity (for maintainers)
 
-<!-- Phase 6 output, written beside docs/PORT_REPORT.md. Every command below exists in ./scripts/.
-     A maintainer who has never read the porting-to-bend2 skill can keep this port honest with this file alone. -->
+<!-- Phase 6 output, written beside docs/PORT_REPORT.md. Every `./scripts/…` command below exists in this repository.
+     Two things it names live OUTSIDE the repository, in the skills that drove the port: `keep-audit.sh` (bend2-mega-skill) and
+     `assets/probes/base/run-base-probes.sh` (porting-to-bend2); the ledgers' template text also names the mega-skill's
+     `bench-speedup.sh` and `ledger-row.sh`, which this port replaced by `scripts/incumbent-bench.sh`. -->
 
 ## 1. What "parity" means here
 
 Every case in `goldens/cases.tsv` (1065 cases on 2026-09-20; `docs/PORT_STATE.md` has the current count and the
 pasted line) prints identical stdout, stderr and exit code on the interpreter, the C binary at 1 and 8
 threads, and the JS build (`gpu`: MISSING: no bang is placed, so there is no device lane). The two native lanes are
-ONE sequential execution under two labels: the port has no parallel let, so `--threads N` changes nothing but the
-runtime's idle pool; the c-8t lane is kept because it would catch a parallel twin the day one is added.
+ONE sequential execution under two labels: the port has no parallel let, so the runtime never starts a worker pool and `--threads N`
+changes nothing (2 OS threads at `--threads` 1, 8 and 64); the c-8t lane is kept because it would catch a parallel twin the day one is added.
 `bend port/PROOF.bend` prints `All terms check.` (0 `@unsafe` + 0 template instances under bend 2.0.16). The
 board (`docs/FEATURE_PARITY.md`) is DEBT: 27 rows present and six exclusions, each classed in PLAN §3 (async
 streaming, WebAssembly bindings, the `EncodeReplacer` callback, library-only behavior, completions / tracing / build
@@ -23,7 +25,7 @@ measured (an interleaved, cv-gated capture). Nothing else is a claim.
 ./scripts/pin-check.sh docs/PIN.toml                       # GREEN before anything else; YELLOW = caveat; RED = stop
 ./scripts/port-doctor.sh --threads 8 --original ./oracle/toon -- --switch TOON_SPEC=1 --probe '["--encode","cases/inputs/hand/large_tabular_1500.json"]'   # proof, lanes, board, floor, kill-switch (about 90 minutes: the interpreter lane)
 ./scripts/converge.sh docs/PORT_STATE.md                   # the tier's convergence rule, computed
-./scripts/claims-lint.sh docs/*.md perf/*.md README.md     # the forbidden phrases
+./scripts/claims-lint.sh README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md   # the forbidden phrases, on the claim-bearing documents (not docs/*.md: the spec's clauses are not claims)
 ./scripts/harness-selftest.sh -- ./oracle/toon             # the gates are attacked and hold (verdict OK)
 ./scripts/clean-build-check.sh                             # the COMMIT builds and converts, not only the working tree (an ignored source file hides here)
 python3 scripts/stdio-probe.py -- <port command>           # descriptor states no case can express: SAME, KNOWN (its DISC) or NEW

@@ -288,7 +288,7 @@ toon_bend/
 | the pins | `./scripts/pin-check.sh docs/PIN.toml` |
 | the board | `python3 scripts/board-refresh.py [--commit SHA --lanes-log FILE]` after adding a law or finishing a lanes run (cites every law on its row; flips `partial` to `present` only on an all-lanes PASS), then `./scripts/parity-board.sh docs/FEATURE_PARITY.md` and `./scripts/law-coverage.sh` |
 | the state file | `./scripts/state-check.sh docs/PORT_STATE.md` before ending a session (no placeholders, gate lines pasted, one executable next action) |
-| the words | `./scripts/claims-lint.sh docs/PORT_STATE.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md docs/PORT_REPORT.md perf/*.md README.md` before committing any claim (the claim-bearing documents; the spec's clauses are not claims) |
+| the words | `./scripts/claims-lint.sh README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md` before committing any claim. This ONE list is the claim-bearing documents, the same in `docs/PARITY_RUNBOOK.md` and `docs/PORT_REPORT.md`; `docs/*.md` is NOT it: the spec's clauses and the stray scaffold copy are not claims and do contain the listed words |
 
 ### Core Types Quick Reference
 
@@ -729,7 +729,7 @@ git push                # Push to remote
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
 2. **Run quality gates** (if code changed) - `./scripts/port-doctor.sh --threads 8 --original ./oracle/toon --`; paste its table
 3. **Rewrite `docs/PORT_STATE.md`** - phase, pasted gate lines, open OQ/DISC/NE items, ONE executable next action; then `./scripts/state-check.sh docs/PORT_STATE.md`
-4. **Lint the words** - `./scripts/claims-lint.sh docs/PORT_STATE.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md README.md`
+4. **Lint the words** - `./scripts/claims-lint.sh README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md`
 5. **Update issue status** - Close finished work, update in-progress items
 6. **Sync beads** - `br sync --flush-only` to export to JSONL
 7. **Commit** (and push when a remote is configured)

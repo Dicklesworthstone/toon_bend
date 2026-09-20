@@ -1,4 +1,4 @@
-# Port report: Toon → Bend 2   HOLD   commit c7239e2 (gates) and later (documents)   2026-09-20   bend 2.0.16
+# Port report: Toon → Bend 2   HOLD   gates on the tree of c7239e2, this report at the newest commit of main   2026-09-20   bend 2.0.16
 
 <!-- Phase 6 document (SHIP-AND-CERTIFY). Every constant is computed from an
      artifact and pasted; every claim is proved / golden-tested / measured
@@ -9,10 +9,10 @@
 
 HOLD. The port is complete and every lane is green; ONE constant fails, and one number is missing:
 
-1. **Convergence met for the tier: fails.** `converge.sh`: `NOT_CONVERGED` (T2 needs the last two rounds clean; the five non-author rounds, 6 to 10, found 6, 11, 8, 3 and 10 findings: 2 HIGH in round 7 on stdin, 1 HIGH in round 10 on cited commits that did not build from the public history, 0 behavioral differences in rounds 9 and 10; their reports are in `docs/reviews/`). Owner: the author, with a fresh non-author subagent per round. Flips after two consecutive rounds with fewer than 3 new genuine findings.
+1. **Convergence met for the tier: fails.** `converge.sh`: `NOT_CONVERGED` (T2 needs the last two rounds clean; the six non-author rounds, 6 to 11, found 6, 11, 8, 3, 10 and 12 findings: 2 HIGH in round 7 on stdin, 1 HIGH in round 10 on cited commits that did not build from the public history, 0 differences in conversion content in rounds 9, 10 and 11; their reports are in `docs/reviews/`). Owner: the author, with a fresh non-author subagent per round. Flips after two consecutive rounds with fewer than 3 new genuine findings.
 2. **Every performance claim has a pin, cv ≤ 5%, identical sha: holds for what is claimed.** Three captures against the original on ordinary inputs are MEASURED and five are REFUSED_CV (nothing is claimed for those). Owner: the author, on a quiet host. These are missing numbers, not failing ones; they block only a speed sentence for those inputs.
 
-The DISC register is complete since 2026-09-20: the repository owner delegated the rulings to the author ("You decide on everything. I approve whatever you want to do."), twelve entries are ACCEPTED with a scoped contract each (DISC-014 was found and ruled on after the delegation, by the same delegation), two are RESOLVED by repairs, and the port's one custom effect `Stdin.open` stays.
+The DISC register is complete since 2026-09-20: the repository owner delegated the rulings to the author ("You decide on everything. I approve whatever you want to do."), thirteen entries are ACCEPTED with a scoped contract each (DISC-014 and DISC-015 were found and ruled on after the delegation, under it), two are RESOLVED by repairs, and the port's one custom effect `Stdin.open` stays.
 
 ## Constants (computed, never asserted)
 
@@ -24,13 +24,13 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 | the gates bite | `harness-selftest.sh -- ./oracle/toon`: `"mutations":11,"caught":11,"leaked":[],"untestable":[],"verdict":"OK"` | `scripts/harness-selftest.sh` |
 | the laws bite | `{"laws_in_proof": 123, "reduced": true, "mutants": 22, "killed": 22, "survived": [], "not_evidence": [], "verdict": "STRONG"}`; `scripts/law-mutation.sh` itself: INCONCLUSIVE on the three modules (no valid textual site) | `scripts/hand-mutants.py` |
 | board FULL or DEBT, every exclusion classed | `{"rows": 33, "present": 27, "partial": 0, "missing": 0, "excluded": 6, "na": 0, "no_evidence": 0, "verdict": "DEBT"}` | `scripts/parity-board.sh` |
-| DISC register complete | 12 ACCEPTED (each with a scoped contract), 2 RESOLVED, 0 OPEN | `docs/DISCREPANCIES.md`; `scripts/converge.sh`: `"open_disc": []` |
+| DISC register complete | 13 ACCEPTED (each with a scoped contract), 2 RESOLVED, 0 OPEN | `docs/DISCREPANCIES.md`; `scripts/converge.sh`: `"open_disc": []` |
 | floor unchanged since capture | `{"repeat":3,"stable":1065,"unstable":[],"inconclusive":[],"oracle_identity_checked":true,"verdict":"STABLE"}` | `scripts/floor.sh` |
 | MANIFEST unchanged since the clean tail | there is no clean tail yet; last change `4c3cccc Round 8 (non-author, dirty: 0 HIGH, 4 MEDIUM, 4 LOW): EBADF on stdin ends the input, launcher repairs, 5 cases, 368 laws` (15 hashes added, 0 changed; every re-capture of this port only ever ADDED hashes) | git |
 | evidence ≤ 24 h old on this commit | every line of this report is dated 2026-09-20 | `docs/PORT_STATE.md` |
 | zero open high-severity findings | round 7's two HIGH findings (stdin re-opened by path) are repaired and have regression rows (`scripts/stdio-probe.py`); round 10's one HIGH finding (cited commits that did not build) is repaired and has a gate (`scripts/clean-build-check.sh`); rounds 8 and 9 had none | PORT_STATE rounds table, `docs/reviews/` |
-| convergence met for the tier | `{"tier": "T2", "rounds": 10, "clean": 5, "clean_tail": 0, "last_two_clean": false, "non_author_round": true, "open_oq": [], "open_disc": [], "verdict": "NOT_CONVERGED", "missing": ["clean rounds since last reset 0 < 2"]}`: FAILS | `scripts/converge.sh` |
-| every perf claim has a pin, cv ≤ 5%, identical sha | the MEASURED captures named below; one NO_EVIDENCE; six REFUSED_CV that are claimed nowhere; NO row is admitted to the WIN ledger (NE-001..005 are provisional) | `perf/evidence/`, `perf/PERF-LEDGER.md`, `perf/NEGATIVE-EVIDENCE.md` |
+| convergence met for the tier | `{"tier": "T2", "rounds": 11, "clean": 5, "clean_tail": 0, "last_two_clean": false, "non_author_round": true, "open_oq": [], "open_disc": [], "verdict": "NOT_CONVERGED", "missing": ["clean rounds since last reset 0 < 2"]}`: FAILS | `scripts/converge.sh` |
+| every perf claim has a pin, cv ≤ 5%, identical sha | the MEASURED captures named below; one NO_EVIDENCE; six REFUSED_CV that are claimed nowhere; NO row is admitted to the WIN ledger (NE-001, 002, 003 and 005 are provisional, NE-004 is NO_EVIDENCE) | `perf/evidence/`, `perf/PERF-LEDGER.md`, `perf/NEGATIVE-EVIDENCE.md` |
 | claims lint | `claims-lint: 0 hit(s) in 11 file(s)`: this file, `README.md`, `CONTRIBUTING.md`, `docs/PORT_STATE.md`, `docs/PARITY_RUNBOOK.md`, `docs/DISCREPANCIES.md`, `docs/OPEN_QUESTIONS.md`, `perf/*.md` | `scripts/claims-lint.sh` |
 
 ## Claims
@@ -60,18 +60,19 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 
 ## Discrepancies
 
-ACCEPTED on 2026-09-20 by the owner's delegation, one line each (id, class, kill-switch or mitigation, cases affected): DISC-001 Platform, runtime flags before `--`, launcher, 0 · DISC-002 Platform, the literal program name, none, 0 · DISC-003 Platform, an unwritable stderr, launcher repairs closed and read-only, 0 · DISC-004 Platform, non-UTF-8 argv, none, 0 · DISC-005 Platform, ANSI styling, none, 0 · DISC-006 Platform, a failed stdout write, launcher repairs closed and read-only, 0 · DISC-007 Platform, closed descriptors on the bare native binary, launcher, 0 · DISC-008 Platform, `-o` mode 0644, none, 0 · DISC-010 Performance, deep nesting, none, 0 · DISC-011 Performance, the runtime's resource floor, the JavaScript build, 0 · DISC-013 Performance, non-integer numbers 45 to 300 times slower (linear), none, 0 · DISC-014 Platform, a `/dev/fd/N` path the caller did not open reaches a descriptor of the runtime, none, 0. RESOLVED by repairs: DISC-009, DISC-012 (the stdin effect; regression rows in `scripts/stdio-probe.py`). Approver of every entry: the repository owner through the delegation quoted above.
+ACCEPTED on 2026-09-20 by the owner's delegation, one line each (id, class, kill-switch or mitigation, cases affected): DISC-001 Platform, runtime flags before `--`, launcher, 0 · DISC-002 Platform, the literal program name, none, 0 · DISC-003 Platform, an unwritable stderr, launcher repairs closed and read-only, 0 · DISC-004 Platform, non-UTF-8 argv, none, 0 · DISC-005 Platform, ANSI styling, none, 0 · DISC-006 Platform, a failed stdout write, launcher repairs closed and read-only, 0 · DISC-007 Platform, closed descriptors on the bare native binary, launcher, 0 · DISC-008 Platform, `-o` mode 0644, none, 0 · DISC-010 Performance, deep nesting, none, 0 · DISC-011 Performance, the runtime's resource floor, the JavaScript build, 0 · DISC-013 Performance, non-integer numbers 45 to 300 times slower (linear), none, 0 · DISC-014 Platform, a `/dev/fd/N` path the caller did not open reaches a descriptor of the runtime, none, 0 · DISC-015 Platform, the sizes of the reads on stdin (packet pipes, SEQPACKET above 32 bytes, O_DIRECT files convert where the original fails), none, 0. RESOLVED by repairs: DISC-009, DISC-012 (the stdin effect; regression rows in `scripts/stdio-probe.py`). Approver of every entry: the repository owner through the delegation quoted above.
 
 ## Reproduce (an auditor gets the same lines)
 
-Use `c7239e2` or any commit after it. NOT `d80251a`, `861abf2` or `4c3cccc`, which this report's earlier versions named: they do not build from the public history (`port/stdin_open.c` and `.js` were hidden by `.gitignore` until `a725d10`; `./scripts/clean-build-check.sh 4c3cccc` → FAIL at the native build, `… c7239e2` → PASS). The oracle binary is not in the repository: `docs/PIN.toml` has its commit and sha256, PLAN §2 the build command; without it the first, second and the last-but-one command below cannot run, the others can.
+Check out the NEWEST commit of `main`: this report, the scripts it calls and the lines it pastes belong together there. (The gate lines were produced on the tree of `c7239e2`; since then `port/` changed in comments of `port/LAWS.bend` only: `git diff c7239e2 HEAD -- port/`. Commits `d80251a`, `861abf2` and `4c3cccc`, which earlier versions of this report named, do not build from the public history: `./scripts/clean-build-check.sh 4c3cccc` → FAIL. Round 11 showed that naming `c7239e2` in this recipe was wrong too: `clean-build-check.sh` itself arrived two commits after it.) The oracle binary is not in the repository: `docs/PIN.toml` has its commit and sha256, PLAN §2 the build command. WITHOUT it these run: the build, `clean-build-check.sh`, `converge.sh`, `hand-mutants.py`, the claims lint (and `conform.sh`, the proof, the lints of CONTRIBUTING §2). They do NOT: `floor.sh`, `port-doctor.sh`, `stdio-probe.py`, `diff-fuzz.py`, `incumbent-bench.sh` (each says so and exits 2).
 
 ```bash
-git checkout c7239e2                                                    # or any commit after it
+git checkout main
 export BEND_NO_TELEMETRY=1 BEND_CLI='bun /tmp/bend/bend2/main.ts'      # bendlang/bend at 15ae0c8
 ./scripts/floor.sh goldens/cases.tsv goldens --repeat 3 -- ./oracle/toon
 ./scripts/port-doctor.sh --threads 8 --original ./oracle/toon -- --switch TOON_SPEC=1 --probe '["--encode","cases/inputs/hand/large_tabular_1500.json"]'
-./scripts/clean-build-check.sh && ./scripts/converge.sh docs/PORT_STATE.md
+./scripts/clean-build-check.sh
+./scripts/converge.sh docs/PORT_STATE.md          # exit 1 while NOT_CONVERGED: run it on its own line
 python3 scripts/hand-mutants.py
 $BEND_CLI port/main.bend -o ./x && python3 scripts/stdio-probe.py -- ./x -- && python3 scripts/diff-fuzz.py scale --runs 16000 -- ./x --
 ./scripts/incumbent-bench.sh --runs 9 --pin "bend 2.0.16 @15ae0c8; toon 0.2.4 @f955c67" --original ./oracle/toon -e perf/inputs/wide_rows_1200.json --port ./x --threads 1 -- -e perf/inputs/wide_rows_1200.json

@@ -39,9 +39,10 @@ def main():
     with open(small, "w", encoding="utf-8") as fh:
         fh.write('{"a":1}')
 
-    def run(cmd, args, stdin=None, pre=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, feed=None):
+    def run(cmd, args, stdin=None, pre=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, feed=None, keep_fds=False):
         try:
-            p = subprocess.Popen(cmd + args, stdin=stdin, stdout=stdout, stderr=stderr, preexec_fn=pre, cwd=work)
+            p = subprocess.Popen(cmd + args, stdin=stdin, stdout=stdout, stderr=stderr, preexec_fn=pre, cwd=work,
+                                 close_fds=not keep_fds)
             if feed:
                 feed(p)
             out, err = p.communicate(timeout=limit)
@@ -163,6 +164,18 @@ def main():
     row("stdin is a SEQPACKET socket, one message of 31 bytes", "", seqpacket(15))
     row("stdin is a SEQPACKET socket, one message of 41 bytes (the original's first read asks for 32)", "DISC-015", seqpacket(20))
     row("INPUT is /dev/fd/9, which nobody opened", "", lambda cmd: run(cmd, ["-d", "/dev/fd/9"], stdin=subprocess.DEVNULL))
+
+    def caller_fd9(cmd):
+        """INPUT /dev/fd/9 WITH descriptor 9 supplied by the caller: a launcher that probes the standard
+        descriptors must not spend descriptor 9 doing it (round 12 found `bin/toon` did)."""
+        fd = os.open(small, os.O_RDONLY)
+        try:
+            return run(cmd, ["-e", "/dev/fd/9"], stdin=subprocess.DEVNULL, keep_fds=True,
+                       pre=lambda: os.dup2(fd, 9))
+        finally:
+            os.close(fd)
+
+    row("INPUT is /dev/fd/9 and the caller DID open descriptor 9", "", caller_fd9)
     row("-o /dev/fd/3, which the caller did not open", "DISC-014", lambda cmd: run(cmd, ["-e", small, "-o", "/dev/fd/3"], stdin=subprocess.DEVNULL))
     row("stdin is a regular file at offset 11", "", offset(11, ["-d"]))
     row("stdin is a regular file at its end", "", offset(len(doc), ["-d"]))

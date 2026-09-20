@@ -36,20 +36,21 @@ if [ ! -f "$bin" ] || [ ! -x "$bin" ] || [ ! -s "$bin" ]; then
   echo "toon: no binary at $bin (build it: bun /tmp/bend/bend2/main.ts port/main.bend -o port/toon)" >&2
   exit 127
 fi
-# duplicating a closed descriptor fails with EBADF; the subshell keeps descriptor 3 out of this process.
-# Descriptor 2 cannot be asked that way (silencing the test would re-open it), and NOT through /dev/fd either:
-# that link dangles where /proc is not mounted, and an OPEN stderr would be taken for closed and sent to
-# /dev/null, every diagnostic with it (round 11). `command exec 9>&2` duplicates it in THIS shell: `command`
-# makes a failing redirection of the special builtin return 1 instead of ending the shell, and the shell's
-# own complaint goes to descriptor 2, which is closed in exactly that case.
+# duplicating a closed descriptor fails with EBADF; the subshell keeps the duplicate out of this process, so
+# a descriptor the CALLER passed (`toon /dev/fd/9 9<file`) is never disturbed. Descriptor 2 is asked the same
+# way but WITHOUT `2>/dev/null`: silencing the test would re-open the very thing it tests, and asking
+# `/dev/fd/2` instead would call an open stderr closed wherever /proc is not mounted and send every
+# diagnostic to /dev/null (round 11). When stderr is closed the subshell's own complaint has nowhere to go,
+# which is exactly the case we are detecting; when it is open there is no complaint. Checked under dash, bash
+# and busybox sh, with descriptor 2 open and closed, and with descriptor 9 held by the caller.
 if ! (exec 3<&0) 2>/dev/null; then
   exec 0</dev/null
 fi
 if ! (exec 3>&1) 2>/dev/null; then
   exec 1>/dev/null
 fi
-if command exec 9>&2; then
-  exec 9>&-
+if ( exec 9>&2 ); then
+  :
 else
   exec 2>/dev/null
 fi

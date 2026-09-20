@@ -267,7 +267,7 @@ def row_ok.of(lock: Nat, +entries: J.Json, +hdr: List<&2, String>, hn: Nat) -> B
     case 2n:
       False{}
     case _:
-      Bool.and(Nat.is_eq(count.go(entries, 0n), hn), row_keys.go(hdr, J.km.of(entries, J.KMLeaf{J.JNil{}}), True{}))
+      Bool.and(Nat.is_eq(count.go(entries, 0n), hn), row_keys.go(hdr, J.km.of(entries, J.km.empty()), True{}))
 
 # S4.36 one row: (a) an object, then S4.36 (b)-(d)
 def row_ok(row: J.Json, +hdr: List<&2, String>, hn: Nat) -> Bool:
@@ -426,7 +426,7 @@ def put.cells.seq(c: J.Json, +delim: U32, +spec: Bool, first: Bool, acc: String)
 def put.row(lock: Nat, hdr: List<&2, String>, entries: J.Json, delim: U32, spec: Bool, acc: String) -> String:
   match lock:
     case 0n:
-      put.cells(hdr, J.km.of(entries, J.KMLeaf{J.JNil{}}), delim, spec, True{}, acc)
+      put.cells(hdr, J.km.of(entries, J.km.empty()), delim, spec, True{}, acc)
     case _:
       put.cells.seq(entries, delim, spec, True{}, acc)
 

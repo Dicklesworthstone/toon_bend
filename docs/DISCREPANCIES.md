@@ -48,7 +48,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Original behavior (runs of 2026-09-20, no golden: the harness cannot redirect stderr): stderr = `/dev/full` when a runtime line is printed → SIGABRT (134 in a shell, −6 for a parent); stderr CLOSED (`2>&-`) → the write error is ignored and the exit code is the normal one (0 for a successful `-e … -o /dev/null`, 1 for a missing file, 2 for an argv error); argv errors with stderr = `/dev/full` → exit 2
 - Port behavior: in every one of these situations the Bend runtime fail-stops with exit 1 (it has nowhere to print `bend: a short write on a standard stream`). So the exit code differs from the original's whenever the original's is not 1: a successful conversion with a success line and a closed stderr (0 vs 1), an argv error with an unwritable stderr (2 vs 1), and the abort (134 vs 1)
 - Why: the runtime owns the standard streams; a program cannot intercept the failure
-- Kill-switch: not applicable
+- Kill-switch: not applicable; mitigation for a CLOSED stderr only: the launcher `bin/toon` re-opens it from `/dev/null`, which is what the original's "ignore EBADF" amounts to (`scripts/stdio-probe.py -- ./bin/toon`: both closed-stderr rows SAME). A stderr that is open and FAILS (`/dev/full`) stays as described
 - Affected cases: none expressible
 - Impact measured: 0 of 1053 cases; found and tabulated by the non-author round 6
 - Approver: pending
@@ -57,7 +57,7 @@ to change the contract. Keep the historical entry and its original evidence.
 ### DISC-004 — argv words that are not valid UTF-8   [2026-09-20 | Platform | OPEN]
 - Spec clause: S1.22, S1.87, S5.107, S9.18
 - Original behavior: clap accepts a non-UTF-8 INPUT or `--output` path as an OS string and prints it lossily in messages; a non-UTF-8 value for a typed option is an `invalid UTF-8` error (observed by the CLI extractor; no golden, cases.tsv argv is text)
-- Port behavior: the runtime decodes argv with replacement before `IO.args()` returns, so such a path names a different file and messages show U+FFFD where the original does too, but the file that is opened differs
+- Port behavior: the runtime decodes argv with replacement before `IO.args()` returns, so such a path names a different file and messages show U+FFFD where the original does too, but the file that is opened differs. For a TYPED option the text differs as well (round 7, R7-10): `--indent $'\xff'` (also `--delimiter`) → the original prints `error: invalid UTF-8 was detected in one or more arguments`, a blank line, `Usage: toon [OPTIONS] [INPUT]`, a blank line and the help hint, exit 2; the port prints `error: invalid value '\ufffd' for '--indent <INDENT>': invalid digit found in string` and the help hint, exit 2. `--key-folding $'\xff'`, unknown options and paths behave as described above
 - Why: Base's argv is `String`; there is no byte-level argv effect
 - Kill-switch: not applicable
 - Affected cases: none expressible
@@ -79,7 +79,7 @@ to change the contract. Keep the historical entry and its original evidence.
 ### DISC-006 — a failed write to stdout prints the runtime's line, not the original's   [2026-09-20 | Platform | OPEN]
 - Spec clause: S9.16, S8.9, S8.10
 - Original behavior: `Failed to write to stdout: <os text> (os error <n>)` + LF on stderr, exit 1 (run 2026-09-20: stdout = `/dev/full` → `No space left on device (os error 28)`; stdout = a pipe whose reader is closed → `Broken pipe (os error 32)`)
-- Port behavior: for a CONVERSION the same exit code 1, stderr `bend: a short write on a standard stream` + LF (C lane, both situations). Round 6 found the cases where the exit code differs too: `--help` / `--version` with stdout = `/dev/full` or closed → the original ignores the failure (S1.63: exit 0, silent), the port exits 1 with the runtime line on both the C and JS lanes; a conversion with stdout CLOSED (`-e one.json >&-`) → the original exits 0 (Rust ignores EBADF on stdout), the C lane exits 1 with the runtime line, and the JS lane exits 0: a difference BETWEEN the port's lanes that no golden can see
+- Port behavior: for a CONVERSION the same exit code 1, stderr `bend: a short write on a standard stream` + LF (C lane, both situations). Round 6 found the cases where the exit code differs too: `--help` / `--version` with stdout = `/dev/full` or closed → the original ignores the failure (S1.63: exit 0, silent), the port exits 1 with the runtime line on both the C and JS lanes; a conversion with stdout CLOSED (`-e one.json >&-`) → the original exits 0 (Rust ignores EBADF on stdout), the C lane exits 1 with the runtime line, and the JS lane exits 0: a difference BETWEEN the port's lanes that no golden can see. Round 7 (R7-11) adds a NON-BLOCKING stdout pipe with 349 KB of output and a reader that starts late: the original writes 65536 bytes, prints `Failed to write to stdout: Resource temporarily unavailable (os error 11)` and exits 1; the native binary writes the same 65536 bytes and exits 1 with the runtime line; the JS lane writes all 348899 bytes and exits 0. Through the launcher `bin/toon` a CLOSED stdout is re-opened from `/dev/null`, which is the original's behavior exactly (exit 0, silent): `scripts/stdio-probe.py -- ./bin/toon` reports that row SAME; the `/dev/full` and non-blocking rows stay
 - Why: `IO.write` owns fd 1 and fail-stops inside the runtime; a program cannot intercept the failure. Writing through `File.open("/dev/stdout", …)` instead would return the errno, but re-opening fd 1 by path fails where the original succeeds (a socket, a descriptor inherited across a privilege change), which is a worse divergence than a differing text on a failing write. Writes to the `-o` file DO go through the File API and reproduce S9.15 byte for byte (golden-tested: `io_output_dev_full_*`).
 - Kill-switch: not applicable
 - Affected cases: none expressible (the harness captures stdout)
@@ -90,9 +90,9 @@ to change the contract. Keep the historical entry and its original evidence.
 ### DISC-007 — the native binary hangs when stdin is CLOSED   [2026-09-20 | Platform | OPEN]
 - Spec clause: S8.5, S9.2, S9.12 ("a process started without fd 0 sees an empty stdin")
 - Original behavior (run 2026-09-20): `toon -e <&-` → `JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 0`, exit 1; `toon -d <&-` → `{}`, exit 0
-- Port behavior: the JS lane matches the original. The NATIVE binary never returns (`timeout 10 ./toon -- -e <&-` → 124): with fd 0 free at startup, the Bend runtime's own wake-up pipe is given descriptor 0 (`/proc/<pid>/fd` shows 0, 3 and 4 on one pipe), so reading `/dev/stdin` reads a pipe that nobody writes
+- Port behavior: the JS lane matches the original. The NATIVE binary, as first registered (commit `1230a0d` and before), never returned (`timeout 10 ./toon -- -e <&-` → 124): with fd 0 free at startup, the Bend runtime's own wake-up pipe is given descriptor 0 (`/proc/<pid>/fd` shows 0, 3 and 4 on one pipe), so reading `/dev/stdin` read a pipe that nobody writes. SINCE the stdin effect (DISC-012) the read fails at once instead: `-e <&-` and `-d <&-` both print `Failed to read stdin: Resource temporarily unavailable (os error 11)` and exit 1, so `-e` has the original's exit code with another text and `-d` exits 1 where the original exits 0. Round 7 (R7-7) found a SECOND hang that is still there on the bare native binary: fd 0 AND fd 1 closed, an INPUT file, more than 64 KiB of output: descriptors 0 and 1 are both the runtime's pipe, the conversion's own stdout is written INTO it and blocks when it is full (`wchan` = `anon_pipe_write`); the original exits 0
 - Why: descriptor allocation happens inside the runtime before `main`; Bend has no effect that can tell whether fd 0 was open
-- Kill-switch: not applicable; mitigation: the launcher `bin/toon` re-opens a closed fd 0 from `/dev/null` before exec, which gives exactly the original's behavior (an empty input)
+- Kill-switch: not applicable; mitigation: the launcher `bin/toon` re-opens closed descriptors 0, 1 and 2 from `/dev/null` before exec, which gives exactly the original's behavior (an empty input; EBADF on stdout and stderr ignored). `python3 scripts/stdio-probe.py -- ./bin/toon` reports every closed-descriptor row SAME; against the bare binary the two rows of this entry are KNOWN
 - Affected cases: none expressible (the harness requires stdin to be a regular file)
 - Impact measured: 0 of 1053 cases; found by the non-author round 6
 - Approver: pending
@@ -109,27 +109,49 @@ to change the contract. Keep the historical entry and its original evidence.
 - Approver: pending
 - Resolution: n/a while OPEN
 
-### DISC-009 — a non-blocking stdin is read instead of failing with EAGAIN   [2026-09-20 | Platform | OPEN]
+### DISC-009 — a non-blocking stdin is read instead of failing with EAGAIN   [2026-09-20 | Platform | RESOLVED]
 - Spec clause: S9.12 (template `Failed to read stdin: <os text> (os error <n>)`)
 - Original behavior (run by round 6): stdin is a pipe with `O_NONBLOCK` set and no data yet → `Failed to read stdin: Resource temporarily unavailable (os error 11)`, exit 1
 - Port behavior: the runtime waits for the data and converts it (`[2]: 1,2`, exit 0)
-- Why: the runtime's reader polls; the program never sees EAGAIN. This is the port behaving better than the original, which by this project's rule is still a divergence and not a silent fix
+- Why: as first written: "the runtime's reader polls; the program never sees EAGAIN". That cause was WRONG (round 7, R7-8, `strace`): the port opened the PATH `/dev/stdin`, a new open file description that does not carry the caller's `O_NONBLOCK`, and did one blocking `read` on it. The same root cause as DISC-012
 - Kill-switch: not applicable
 - Affected cases: none expressible
 - Impact measured: 0 of 1053 cases
-- Approver: pending
-- Resolution: n/a while OPEN
+- Approver: not needed (a repair restores the original's behavior)
+- Resolution: RESOLVED 2026-09-20 by the stdin effect `Stdin.open` (`port/main.bend`, `port/stdin_open.c`, `port/stdin_open.js`): descriptor 0 itself is read, so the read fails with EAGAIN and the port prints the original's line, exit 1. Regression artifact: `python3 scripts/stdio-probe.py -- <port>` row "stdin is an empty pipe with O_NONBLOCK" → SAME on the native binary, through the launcher and on the JavaScript build
 
 ### DISC-010 — a TOON document nested about 20000 levels deep decodes instead of aborting   [2026-09-20 | Performance | OPEN]
 - Spec clause: S2.150 (no nesting limit without expansion); candidate C-6 promoted to the register by round 6, because it IS a divergence
-- Original behavior: a Rust stack overflow, SIGABRT, with a thread id in stderr that varies per run (the JSON extractor's handover notes; 2000 levels decode)
-- Port behavior: the decoder is an explicit-stack machine and decodes the document
+- Original behavior: a Rust stack overflow, SIGABRT, with a thread id in stderr that varies per run (the JSON extractor's handover notes; 2000 levels decode). Measured by round 7 (R7-9; `--indent 1`, the default 8 MiB stack): 12000 levels (72 MB) decode, exit 0; 16000 levels (128 MB) abort, exit 134. The "about 20000" of this entry's title was a guess; the threshold is between 12000 and 16000
+- Port behavior: the decoder is an explicit-stack machine, so nothing in it depends on the nesting depth. That the port DECODES a 16000-level document has NOT been run (no case, no capture): at the measured 47 to 70 bytes of resident memory per input byte (DISC-011) such a document needs about 6 GB, which was not spent on a shared host
 - Why: a limit the original has and the port does not; a signal exit with a varying message cannot be a golden
 - Kill-switch: not applicable
 - Affected cases: none (a signal exit is never a golden; the input is far above 1 MB)
-- Impact measured: 0 of 1053 cases; not re-run in this session
+- Impact measured: 0 of 1060 cases; the original's half re-run by round 7, the port's half unverified (see above)
 - Approver: pending
 - Resolution: n/a while OPEN
+
+### DISC-011 — the native runtime's resource floor: 8 TiB of address space, a thread, an event loop   [2026-09-20 | Performance | OPEN]
+- Spec clause: S11.1 (large inputs), S8.1 (process start)
+- Original behavior (run by round 7, R7-6): works under `RLIMIT_AS` = 100 MB, `RLIMIT_DATA` = 64 MB, `RLIMIT_NPROC` = 1, `RLIMIT_NOFILE` = 4; peak resident memory about 4 bytes per input byte (a 16 MB JSON string: 63 MB)
+- Port behavior: the native binary reserves 8 TiB of address space before `main` (`VmSize` 8592046796 kB for `{"a":1}`), starts a thread and opens an event loop. With `RLIMIT_AS` below about 10 GiB or `RLIMIT_DATA` below about 34 GiB it prints `bend: reservation failed` and exits 1 for EVERY argv (`--version` exits 1 instead of 0, `--bogus` 1 instead of 2); with `RLIMIT_NPROC` exhausted `bend: pthread_create`, exit 1, also with `--threads 1`; with `RLIMIT_NOFILE` = 4 `bend: the event loop failed to open`, = 5 `Failed to read stdin: Too many open files (os error 24)`. The JavaScript build works at 4 GiB. Peak resident memory is 47 to 70 bytes per input byte (the same 16 MB string: 1117 MB; an 8 MB table 397 MB against 126 MB)
+- Why: the Bend runtime's heap reservation and scheduler are not the program's to configure; every value is a heap term (a byte of input is a list cell of a `U32`)
+- Kill-switch: not applicable; the JavaScript build is the lane for an address-space-limited environment
+- Affected cases: none expressible (the harness sets no limits)
+- Impact measured: 0 of 1060 cases; found by the non-author round 7
+- Approver: pending
+- Resolution: n/a while OPEN
+
+### DISC-012 — stdin was re-opened by PATH: a file offset ignored, a socket refused   [2026-09-20 | Platform | RESOLVED]
+- Spec clause: S8.5 (the input is descriptor 0 when no INPUT is named), S9.12
+- Original behavior (run by round 7, R7-1..R7-3): reads descriptor 0 as inherited: `{ read -r _; toon -d; } < f.toon` decodes from the second line on and leaves the shared offset at the end; a socket as stdin (every Node.js `child_process` with piped input) converts; a descriptor of a file that is no longer readable by path converts
+- Port behavior up to commit `e3f5540`: `File.open("/dev/stdin", "r")`, the method's recipe for a runtime without a stdin effect, makes a NEW open file description: the regular file was read again from byte 0 (WRONG BYTES with exit 0; with a non-TOON first line an error where the original succeeds) and the shared offset was not consumed; a socket failed with `Failed to read stdin: No such device or address (os error 6)`, exit 1; the unreadable file failed with `Permission denied (os error 13)`. Native binary, launcher and JavaScript build alike. The conformance harness could not see any of it: it feeds regular files at offset 0
+- Why: Base has no stdin effect (`bend2/effs/` at the pin has none)
+- Kill-switch: not applicable (a repair)
+- Affected cases: none expressible in `goldens/cases.tsv`; the regression artifact is a script
+- Impact measured: 0 of 1060 cases; 5 of 16 rows of `scripts/stdio-probe.py` on the binary of `1230a0d`
+- Approver: the repair needs none; the MEANS does: it is the port's one custom effect, which `AGENTS.md` had ruled out ("no custom effects") on the wrong premise that an effect exists on one lane only. Owner: keep the effect (recommended), or revert to the recipe and re-open this entry
+- Resolution: RESOLVED 2026-09-20: `Stdin.open` (`port/main.bend`) with a twin per lane, `port/stdin_open.c` (`dup(0)` as a Base `File`) and `port/stdin_open.js` (descriptor 0 as the `File`), so the interpreter, both native lanes and the JavaScript build read descriptor 0 itself. Regression artifacts: `python3 scripts/stdio-probe.py -- <port>` rows "stdin is a regular file at offset 11", "… at its end", "stdin offset is left alone when INPUT is a file", "stdin is a socket", "stdin is a descriptor of a file unreadable by path" → SAME on the native binary, through the launcher and on the JavaScript build; `scripts/lanes.sh` PASS on every lane after the change
 
 ### Bug-compatibility candidates C-1 to C-11 (not divergences: the port is bug-compatible with each; listed so the owner can decide)
 

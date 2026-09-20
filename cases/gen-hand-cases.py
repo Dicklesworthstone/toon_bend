@@ -806,6 +806,31 @@ def _found_phase4():
 _found_phase4()
 
 
+def _found_round7():
+    """Round 7 (non-author review): keys that collide in the port's 16 hash bits and keys repeated more than
+    once. "exr" and "jda" share the low 16 bits of their FNV-1a hashes (…8a4e), so they meet in one bucket
+    of every hashed carrier of the port; the original's maps do not care. Expectations are the oracle's."""
+    case("encstr_keys_hash_collision", ["--encode", "--key-folding", "safe"],
+         '{"exr":"a","jda":"b","exr":"c","t":[{"exr":"p","jda":"q"},{"jda":"r","exr":"s"}]}',
+         "enc-string", "S6.10, S6.31: a repeated key and a permuted tabular row, all keys in one hash bucket")
+    case("encstr_fold_hash_collision", ["--encode", "--key-folding", "safe"],
+         '{"exr":{"x":1},"jda":{"x":2},"exr.x":3,"jda.y":{"z":4}}',
+         "enc-string", "S4.63: folding's sibling test on colliding keys: exr.x collides with a literal sibling, jda.x does not")
+    case("encstr_duplicate_keys_thrice", ["--encode"], '{"a":1,"b":{"a":1,"a":2,"a":3},"a":2,"c":0,"a":3}',
+         "enc-string", "S2.29: a key repeated twice over keeps its first position and takes its LAST value, at both depths")
+    case("toonedge_expand_hash_collision_conflict", ["--decode", "--expand-paths", "safe"], "exr.k: 1\njda.k: 2\nexr.m: 3\njda.k.z: 4\n",
+         "toon-edge", "S4.244: expansion over colliding keys; the conflict is on jda.k, not on its bucket neighbour")
+    case("toonedge_expand_hash_collision_lenient", ["--decode", "--expand-paths", "safe", "--no-strict"], "exr.k: 1\njda.k: 2\nexr.m: 3\njda.k.z: 4\n",
+         "toon-edge", "S4.246: the same document in lenient mode: the later value wins under jda.k only")
+    case("toonedge_repeated_keys_hash_collision", ["--decode"], "exr: 1\njda: 2\nexr: 3\n",
+         "toon-edge", "S3.25: writer A keeps every repeated key, colliding or not")
+    case("toonerr_expand_repeated_hash_collision", ["--decode", "--expand-paths", "safe"], "exr: 1\njda: 2\nexr: 3\nt[2]{jda,exr}:\n  1,2\n  3,4\n",
+         "toon-error", "S4.245: a repeated literal key is a merge conflict under expansion")
+
+
+_found_round7()
+
+
 def _read_bytes(path):
     """The bytes of a file; the handle is closed before returning."""
     with open(path, "rb") as fh:

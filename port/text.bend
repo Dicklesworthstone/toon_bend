@@ -287,8 +287,8 @@ def nat_of(s: String, acc: Nat) -> Nat:
 #
 # The original keeps object keys in hash maps; a linear search per key is quadratic in the number of
 # keys of one object (round 6: 8000 keys took 5 s). KT is a binary trie over the low 16 bits of an
-# FNV-1a hash of the key, with the keys themselves in the leaf buckets: membership and insertion are
-# 16 steps plus the bucket. Order never comes from here: it stays in the entry chain beside the set.
+# FNV-1a hash of the key, with the keys themselves in the leaf buckets (balanced trees, KS): membership
+# and insertion are 16 steps plus a logarithm of the bucket. Order never comes from here: it stays in the entry chain beside the set.
 
 # S6.10 FNV-1a over the scalar values of a key (U32 arithmetic wraps, which is the algorithm)
 def key_hash.go(s: String, +h: U32) -> U32:
@@ -302,34 +302,154 @@ def key_hash.go(s: String, +h: U32) -> U32:
 def key_hash(s: String) -> U32:
   key_hash.go(s, 2166136261)
 
+# S6.10 the order of two keys by their scalar values (any total order serves: it only balances buckets)
+type Ord is Data:
+  OLt{}
+  OEq{}
+  OGt{}
+
+# S6.10 the order of two scalar values from the two verdicts
+def ord.pick(lt: Bool, eq: Bool) -> Ord:
+  match lt eq:
+    case True{} _:
+      OLt{}
+    case False{} True{}:
+      OEq{}
+    case False{} False{}:
+      OGt{}
+
+# S6.10 the order of two scalar values
+def ord.u32(+x: U32, +y: U32) -> Ord:
+  ord.pick(U32.is_lt(x, y), U32.is_eq(x, y))
+
+# S6.10 the loop of str_cmp: c is the verdict so far, and the first difference ends it
+def str_cmp.go(a: String, b: String, c: Ord) -> Ord:
+  match a b c:
+    case _ _ OLt{}:
+      OLt{}
+    case _ _ OGt{}:
+      OGt{}
+    case SNil{} SNil{} OEq{}:
+      OEq{}
+    case SNil{} SCon{y, t} OEq{}:
+      OLt{}
+    case SCon{x, s} SNil{} OEq{}:
+      OGt{}
+    case SCon{Chr{x}, s} SCon{Chr{y}, t} OEq{}:
+      str_cmp.go(s, t, ord.u32(x, y))
+
+# S6.10 the order of two keys (a loop: Base's String.cmp recurses to the length of the common prefix)
+def str_cmp(a: String, b: String) -> Ord:
+  str_cmp.go(a, b, OEq{})
+
+# S6.10 a bucket: the keys that share their 16 hash bits, as an AA tree (a balanced search tree: a level
+# per node, no left child on its parent's level, no two right descendants in a row on it). Keys that
+# collide in the hash, by accident or by design, cost a logarithm of their number and never their number
+# (round 7: 16000 keys chosen to collide took 21 s in a list bucket).
+type KS is Data:
+  KSNil{}
+  KSNode{lv: Nat, l: KS, key: String, r: KS}
+
+# S6.10 skew, decided: a left child on its parent's level becomes the parent
+def ks.skew.pick(same: Bool, lv: Nat, llv: Nat, a: KS, lk: String, b: KS, x: String, r: KS) -> KS:
+  match same:
+    case True{}:
+      KSNode{llv, a, lk, KSNode{lv, b, x, r}}
+    case False{}:
+      KSNode{lv, KSNode{llv, a, lk, b}, x, r}
+
+# S6.10 skew: remove a left horizontal link by a right rotation
+def ks.skew(t: KS) -> KS:
+  match t:
+    case KSNode{+lv, KSNode{+llv, a, lk, b}, x, r}:
+      ks.skew.pick(Nat.is_eq(llv, lv), lv, llv, a, lk, b, x, r)
+    case other:
+      other
+
+# S6.10 split, decided: the middle of three nodes on one level is lifted a level
+def ks.split.pick(same: Bool, lv: Nat, a: KS, x: String, rlv: Nat, b: KS, rk: String, rr: KS) -> KS:
+  match same:
+    case True{}:
+      KSNode{1n+rlv, KSNode{lv, a, x, b}, rk, rr}
+    case False{}:
+      KSNode{lv, a, x, KSNode{rlv, b, rk, rr}}
+
+# S6.10 the level of a tree's root (0 for the empty tree)
+def ks.level(t: KS) -> Nat:
+  match t:
+    case KSNil{}:
+      0n
+    case KSNode{lv, l, x, r}:
+      lv
+
+# S6.10 split: remove two right horizontal links in a row by a left rotation
+def ks.split(t: KS) -> KS:
+  match t:
+    case KSNode{+lv, a, x, KSNode{rlv, b, rk, +rr}}:
+      ks.split.pick(Nat.is_eq(ks.level(rr), lv), lv, a, x, rlv, b, rk, rr)
+    case other:
+      other
+
+# S6.10 a key against the key at the root (the verdict is not read on the empty tree)
+def ks.root(t: KS, k: String) -> Ord:
+  match t:
+    case KSNil{}:
+      OEq{}
+    case KSNode{lv, l, x, r}:
+      str_cmp(k, x)
+
+# S6.10 membership in a bucket: c is the key against this root; the caller of each step looks at the
+# child's root, so the descent is one structural recursion
+def ks.has.go(t: KS, +k: String, c: Ord) -> Bool:
+  match t c:
+    case KSNil{} _:
+      False{}
+    case KSNode{lv, +l, x, r} OLt{}:
+      ks.has.go(l, k, ks.root(l, k))
+    case KSNode{lv, l, x, +r} OGt{}:
+      ks.has.go(r, k, ks.root(r, k))
+    case KSNode{lv, l, x, r} OEq{}:
+      True{}
+
+# S6.10 whether a key is in a bucket
+def ks.has(+t: KS, +k: String) -> Bool:
+  ks.has.go(t, k, ks.root(t, k))
+
+# S6.10 insertion into a bucket: rebalanced on the way back up (skew, then split); a key already there
+# changes nothing
+def ks.put.go(t: KS, +k: String, c: Ord) -> KS:
+  match t c:
+    case KSNil{} _:
+      KSNode{1n, KSNil{}, k, KSNil{}}
+    case KSNode{lv, +l, x, r} OLt{}:
+      ks.split(ks.skew(KSNode{lv, ks.put.go(l, k, ks.root(l, k)), x, r}))
+    case KSNode{lv, l, x, +r} OGt{}:
+      ks.split(ks.skew(KSNode{lv, l, x, ks.put.go(r, k, ks.root(r, k))}))
+    case KSNode{lv, l, x, r} OEq{}:
+      KSNode{lv, l, x, r}
+
+# S6.10 add a key to a bucket
+def ks.put(+t: KS, +k: String) -> KS:
+  ks.put.go(t, k, ks.root(t, k))
+
 # S6.10 the set: an empty region or a bucket of keys, or a fork on the next hash bit
 type KT is Data:
-  KLeaf{keys: List<&2, String>}
+  KLeaf{keys: KS}
   KNode{zero: KT, one: KT}
 
 # S6.10 the empty set
 def kt.empty() -> KT:
-  KLeaf{Nil{}}
+  KLeaf{KSNil{}}
 
 # S6.10 whether the lowest bit of a hash is set
 def kt.odd(h: U32) -> Bool:
   U32.is_eq((h .&. 1 : U32), 1)
 
-# S6.10 the loop of kt.bucket_has: stops at the first hit
-def kt.bucket_has.go(ks: List<&2, String>, +k: String, hit: Bool) -> Bool:
-  match ks hit:
-    case _ True{}:
-      True{}
-    case Nil{} False{}:
-      False{}
-    case Con{x, rest} False{}:
-      kt.bucket_has.go(rest, k, str_eq(x, k))
-
 # S6.10 membership: d counts the hash bits still to follow, odd is the current bit
 def kt.has.go(d: Nat, odd: Bool, t: KT, +h: U32, k: String) -> Bool:
   match d odd t:
     case 0n _ KLeaf{ks}:
-      kt.bucket_has.go(ks, k, False{})
+      ks.has(ks, k)
     case 0n _ KNode{z, o}:
       False{}
     case 1n+p _ KLeaf{ks}:
@@ -351,13 +471,13 @@ def kt.has(t: KT, +k: String) -> Bool:
 def kt.put.go(d: Nat, odd: Bool, t: KT, +h: U32, k: String) -> KT:
   match d odd t:
     case 0n _ KLeaf{ks}:
-      KLeaf{k <> ks}
+      KLeaf{ks.put(ks, k)}
     case 0n _ KNode{z, o}:
       KNode{z, o}
     case 1n+p False{} KLeaf{ks}:
-      KNode{kt.put.go(p, kt.odd((h >> 1n : U32)), KLeaf{Nil{}}, (h >> 1n : U32), k), KLeaf{ks}}
+      KNode{kt.put.go(p, kt.odd((h >> 1n : U32)), KLeaf{KSNil{}}, (h >> 1n : U32), k), KLeaf{ks}}
     case 1n+p True{} KLeaf{ks}:
-      KNode{KLeaf{ks}, kt.put.go(p, kt.odd((h >> 1n : U32)), KLeaf{Nil{}}, (h >> 1n : U32), k)}
+      KNode{KLeaf{ks}, kt.put.go(p, kt.odd((h >> 1n : U32)), KLeaf{KSNil{}}, (h >> 1n : U32), k)}
     case 1n+p False{} KNode{z, o}:
       KNode{kt.put.go(p, kt.odd((h >> 1n : U32)), z, (h >> 1n : U32), k), o}
     case 1n+p True{} KNode{z, o}:

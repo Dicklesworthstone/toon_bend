@@ -703,3 +703,10 @@ toonerr_quoted_key_escape_before_colon_item	["--decode"]	cases/inputs/hand/toone
 usage_help_with_value_after_commit	["-e", "--help=x"]	-	usage	S1.86: C not empty -> the group line G preceded by --help (help is not a member of G)
 usage_version_with_value_after_commit	["--indent=2", "--version="]	-	usage	S1.86: the same for --version, with an empty attached value
 usage_version_with_value	["--version=1"]	-	usage	S1.86: C empty -> Usage: toon --version [INPUT]
+encstr_keys_hash_collision	["--encode", "--key-folding", "safe"]	cases/inputs/hand/encstr_keys_hash_collision.txt	enc-string	S6.10, S6.31: a repeated key and a permuted tabular row, all keys in one hash bucket
+encstr_fold_hash_collision	["--encode", "--key-folding", "safe"]	cases/inputs/hand/encstr_fold_hash_collision.txt	enc-string	S4.63: folding's sibling test on colliding keys: exr.x collides with a literal sibling, jda.x does not
+encstr_duplicate_keys_thrice	["--encode"]	cases/inputs/hand/encstr_duplicate_keys_thrice.txt	enc-string	S2.29: a key repeated twice over keeps its first position and takes its LAST value, at both depths
+toonedge_expand_hash_collision_conflict	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_hash_collision_conflict.txt	toon-edge	S4.244: expansion over colliding keys; the conflict is on jda.k, not on its bucket neighbour
+toonedge_expand_hash_collision_lenient	["--decode", "--expand-paths", "safe", "--no-strict"]	cases/inputs/hand/toonedge_expand_hash_collision_lenient.txt	toon-edge	S4.246: the same document in lenient mode: the later value wins under jda.k only
+toonedge_repeated_keys_hash_collision	["--decode"]	cases/inputs/hand/toonedge_repeated_keys_hash_collision.txt	toon-edge	S3.25: writer A keeps every repeated key, colliding or not
+toonerr_expand_repeated_hash_collision	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_repeated_hash_collision.txt	toon-error	S4.245: a repeated literal key is a merge conflict under expansion

@@ -47,7 +47,7 @@ We only use **Bend 2** (`bendlang/bend`, CLI `bend`) for the port, NEVER another
 
 - **Language:** Bend 2, pinned in `docs/PIN.toml` and `docs/PLAN_TO_PORT_Toon_TO_BEND2.md` §2b (currently `bend 2.0.16`, checkout `15ae0c8`)
 - **How it runs here:** no `bend` is on PATH on the build hosts; every command uses `BEND_CLI='bun /tmp/bend/bend2/main.ts'` with `BEND_NO_TELEMETRY=1`. `/tmp/bend` is ephemeral: re-clone `bendlang/bend` and `git checkout --detach 15ae0c8` to restore the pin. **Never `bend update` inside a session.**
-- **Dependencies:** `import Base` only. No hub packages, no custom effects (a custom effect would exist on one lane only).
+- **Dependencies:** `import Base` only. No hub packages. ONE custom effect exists, `Stdin.open` in `port/main.bend` (twins `port/stdin_open.c` and `port/stdin_open.js`, so it runs on the interpreter, both native lanes and the JavaScript build): Base has no stdin effect, and opening the path `/dev/stdin` reads a regular file from byte 0 whatever the inherited offset is and cannot open a socket (DISC-012, found by the non-author round 7; this rule used to forbid custom effects on the wrong premise that an effect exists on one lane only). Another effect needs the owner's approval, a twin per lane, and a row in `scripts/stdio-probe.py` or a golden that would catch its absence.
 - **Unsafe code:** Forbidden. `@unsafe` needs the owner's approval, a comment naming the measure that was not expressible, and a bead; the count is stated beside every claim.
 - **Base templates (`~`):** avoided in everything `PROOF.bend` imports. Since 2.0.16 every template instance is counted in the verdict as an unsafe annotation, so a `List.map(~…)` would turn `All terms check.` into a partial green. Write the four-line recursion instead.
 - **When the version moves:** `./scripts/version-drift.sh --old "<pinned cli>" --new "<this cli>"` before any other gate (see the porting skill's VERSION-DRIFT).
@@ -225,6 +225,7 @@ toon_bend/
 ├── port.env                       # knobs for scripts/port.sh (ORIGINAL, THREADS, SWITCH, PROBE, PIN)
 ├── port/
 │   ├── main.bend                  # IO shell: args, bytes in, lines out, exit codes (imports the core)
+│   ├── stdin_open.c / .js         # the one custom effect's twins: descriptor 0 as a Base File (DISC-012)
 │   ├── cli.bend                   # pure argv model: clap-compatible parsing, help/version text, mode detection, --stats
 │   ├── text.bend                  # strict UTF-8, Unicode White_Space / Cc tables, trim, tail-recursive list and string tools
 │   ├── bignat.bend                # big naturals over 16-bit limbs in U32
@@ -281,6 +282,7 @@ toon_bend/
 |---|---|
 | everything at once | `./scripts/port-doctor.sh --threads 8 --original ./oracle/toon -- --switch TOON_SPEC=1 --probe '["--encode","cases/inputs/hand/large_tabular_1500.json"]'` (proof, lanes, board, floor, kill-switch parity; last line JSON, verdict GREEN or RED) |
 | one failing case | `./scripts/first-divergence.sh <case> goldens/cases.tsv goldens -- <port command>` (the divergence class and the spec section to read) |
+| what no case can express | `python3 scripts/stdio-probe.py -- <port command>` (inherited offsets, sockets, closed and full standard streams: SAME, KNOWN with its DISC, or NEW) · `python3 scripts/diff-fuzz.py <lens> --seed N -- <port command>` (seeded differential fuzzing; the `scale` lens has a time verdict and hostile keys) · `python3 scripts/hand-mutants.py` (do the laws bite?) |
 | convergence | `./scripts/converge.sh docs/PORT_STATE.md` (computed from the rounds table and the OQ/DISC registers; T2: ≥ 5 rounds, last 2 clean, ≥ 1 non-author round) |
 | the pins | `./scripts/pin-check.sh docs/PIN.toml` |
 | the state file | `./scripts/state-check.sh docs/PORT_STATE.md` before ending a session (no placeholders, gate lines pasted, one executable next action) |

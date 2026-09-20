@@ -1300,14 +1300,15 @@ def ty(v: J.Json) -> String:
 # mutually recursive types): XLeaf a finished value; XObj an object being built: its keys newest first
 # (the ORDER carrier, S6.42) beside a map from key to value (the LOOKUP carrier: the original uses a
 # hash map; a search along the entries made expansion quadratic in round 6's probes); XTLeaf / XTNode
-# the map, a binary trie over the low 16 bits of T.key_hash; XBNil / XBCons a trie leaf's bucket.
+# the map, a binary trie over the low 16 bits of T.key_hash; XBNil / XBNode a trie leaf's bucket, an AA
+# tree by key (T.KS with a value per key): keys that collide in the hash cost a logarithm of their number.
 type XV is Data:
   XLeaf{v: J.Json}
   XObj{keys: List<&2, String>, map: XV}
   XTLeaf{bucket: XV}
   XTNode{zero: XV, one: XV}
   XBNil{}
-  XBCons{key: String, val: XV, tail: XV}
+  XBNode{lv: Nat, l: XV, key: String, val: XV, r: XV}
 
 # S4.242 the new object starts empty
 def xv.empty() -> XV:
@@ -1318,60 +1319,93 @@ type XR is Data:
   XOk{x: XV}
   XErr{msg: String}
 
-# S6.43 keys are unique in a bucket, so at most one entry answers
-def xb.pick(same: Bool, val: XV, acc: Maybe<&2, XV>) -> Maybe<&2, XV>:
+# S6.43 skew, decided: a left child on its parent's level becomes the parent
+def xb.skew.pick(same: Bool, lv: Nat, llv: Nat, a: XV, lk: String, lval: XV, b: XV, x: String, xv: XV, r: XV) -> XV:
   match same:
     case True{}:
-      Some{val}
+      XBNode{llv, a, lk, lval, XBNode{lv, b, x, xv, r}}
     case False{}:
-      acc
+      XBNode{lv, XBNode{llv, a, lk, lval, b}, x, xv, r}
+
+# S6.43 skew: remove a left horizontal link by a right rotation
+def xb.skew(t: XV) -> XV:
+  match t:
+    case XBNode{+lv, XBNode{+llv, a, lk, lval, b}, x, xv, r}:
+      xb.skew.pick(Nat.is_eq(llv, lv), lv, llv, a, lk, lval, b, x, xv, r)
+    case other:
+      other
+
+# S6.43 the level of a bucket's root (0 for the empty bucket)
+def xb.level(t: XV) -> Nat:
+  match t:
+    case XBNode{lv, l, x, xv, r}:
+      lv
+    case other:
+      0n
+
+# S6.43 split, decided: the middle of three nodes on one level is lifted a level
+def xb.split.pick(same: Bool, lv: Nat, a: XV, x: String, xv: XV, rlv: Nat, b: XV, rk: String, rval: XV, rr: XV) -> XV:
+  match same:
+    case True{}:
+      XBNode{1n+rlv, XBNode{lv, a, x, xv, b}, rk, rval, rr}
+    case False{}:
+      XBNode{lv, a, x, xv, XBNode{rlv, b, rk, rval, rr}}
+
+# S6.43 split: remove two right horizontal links in a row by a left rotation
+def xb.split(t: XV) -> XV:
+  match t:
+    case XBNode{+lv, a, x, xv, XBNode{rlv, b, rk, rval, +rr}}:
+      xb.split.pick(Nat.is_eq(xb.level(rr), lv), lv, a, x, xv, rlv, b, rk, rval, rr)
+    case other:
+      other
+
+# S6.43 a key against the key at the root (the verdict is not read on the empty bucket)
+def xb.root(t: XV, k: String) -> T.Ord:
+  match t:
+    case XBNode{lv, l, x, xv, r}:
+      T.str_cmp(k, x)
+    case other:
+      T.OEq{}
+
+# S6.43 the value a bucket holds under a key: c is the key against this root (the caller of each step
+# looks at the child's root, so the descent is one structural recursion)
+def xb.get.go(t: XV, +k: String, c: T.Ord) -> Maybe<&2, XV>:
+  match t c:
+    case XBNode{lv, +l, x, xv, r} T.OLt{}:
+      xb.get.go(l, k, xb.root(l, k))
+    case XBNode{lv, l, x, xv, +r} T.OGt{}:
+      xb.get.go(r, k, xb.root(r, k))
+    case XBNode{lv, l, x, xv, r} T.OEq{}:
+      Some{xv}
+    case other _:
+      None{}
 
 # S6.43 the value a bucket holds under a key
-def xb.get(b: XV, +k: String, acc: Maybe<&2, XV>) -> Maybe<&2, XV>:
-  match b:
-    case XBCons{key, val, tail}:
-      xb.get(tail, k, xb.pick(T.str_eq(key, k), val, acc))
-    case other:
-      acc
+def xb.get(+t: XV, +k: String) -> Maybe<&2, XV>:
+  xb.get.go(t, k, xb.root(t, k))
 
-# S6.43 the entry whose key matches takes the pending value; every other entry keeps its own
-def xb.take(same: Bool, old: XV, v: Maybe<&2, XV>) -> XV:
-  match same v:
-    case True{} Some{nv}:
-      nv
-    case _ _:
-      old
+# S6.43 set a key in a bucket: rebalanced on the way back up (skew, then split); a key already there
+# takes the new value
+def xb.set.go(t: XV, +k: String, v: XV, c: T.Ord) -> XV:
+  match t c:
+    case XBNode{lv, +l, x, xv, r} T.OLt{}:
+      xb.split(xb.skew(XBNode{lv, xb.set.go(l, k, v, xb.root(l, k)), x, xv, r}))
+    case XBNode{lv, l, x, xv, +r} T.OGt{}:
+      xb.split(xb.skew(XBNode{lv, l, x, xv, xb.set.go(r, k, v, xb.root(r, k))}))
+    case XBNode{lv, l, x, xv, r} T.OEq{}:
+      XBNode{lv, l, x, v, r}
+    case other _:
+      XBNode{1n, XBNil{}, k, v, XBNil{}}
 
-# S6.43 once placed, the value is no longer pending
-def xb.rest(same: Bool, v: Maybe<&2, XV>) -> Maybe<&2, XV>:
-  match same:
-    case True{}:
-      None{}
-    case False{}:
-      v
-
-# S6.43 a value that was not placed joins the bucket
-def xb.end(v: Maybe<&2, XV>, k: String, acc: XV) -> XV:
-  match v:
-    case Some{nv}:
-      XBCons{k, nv, acc}
-    case None{}:
-      acc
-
-# S6.43 set a key in a bucket (order inside a bucket carries nothing)
-def xb.set(b: XV, +k: String, +v: Maybe<&2, XV>, acc: XV) -> XV:
-  match b:
-    case XBCons{+key, val, tail}:
-      +same = T.str_eq(key, k)
-      xb.set(tail, k, xb.rest(same, v), XBCons{key, xb.take(same, val, v), acc})
-    case other:
-      xb.end(v, k, acc)
+# S6.43 set a key in a bucket
+def xb.set(+t: XV, +k: String, v: XV) -> XV:
+  xb.set.go(t, k, v, xb.root(t, k))
 
 # S6.43 the value the map holds under a key: d counts the hash bits still to follow
-def xm.get.go(d: Nat, odd: Bool, t: XV, +h: U32, k: String) -> Maybe<&2, XV>:
+def xm.get.go(d: Nat, odd: Bool, t: XV, +h: U32, +k: String) -> Maybe<&2, XV>:
   match d odd t:
     case 0n _ XTLeaf{b}:
-      xb.get(b, k, None{})
+      xb.get(b, k)
     case 1n+p False{} XTNode{z, o}:
       xm.get.go(p, T.kt.odd((h >> 1n : U32)), z, (h >> 1n : U32), k)
     case 1n+p True{} XTNode{z, o}:
@@ -1380,7 +1414,7 @@ def xm.get.go(d: Nat, odd: Bool, t: XV, +h: U32, k: String) -> Maybe<&2, XV>:
       None{}
 
 # S6.43 look a key up in a map
-def xm.get.at(t: XV, +h: U32, k: String) -> Maybe<&2, XV>:
+def xm.get.at(t: XV, +h: U32, +k: String) -> Maybe<&2, XV>:
   xm.get.go(16n, T.kt.odd(h), t, h, k)
 
 # S6.43 look a key up in a map
@@ -1388,10 +1422,10 @@ def xm.get(t: XV, +k: String) -> Maybe<&2, XV>:
   xm.get.at(t, T.key_hash(k), k)
 
 # S6.43 set a key in a map: a leaf above depth 0 is an empty region and is split on the way down
-def xm.set.go(d: Nat, odd: Bool, t: XV, +h: U32, k: String, v: XV) -> XV:
+def xm.set.go(d: Nat, odd: Bool, t: XV, +h: U32, +k: String, v: XV) -> XV:
   match d odd t:
     case 0n _ XTLeaf{b}:
-      XTLeaf{xb.set(b, k, Some{v}, XBNil{})}
+      XTLeaf{xb.set(b, k, v)}
     case 1n+p False{} XTLeaf{b}:
       XTNode{xm.set.go(p, T.kt.odd((h >> 1n : U32)), XTLeaf{XBNil{}}, (h >> 1n : U32), k, v), XTLeaf{b}}
     case 1n+p True{} XTLeaf{b}:
@@ -1404,7 +1438,7 @@ def xm.set.go(d: Nat, odd: Bool, t: XV, +h: U32, k: String, v: XV) -> XV:
       other
 
 # S6.43 set a key in a map
-def xm.set.at(t: XV, +h: U32, k: String, v: XV) -> XV:
+def xm.set.at(t: XV, +h: U32, +k: String, v: XV) -> XV:
   xm.set.go(16n, T.kt.odd(h), t, h, k, v)
 
 # S6.43 set a key in a map
@@ -1721,8 +1755,8 @@ def x.norm(x: XV) -> XV:
       XTNode{x.norm(z), x.norm(o)}
     case XBNil{}:
       XBNil{}
-    case XBCons{k, val, tail}:
-      XBCons{k, x.norm(val), x.norm(tail)}
+    case XBNode{lv, l, k, val, r}:
+      XBNode{lv, x.norm(l), k, x.norm(val), x.norm(r)}
 
 # S3.28 the finished value
 def x.json(x: XV) -> J.Json:

@@ -1456,7 +1456,7 @@ def Laws.kt_collision_both_members():
 def Laws.kt_collision_hashes():
   {==}
 
-# S6.10 goldens/collision_keys_encode
+# S6.10 goldens/encstr_keys_hash_collision
 def Laws.golden_collision_keys_encode():
   {==}
 
@@ -1470,4 +1470,40 @@ def Laws.golden_encstr_duplicate_keys_escaped():
 
 # S6.10 goldens/encstr_duplicate_keys_replace_container
 def Laws.golden_encstr_duplicate_keys_replace_container():
+  {==}
+
+# S6.10 the order of keys
+def Laws.str_cmp_orders():
+  {==}
+
+# S6.10 the bucket's balance
+def Laws.ks_bucket_is_balanced():
+  {==}
+
+# S6.10 the bucket's members
+def Laws.ks_bucket_members():
+  {==}
+
+# S4.63 goldens/encstr_fold_hash_collision
+def Laws.golden_encstr_fold_hash_collision():
+  {==}
+
+# S2.29 goldens/encstr_duplicate_keys_thrice
+def Laws.golden_encstr_duplicate_keys_thrice():
+  {==}
+
+# S4.243 goldens/toonedge_expand_hash_collision_conflict
+def Laws.golden_toonedge_expand_hash_collision_conflict():
+  {==}
+
+# S4.246 goldens/toonedge_expand_hash_collision_lenient
+def Laws.golden_toonedge_expand_hash_collision_lenient():
+  {==}
+
+# S3.25 goldens/toonedge_repeated_keys_hash_collision
+def Laws.golden_toonedge_repeated_keys_hash_collision():
+  {==}
+
+# S4.245 goldens/toonerr_expand_repeated_hash_collision
+def Laws.golden_toonerr_expand_repeated_hash_collision():
   {==}

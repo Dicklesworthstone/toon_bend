@@ -1500,7 +1500,8 @@ law kt_collision_both_members:
 law kt_collision_hashes:
   {(T.key_hash("exr"), T.key_hash("jda")) == (1957071438, 3907357262) : U32 & U32}
 
-# S6.10, S4.37 the encoder on colliding keys: a tabular header and rows, a folded sibling test, a repeated key
+# S6.10, S4.37 goldens/encstr_keys_hash_collision: the encoder on colliding keys: a tabular header and rows, a folded
+# sibling test, a repeated key
 law golden_collision_keys_encode:
   {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"exr\":\"a\",\"jda\":\"b\",\"exr\":\"c\",\"t\":[{\"exr\":\"p\",\"jda\":\"q\"},{\"jda\":\"r\",\"exr\":\"s\"}]}", Nil{})) == C.Out{0n, "exr: c\njda: b\nt[2]{exr,jda}:\n  p,q\n  s,r\n", ""} : C.Out}
 
@@ -1515,3 +1516,42 @@ law golden_encstr_duplicate_keys_escaped:
 # S6.10 goldens/encstr_duplicate_keys_replace_container: a repeated key replaces the whole value, nothing is merged
 law golden_encstr_duplicate_keys_replace_container:
   {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":{\"x\":1},\"b\":2,\"a\":[3],\"b\":{\"y\":1}}\n", Nil{})) == C.Out{0n, "a[1]: 3\nb:\n  y: 1\n", ""} : C.Out}
+
+# ---------------------------------------------------------------- round 7: balanced buckets and colliding keys (closed)
+
+# S6.10 the order that balances buckets: a proper prefix is less, the first differing scalar value decides
+law str_cmp_orders:
+  {(T.str_cmp("ab", "abc"), T.str_cmp("abd", "abc"), T.str_cmp("abc", "abc"), T.str_cmp("", "")) == (T.OLt{}, T.OGt{}, T.OEq{}, T.OEq{}) : T.Ord & T.Ord & T.Ord & T.Ord}
+
+# S6.10 a bucket stays balanced: seven keys put in ascending order (the worst case of a plain search tree)
+# make an AA tree of three levels, not a chain of seven
+law ks_bucket_is_balanced:
+  {T.ks.level(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.KSNil{}, "a"), "b"), "c"), "d"), "e"), "f"), "g")) == 3n : Nat}
+
+# S6.10 and every one of them is found again, while a key between two of them is not
+law ks_bucket_members:
+  {(T.ks.has(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.KSNil{}, "a"), "b"), "c"), "d"), "e"), "a"), T.ks.has(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.KSNil{}, "a"), "b"), "c"), "d"), "e"), "e"), T.ks.has(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.ks.put(T.KSNil{}, "a"), "b"), "c"), "d"), "e"), "bb")) == (True{}, True{}, False{}) : Bool & Bool & Bool}
+
+# S4.63 goldens/encstr_fold_hash_collision (round 7: every key of this document lands in ONE bucket of the hashed carriers)
+law golden_encstr_fold_hash_collision:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"exr\":{\"x\":1},\"jda\":{\"x\":2},\"exr.x\":3,\"jda.y\":{\"z\":4}}", Nil{})) == C.Out{0n, "exr:\n  x: 1\njda.x: 2\nexr.x: 3\njda.y:\n  z: 4\n", ""} : C.Out}
+
+# S2.29 goldens/encstr_duplicate_keys_thrice (round 7: every key of this document lands in ONE bucket of the hashed carriers)
+law golden_encstr_duplicate_keys_thrice:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":1,\"b\":{\"a\":1,\"a\":2,\"a\":3},\"a\":2,\"c\":0,\"a\":3}", Nil{})) == C.Out{0n, "a: 3\nb:\n  a: 3\nc: 0\n", ""} : C.Out}
+
+# S4.243 goldens/toonedge_expand_hash_collision_conflict (round 7: every key of this document lands in ONE bucket of the hashed carriers)
+law golden_toonedge_expand_hash_collision_conflict:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("exr.k: 1\njda.k: 2\nexr.m: 3\njda.k.z: 4\n", Nil{})) == C.Out{1n, "", "Path expansion conflict at segment \"k\": expected object but found primitive"} : C.Out}
+
+# S4.246 goldens/toonedge_expand_hash_collision_lenient (round 7: every key of this document lands in ONE bucket of the hashed carriers)
+law golden_toonedge_expand_hash_collision_lenient:
+  {C.run_pure(["--decode", "--expand-paths", "safe", "--no-strict"], T.ascii_bytes("exr.k: 1\njda.k: 2\nexr.m: 3\njda.k.z: 4\n", Nil{})) == C.Out{0n, "{\n  \"exr\": {\n    \"k\": 1.0,\n    \"m\": 3.0\n  },\n  \"jda\": {\n    \"k\": {\n      \"z\": 4.0\n    }\n  }\n}\n", ""} : C.Out}
+
+# S3.25 goldens/toonedge_repeated_keys_hash_collision (round 7: every key of this document lands in ONE bucket of the hashed carriers)
+law golden_toonedge_repeated_keys_hash_collision:
+  {C.run_pure(["--decode"], T.ascii_bytes("exr: 1\njda: 2\nexr: 3\n", Nil{})) == C.Out{0n, "{\n  \"exr\": 1.0,\n  \"jda\": 2.0,\n  \"exr\": 3.0\n}\n", ""} : C.Out}
+
+# S4.245 goldens/toonerr_expand_repeated_hash_collision (round 7: every key of this document lands in ONE bucket of the hashed carriers)
+law golden_toonerr_expand_repeated_hash_collision:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("exr: 1\njda: 2\nexr: 3\nt[2]{jda,exr}:\n  1,2\n  3,4\n", Nil{})) == C.Out{1n, "", "Path expansion conflict at key \"exr\": cannot merge primitive with primitive"} : C.Out}

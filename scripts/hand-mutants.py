@@ -17,7 +17,7 @@ import json, os, re, shutil, subprocess, sys, tempfile, time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BEND = os.environ.get("BEND_CLI", "bun /tmp/bend/bend2/main.ts").split()
 ENV = dict(os.environ, BEND_NO_TELEMETRY="1")
-KEEP = re.compile(r"golden_(encnum|decnum|fx_dec_numbers|happy|fx_enc_arrays_(tabular|objects)|fx_dec_arrays_tabular|fx_dec_path_expansion|toonedge_expand|jsonout_duplicate|fx_enc_key_folding|enc_fold|toonerr_expand|encstr_duplicate|collision)")
+KEEP = re.compile(r"golden_(encnum|decnum|fx_dec_numbers|happy|fx_enc_arrays_(tabular|objects)|fx_dec_arrays_tabular|fx_dec_path_expansion|toonedge_expand|jsonout_duplicate|fx_enc_key_folding|enc_fold|toonerr_expand|encstr_duplicate|collision|repeated_keys)")
 MUTANTS = [
  ("M01", "bignat.bend", "div_pow5(p, p5.step(st, 15625))", "div_pow5(p, p5.step(st, 3125))", "5^6 divisor replaced by 5^5"),
  ("M02", "bignat.bend", "P5{strip(q), Bool.or(sticky, Bool.not(U32.is_eq(r, 0)))}", "P5{strip(q), sticky}", "single-limb remainders never reach the sticky flag"),
@@ -29,9 +29,15 @@ MUTANTS = [
  ("M08", "f64.bend", "IntFit{Bool.and(Bool.not(sticky), Nat.is_le(BN.bitlen(q, 0n), 48n)), q}", "IntFit{Nat.is_le(BN.bitlen(q, 0n), 48n), q}", "non-integers are printed as their floor"),
  ("M09", "f64.bend", "    case Con{d, rest}:\n      U32.is_eq(d, 0)", "    case Con{d, rest}:\n      False{}", "zero_head never sees a leading zero"),
  ("M10", "text.bend", "((h .^. c) * 16777619 : U32)", "((h .^. c) * 16777617 : U32)", "a different FNV prime"),
- ("M11", "text.bend", "kt.bucket_has.go(rest, k, str_eq(x, k))", "kt.bucket_has.go(rest, k, False{})", "membership never hits"),
- ("M12", "text.bend", "    case Nil{} False{}:\n      False{}\n    case Con{x, rest} False{}:\n      kt.bucket_has.go", "    case Nil{} False{}:\n      True{}\n    case Con{x, rest} False{}:\n      kt.bucket_has.go", "membership always hits"),
- ("M14", "json.bend", "FObj{rev_entries(obj.replace(rev, key, Some{v}, JNil{}), JNil{}), SNil{}, idx}", "FObj{JECons{key, False{}, v, rev}, SNil{}, idx}", "a repeated JSON key is appended, not replaced"),
+ ("M11", "text.bend", "    case KSNode{lv, l, x, r} OEq{}:\n      True{}", "    case KSNode{lv, l, x, r} OEq{}:\n      False{}", "bucket membership never hits"),
+ ("M12", "text.bend", "    case KSNil{} _:\n      False{}", "    case KSNil{} _:\n      True{}", "bucket membership always hits"),
+ ("M14", "json.bend", "      FObj{rev, SNil{}, idx, km.put(over, key, v)}", "      FObj{JECons{key, False{}, v, rev}, SNil{}, idx, over}", "a repeated JSON key is appended, not replaced"),
+ ("M18", "json.bend", "    case KBNode{lv, l, x, xv, r} T.OEq{}:\n      KBNode{lv, l, x, v, r}", "    case KBNode{lv, l, x, xv, r} T.OEq{}:\n      KBNode{lv, l, x, xv, r}", "the map of last values keeps the FIRST repeat"),
+ ("M19", "json.bend", "JECons{k, q, obj.over(km.get(over, k), v), acc}", "JECons{k, q, v, acc}", "the last values are never applied when an object closes"),
+ ("M20", "decode.bend", "    case XBNode{lv, l, x, xv, r} T.OEq{}:\n      XBNode{lv, l, x, v, r}", "    case XBNode{lv, l, x, xv, r} T.OEq{}:\n      XBNode{lv, l, x, xv, r}", "setting an existing expanded key keeps the old value"),
+ ("M21", "text.bend", "    case True{}:\n      KSNode{1n+rlv, KSNode{lv, a, x, b}, rk, rr}", "    case True{}:\n      KSNode{lv, a, x, KSNode{rlv, b, rk, rr}}", "split never lifts: a bucket degenerates into a chain"),
+ ("M22", "text.bend", "    case True{}:\n      KSNode{llv, a, lk, KSNode{lv, b, x, r}}", "    case True{}:\n      KSNode{lv, KSNode{llv, a, lk, b}, x, r}", "skew never rotates"),
+ ("M23", "text.bend", "    case SNil{} SCon{y, t} OEq{}:\n      OLt{}", "    case SNil{} SCon{y, t} OEq{}:\n      OEq{}", "a proper prefix compares equal"),
  ("M15", "decode.bend", "    case XObj{keys, map} True{}:\n      XObj{k <> keys, xm.set(map, k, v)}", "    case XObj{keys, map} True{}:\n      XObj{keys, xm.set(map, k, v)}", "a fresh expanded key is never listed"),
  ("M16", "decode.bend", "    case XObj{keys, map} False{}:\n      XObj{keys, xm.set(map, k, v)}", "    case XObj{keys, map} False{}:\n      XObj{k <> keys, xm.set(map, k, v)}", "a merged key is listed twice"),
  ("M17", "encode.bend", "row.lock(rest, t, T.str_eq(k, key), Bool.and(prim, is_prim(v)))", "row.lock(rest, t, True{}, Bool.and(prim, is_prim(v)))", "rows in another key order count as lockstep"),

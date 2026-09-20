@@ -1,0 +1,5 @@
+exr: c
+jda: b
+t[2]{exr,jda}:
+  p,q
+  s,r

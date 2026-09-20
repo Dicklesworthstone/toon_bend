@@ -71,6 +71,16 @@ def read.opened(r: Result<&1, &1, U32 & String, File>) -> IO(RB):
         got : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(f, 1048576)
         read.loop(1048576n, got, Nil{})
 
+# S8.5 standard input as a Base File: descriptor 0 ITSELF. Base has no stdin effect, and opening the
+# path /dev/stdin makes a NEW open file description: a regular file is read again from byte 0 whatever
+# the caller's offset is (wrong bytes, exit 0), a socket cannot be opened at all (ENXIO: every Node.js
+# child process), a file that is no longer readable by path fails, and O_NONBLOCK is lost (round 7,
+# R7-1..3, R7-8). This is the port's ONE custom effect, with a twin for every lane: stdin_open.c for the
+# native binary, stdin_open.js for the JavaScript build and the interpreter.
+def Stdin.open() -> IO(Result<&1, &1, U32 & String, File>):
+  import "./stdin_open.c"
+  import "./stdin_open.js"
+
 # S8.5, S8.6 the whole input: the INPUT path as typed, or stdin
 def read.input(has_in: Bool, input: String) -> IO(RB):
   match has_in:
@@ -80,7 +90,7 @@ def read.input(has_in: Bool, input: String) -> IO(RB):
         read.opened(r)
     case False{}:
       do IO<RB>:
-        r : Result<&1, &1, U32 & String, File> <- File.open("/dev/stdin", "r")
+        r : Result<&1, &1, U32 & String, File> <- Stdin.open()
         read.opened(r)
 
 # S9.17 `<description> (os error <errno>)`

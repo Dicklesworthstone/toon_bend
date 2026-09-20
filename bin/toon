@@ -2,9 +2,11 @@
 # toon: launcher of the Bend 2 port. It gives the original's command line unchanged:
 #   - DISC-001: a compiled Bend binary consumes --help, --threads N and --gpu X before `--`;
 #     the launcher passes `--` first, so every word the user typed reaches the port's argv.
-#   - DISC-007: with fd 0 CLOSED the native runtime's own pipe takes descriptor 0 and a read of
-#     stdin never returns; the original sees an empty stdin, so a closed fd 0 is re-opened
-#     from /dev/null before exec.
+#   - DISC-007: a CLOSED standard descriptor is taken by the native runtime's own wake-up pipe at
+#     startup (descriptor numbers are given out lowest first): a read of stdin then fails, and output
+#     above 64 KiB written "to stdout" fills that pipe and never returns. The original sees an empty
+#     stdin and ignores EBADF on stdout and stderr, which is exactly what /dev/null gives: closed
+#     descriptors 0, 1 and 2 are re-opened from /dev/null before exec.
 # The binary is port/toon (build it: $BEND_CLI port/main.bend -o port/toon), or $TOON_BEND_BIN.
 # Runtime knobs go through the environment, never argv: TOON_BEND_THREADS=N, TOON_SPEC=1.
 here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd) || exit 127
@@ -13,9 +15,16 @@ if [ ! -x "$bin" ]; then
   echo "toon: no binary at $bin (build it: bun /tmp/bend/bend2/main.ts port/main.bend -o port/toon)" >&2
   exit 127
 fi
-# duplicating a closed descriptor fails with EBADF; the subshell keeps descriptor 3 out of this process
+# duplicating a closed descriptor fails with EBADF; the subshell keeps descriptor 3 out of this process.
+# Descriptor 2 is asked through /dev/fd, because silencing the test itself would re-open it.
 if ! (exec 3<&0) 2>/dev/null; then
   exec 0</dev/null
+fi
+if ! (exec 3>&1) 2>/dev/null; then
+  exec 1>/dev/null
+fi
+if [ ! -e /dev/fd/2 ]; then
+  exec 2>/dev/null
 fi
 if [ -n "${TOON_BEND_THREADS:-}" ]; then
   exec "$bin" --threads "$TOON_BEND_THREADS" -- "$@"

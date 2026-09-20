@@ -38,7 +38,6 @@ Other checks (not gate rows):
 | id | what | blocks | owner |
 |---|---|---|---|
 | OQ-003 | `--stats` percent rounding at an exact half | phase 1 (extractor X-A probes it) | X-A |
-| OQ-008 | OS error text per Bend lane (`No such file or directory (os error 2)`) | phase 3 (shell) | author |
 | DISC-001 | Platform: the Bend runtime consumes `--help`/`--threads`/`--gpu` before `--` | approval by the owner; mitigation is the `bin/toon` launcher | owner |
 | finding | the two number printers break exact last-digit ties differently (zmij: even digit; Rust `Display`: up); sent to extractor X-C for clauses and cases | phase 1 | X-C |
 | feasibility probes (scratchpad, not in the repo) | byte-read → strict UTF-8 → write is byte-identical on C and interpreter lanes (163 KB in 6 ms / 0.27 s); a single self-recursive `Json` type passes structural recursion where a phase-sum wrapper is refused; the lexicographic (input, stack) measure is accepted; a BigNat + software-binary64 prototype matches Python's `float`/`repr` on 6618 of 6618 values | informs phase 2 | author |

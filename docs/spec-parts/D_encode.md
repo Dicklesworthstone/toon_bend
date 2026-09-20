@@ -60,7 +60,7 @@ Provenance paths are relative to `legacy/Toon/`. `Rnn` refers to the numbered or
 
 | S4.n | clause | examples (input → output) | provenance | cases |
 |---|---|---|---|---|
-| S4.6 | Value rule. A string value is written bare only when NONE of the eleven conditions S4.7–S4.17 holds; any single condition forces the quoted form. The conditions are independent tests of the whole string with the same consequence, so the order in which they are tried is not observable (the original tries them in the order S4.7 … S4.17). The rule takes two inputs only: the string and the active delimiter (S3.10). It is the same in every value position. Verified exhaustively: R8 swept all 1 112 064 Unicode scalar values as leading, trailing and middle character; the quoted sets are exactly those listed in S4.8, S4.12–S4.17. | `{"plain":"hello world"}` → `plain: hello world`; `{"hash":"#x"}` → `hash: #x` | `src/shared/validation.rs:47-85` | encstr_quoting, fx_enc_primitives_01 |
+| S4.6 | Value rule. A string value is written bare only when NONE of the ten conditions of S4.7–S4.17 holds (condition 4, numeric-like, is split over S4.10 and S4.11); any single condition forces the quoted form. The conditions are independent tests of the whole string with the same consequence, so the order in which they are tried is not observable (the original tries them in the order S4.7 … S4.17). The rule takes two inputs only: the string and the active delimiter (S3.10). It is the same in every value position. Verified exhaustively: R8 swept all 1 112 064 Unicode scalar values as leading, trailing and middle character; the quoted sets are exactly those listed in S4.8, S4.12–S4.17. | `{"plain":"hello world"}` → `plain: hello world`; `{"hash":"#x"}` → `hash: #x` | `src/shared/validation.rs:47-85` | encstr_quoting, fx_enc_primitives_01 |
 | S4.7 | Condition 1: the string is empty. | `""` → `""`; `{"items":[""]}` → `items[1]: ""`; `{"items":["a","","b"]}` → `items[3]: a,"",b`; tabular cell: `1,null,true,"",0,1.5` (R14) | `src/shared/validation.rs:48-50` | fx_enc_primitives_03, fx_enc_arrays_primitive_05, fx_enc_arrays_primitive_06, encstr_root_empty_string, encstr_quoting |
 | S4.8 | Condition 2: the first or the last scalar value has the Unicode White_Space property. The complete set (25 code points): U+0009, U+000A, U+000B, U+000C, U+000D, U+0020, U+0085, U+00A0, U+1680, U+2000–U+200A (eleven), U+2028, U+2029, U+202F, U+205F, U+3000. NOT in the set, so not a trigger at an edge: U+001C–U+001F, U+180E, U+200B, U+200C, U+200D, U+2060, U+FEFF and every other code point. A string made only of such characters is covered (its first character is one). | `" padded "` → `" padded "`; `"  "` → `"  "`; `{"items":[" ","  "]}` → `items[2]: " ","  "`; `"\u00a0x"` → `"<U+00A0>x"`; `"x\u2003"` → `"x<U+2003>"`; `"\u0085x"` → `"<U+0085>x"` (the White_Space character stays raw inside the quotes); `"\ufeffx"` → `<U+FEFF>x` bare; `"a\u2028b"` → `a<U+2028>b` bare (middle); R13: `"\u000b"` → `"<U+000B>"`, `"\u3000"` → `"<U+3000>"`, `"\u200bx"` bare, `"\u180ex"` bare, `"\u001fx"` bare, `"x\u001c"` bare, `"a\u00a0b"` bare | `src/shared/validation.rs:52-54` | encstr_unicode, encstr_quoting, fx_enc_objects_08, fx_enc_objects_09, fx_enc_arrays_primitive_07 |
 | S4.9 | Condition 3: the string is exactly `true`, `false` or `null` (case-sensitive, whole string). | `"true"` → `"true"`; `"false"` → `"false"`; `"null"` → `"null"`; `"True"` → `True` bare; `"NULL"` → `NULL` bare; tabular: `1,"true"⏎2,"false"`; inline with pipe: `"true"\|"42"\|"-3.14"` | `src/shared/validation.rs:56`, `src/shared/literal_utils.rs:4-6` | fx_enc_primitives_04, fx_enc_primitives_05, fx_enc_primitives_06, fx_enc_objects_10, fx_enc_arrays_tabular_04, fx_enc_arrays_primitive_09, fx_enc_delimiters_22, encstr_root_string_quoted, encstr_quoting |
@@ -170,3 +170,200 @@ Provenance paths are relative to `legacy/Toon/`. `Rnn` refers to the numbered or
 | S4.83 | Folding and arrays. The walk never enters an array: an array ends a chain as its leaf (S4.75) and an array-valued field is never a starting point (S4.64 b). Tabular rows hold only primitives, so nothing folds in them. Objects that are list items follow S4.63 and S4.73. A document whose only nesting is `key → array of flat rows` is byte-identical with folding on and off apart from the other flags. | `{"rows":[{…1500 flat rows…}]}` `[--delimiter \| --key-folding safe]` → `rows[1500\|]{id\|name\|email\|score\|active\|note}:⏎  0\|user0\|user0@example.com\|0\|true\|has, comma⏎  …`; `{"a":{"b":[1,2]}}` → `a.b[2]: 1,2` | `src/encode/folding.rs:93-95`, `src/encode/folding.rs:33-35` | large_tabular_1500_pipe_folded, fx_enc_key_folding_12, fx_enc_key_folding_03 |
 | S4.84 | The refusal tests (S4.64, S4.66, S4.67, S4.69, S4.72) are pure tests with one common outcome ("encode the field normally"), so the order in which they are tried is not observable. The original's order is: mode, value kind, budget, walk, segment count, identifier rule, sibling check, root-literal check. | any refused fold, e.g. `{"a":{"b":1},"a.b":2}` → `a:⏎  b: 1⏎a.b: 2` | `src/encode/folding.rs:29-74` | enc_folding_collision |
 
+## S5. TOON output format (S5.1–S5.29)
+
+Symbols used below: `I` = the indentation of the line (S4.61); `K` = a key in key-rule form (S4.21); `V` = a primitive's
+text (S4.3–S4.5); `d` = the active delimiter character; `H` = `[N]`, `[N⇥]` or `[N\|]` (S4.24, S4.25, S4.27);
+`F` = `{K1 d K2 d …}` without spaces (S4.26); `J` = `V1 d V2 d …` without spaces (S4.28).
+
+| S5.n | clause | provenance | cases |
+|---|---|---|---|
+| S5.1 | Success output. stdout receives the lines joined with single U+000A bytes, then ONE final U+000A. A zero-line document (the empty root object, S4.60) gives exactly one byte, `\n`. stderr is empty and the exit code is 0. The final `\n` is written whether or not the input ended with a newline. U+000D is never written as a line terminator. | `src/cli/mod.rs:156-191` | fx_enc_whitespace_01, fx_enc_objects_03, encstr_no_trailing_newline, encstr_whitespace_json, stats_empty_object |
+| S5.2 | No line ends with U+0020 and no line is empty, by construction: a value text is never empty (the empty string is `""`); an empty inline array is the header alone with no space after the colon; an empty-object list item is `-` without a space; `K:` lines end at the colon. No blank line separates anything. The only "empty" output is the zero-line document of S5.1. | `src/encode/encoders.rs:250-252`, `src/encode/encoders.rs:363-366`, `src/encode/encoders.rs:518-530` | fx_enc_arrays_primitive_04, fx_enc_arrays_objects_14, fx_enc_objects_26, fx_enc_arrays_primitive_05, enc_shapes_mixed |
+| S5.3 | Closed set of line shapes. Every line of every document has exactly one of these shapes: (1) `V` (root primitive; depth 0 only); (2) `I K: V`; (3) `I K:`; (4) `I K H:` or `I H:` (empty array, list-form header); (5) `I K H: J` or `I H: J` (inline array); (6) `I K H F:` or `I H F:` (tabular header); (7) `I J` (tabular row); (8) `I - V`; (9) `I -`; (10) `I - H: J` or `I - H:` (array as list item); (11) `I - K: V`, `I - K:`, `I - K H: J`, `I - K H:`, `I - K H F:` (first field of a list-item object). In every shape `: ` is a colon and ONE space, `- ` is a hyphen and ONE space, and K is glued to H with nothing between. | `src/encode/encoders.rs:486-618`, `src/encode/primitives.rs:52-83` | enc_shapes_mixed, fx_enc_arrays_objects_06, fx_enc_arrays_nested_08, fx_enc_primitives_01 |
+| S5.4 | Indentation `I` is `indent × depth` U+0020 characters and nothing else; a TAB never appears in indentation, only as the tab delimiter inside H, F and J. | `src/encode/encoders.rs:486-496` | fx_enc_whitespace_02, fx_enc_whitespace_03, fx_enc_delimiters_04 |
+| S5.5 | The three delimiters as they appear: comma: `[N]`, `{a,b}`, `1,2`; tab: `[N⇥]`, `{a⇥b}`, `1⇥2`; pipe: `[N\|]`, `{a\|b}`, `1\|2`. The marker is inside the brackets of EVERY header of the document, also of headers whose array uses no delimiter (list form, empty). | `src/encode/primitives.rs:64-79`, `src/encode/primitives.rs:42-46` | fx_enc_delimiters_01, fx_enc_delimiters_02, fx_enc_delimiters_03, fx_enc_delimiters_04, fx_enc_delimiters_05, fx_enc_delimiters_06, fx_enc_delimiters_07, flag_delimiter_word_comma, flag_delimiter_word_pipe, flag_delimiter_backslash_t, flag_delimiter_real_tab |
+| S5.6 | Quoted text is `"`, body, `"` where the body contains exactly five possible escapes (`\\`, `\"`, `\n`, `\r`, `\t`) and every other scalar value raw (S4.19). A quoted text never spans lines. There is no single-quote form and no `\u` form. | `src/shared/string_utils.rs:4-32`, `src/encode/primitives.rs:24` | fx_enc_primitives_11, fx_enc_primitives_14, fx_enc_objects_07, encstr_escapes_in |
+| S5.7 | Output encoding is UTF-8 with no byte-order mark added. Non-ASCII scalar values are written as themselves (never escaped), in bare and quoted texts alike. Control characters other than U+0009, U+000A, U+000D are written as raw bytes (S10.60). | `src/cli/mod.rs:183-185`, `src/shared/string_utils.rs:28` | encstr_unicode, encstr_escapes_in, fx_enc_primitives_23, fx_enc_primitives_24, fx_enc_primitives_25, fx_enc_primitives_26 |
+| S5.8 | Type distinguishability. `null`, `true`, `false` and numbers are never quoted; a STRING that is exactly `true`, `false`, `null` or numeric-like (S4.10, S4.11) is always quoted, in every position and under every delimiter. | `src/encode/primitives.rs:10-25`, `src/shared/validation.rs:56-58` | fx_enc_delimiters_22, fx_enc_arrays_primitive_09, fx_enc_arrays_tabular_04, fx_enc_primitives_07, fx_enc_objects_10, fx_enc_objects_11 |
+| S5.9 | Lines are never wrapped, truncated, padded or aligned: a 5000-character string gives the single line `long: xxx…x` of 5006 characters, a 300-character key gives `kkk…k: v` of 303 characters, a row is as long as its cells. | `src/encode/encoders.rs:499-515` | encstr_long, large_tabular_1500 |
+| S5.10 | Folded output shapes are ordinary shapes whose K contains dots: `a.b.c: 1` (shape 2), `a.b.c:` (shape 3, for both an empty-object leaf and a partial fold), `a.b[2]: 1,2` (5), `a.b.items[2]{id,name}:` (6), `a.b[2]:` (4). | `src/encode/encoders.rs:101-146` | fx_enc_key_folding_01, fx_enc_key_folding_02, fx_enc_key_folding_03, fx_enc_key_folding_06, fx_enc_key_folding_11, fx_enc_key_folding_12 |
+| S5.11 | Determinism: the same input bytes and flags give the same output bytes on every run. No clock, locale, environment variable, random source or hash order reaches the document (S6.34). | `src/encode/encoders.rs:16-34` | determinism_a, determinism_a_again |
+| S5.12 | The document bytes of S5.1 are the same with `--stats` and with `-o FILE` (where they go to the file); those flags only add stderr lines, specified in the CLI part. Flags that belong to decoding (`--no-strict`, `--expand-paths safe`) are accepted in encode mode and change nothing. | `src/cli/mod.rs:49-52`, `src/cli/mod.rs:139-154` | stats_small, stats_empty_object, flag_output_dev_stdout_encode, flag_no_strict_on_encode_ignored, flag_expand_paths_on_encode_ignored |
+
+## S6. Order inventory, encoder side (S6.30–S6.39)
+
+| S6.n | structure | order the original exhibits | reaches output via | provenance | cases |
+|---|---|---|---|---|---|
+| S6.30 | object fields | insertion order = first occurrence of each key in the JSON text (S3.2); never sorted | one contiguous line group per field, in that order, at every depth, folded or not (S4.55, S4.63) | `src/encode/encoders.rs:62`, `src/lib.rs:158-164` | fx_enc_objects_01, encstr_duplicate_keys, fx_enc_key_folding_13 |
+| S6.31 | tabular header fields | the FIRST row's key order; a later row's own key order is ignored | the field list `{…}` and the cell order of every row (S4.35, S4.37): `[{"a":1,"b":2},{"b":3,"a":4}]` → `{a,b}:`, `1,2`, `4,3` | `src/encode/encoders.rs:312`, `src/encode/encoders.rs:285-286` | fx_enc_arrays_objects_15, enc_shapes_mixed |
+| S6.32 | array items | input order; never sorted, never deduplicated | inline values, tabular rows, list items (S4.29, S4.37, S4.38) | `src/encode/encoders.rs:233`, `src/encode/encoders.rs:282`, `src/encode/encoders.rs:352` | fx_enc_arrays_primitive_03, large_tabular_1500, determinism_a |
+| S6.33 | list-item object fields | the first field in insertion order goes on the hyphen line; the others follow in insertion order. Which field is "first" is purely positional: `{"nums":[…],"name":…}` and `{"name":…,"nums":[…]}` give different hyphen lines | S4.44, S4.52 | `src/encode/encoders.rs:368-374` | fx_enc_arrays_objects_03, fx_enc_arrays_objects_04 |
+| S6.34 | root-literal set (S4.70) | a hash set in the original, used for membership tests ONLY and never iterated, so its hash order cannot reach the output (LANGUAGE-GUIDES probe RS-01 does not bite); any set or list with exact string membership reproduces it | S4.72 (fold refused or not) | `src/encode/encoders.rs:48-58`, `src/encode/folding.rs:70-74` | enc_folding_collision, fx_enc_key_folding_05 |
+| S6.35 | sibling key list (S4.69) | the body's keys in insertion order, used only for an "any key equals" test, so order-insensitive; a sibling placed before or after the chain has the same effect | S4.69 | `src/encode/encoders.rs:46`, `src/encode/folding.rs:61-63` | enc_folding_collision, fx_enc_key_folding_05 |
+| S6.36 | line emission | depth-first, pre-order: an opening or header line precedes everything nested under it; children in S6.30 / S6.32 order; line groups of siblings never interleave | the whole document | `src/encode/encoders.rs:62-74`, `src/encode/encoders.rs:352-354` | fx_enc_arrays_nested_11, enc_shapes_mixed |
+| S6.37 | segments of a folded key | outermost key first, walk order | S4.68 | `src/encode/folding.rs:89-104` | fx_enc_key_folding_01, enc_folding_mix |
+| S6.38 | sorting | none anywhere in the encoder: `id`, `name`, `active` stay in that (non-alphabetical) order; 1500 rows stay in input order | the whole document | `src/encode/encoders.rs:62` | fx_enc_objects_01, large_tabular_1500 |
+
+## S10. Known bugs and oddities of the encoder (S10.60–S10.79): reproduce, do not fix
+
+| S10.n | behavior | why it is a bug | reproduce with case | decision |
+|---|---|---|---|---|
+| S10.60 | Control characters other than U+0009, U+000A, U+000D are never escaped and do not trigger quoting (unless at an edge and White_Space: U+000B, U+000C, U+0085). `{"nul":"x\u0000y"}` → `nul: x<U+0000>y`; `{"b":"x\by"}` → `b: x<U+0008>y`; `{"del":"x\u007fy"}` → `del: x<U+007F>y`; inside quotes too: `esc: "<U+001B>[0m"`. (`src/shared/validation.rs:72-74`, `src/shared/string_utils.rs:28`) | raw NUL/ESC bytes in a text format; DISC-CANDIDATE C-5 | `goldens/encstr_escapes_in` | bug-compatible (default) |
+| S10.61 | In a list-item object the sibling-collision check for the remaining fields does not see the item's FIRST field, so a fold can produce a key that duplicates the first field's literal key: R2 `[--key-folding safe]` `[{"c.d":7,"c":{"d":1}}]` → `[1]:⏎  - c.d: 7⏎    c.d: 1` (two `c.d` keys in one object). With the dotted key in a later position the check works: `[{"x":1,"c":{"d":1},"c.d":7}]` → `    c:⏎      d: 1⏎    c.d: 7`. (`src/encode/encoders.rs:369-373`, `src/encode/encoders.rs:449`) | the "safe" guarantee (no folded key equal to a literal sibling) is broken; the output has a duplicate key | (case to add: enc_fold_list_item_dup_key) | bug-compatible (default) |
+| S10.62 | The root-literal set holds ROOT keys only. A dotted literal key of a NESTED object protects only its own body's chain (sibling check), not the nested parts of that chain: R2 `{"r":{"s":{"p":{"q":1}},"s.p.q":9,"z":1}}` → `r:⏎  s:⏎    p.q: 1⏎  s.p.q: 9⏎  z: 1`, whereas the same shape at the root (`{"x":{"a":{"b":1},"c":2},"x.a.b":3}`) leaves `a:⏎    b: 1` unfolded. (`src/encode/encoders.rs:49-55`) | inconsistent protection: after path expansion `r.s.p.q` is spelled by two different lines | (case to add: enc_fold_nested_literal_not_root) | bug-compatible (default) |
+| S10.63 | Inside list items the flatten-depth budget restarts at the option's value and the root-literal set is absent (S4.73): R7 `[--key-folding safe --flatten-depth 2]` `{"a":{"b":[{"x":1,"c":{"d":{"e":1}}}]}}` → `a.b[1]:⏎  - x: 1⏎    c.d:⏎      e: 1`. (`src/encode/encoders.rs:389`, `src/encode/encoders.rs:443`, `src/encode/encoders.rs:449`) | the budget is per object-chain, not per document path; arrays silently reset it | (case to add: enc_fold_budget_reset_in_list) | bug-compatible (default) |
+| S10.64 | An array of uniform objects that is ITSELF a list item (an array directly inside an array) is never tabular: R14 `{"h":[[{"id":1},{"id":2}]]}` → `h[1]:⏎  - [2]:⏎    - id: 1⏎    - id: 2`, while the same inner array under a key is `[2]{id}:⏎  1⏎  2`. (`src/encode/encoders.rs:464-474`) | the tabular test is skipped in one position only; costs tokens, still decodable | `goldens/fx_enc_arrays_nested_08` shows the position with non-uniform objects (case to add: enc_aoa_corners) | bug-compatible (default) |
+| S10.65 | The leading-zero shortcut (S4.11) quotes strings that are not numbers at all: R9 `007abc` → `"007abc"`, `00:` → `"00:"`, `-01x` → `"-01x"`, `00e` → `"00e"`, while `0x10`, `12a`, `1e5x` stay bare. (`src/shared/literal_utils.rs:38-41`) | over-quoting; harmless but irregular | (case to add: encstr_numeric_like) | bug-compatible (default) |
+| S10.66 | The identifier rule looks only at the segments collected WITHIN the budget, and a failure refuses the whole fold. A smaller budget can therefore ENABLE a fold that the unlimited budget refuses: R6 `{"a":{"b":{"c-d":1}}}` → unlimited `a:⏎  b:⏎    "c-d": 1`; `[--flatten-depth 2]` `a.b:⏎  "c-d": 1`. (`src/encode/folding.rs:42-50`) | folding is not monotone in the budget | (case to add: enc_fold_depth2_enables_fold) | bug-compatible (default) |
+| S10.67 | Vendored fixture `expected` vs golden: for all 147 encode fixtures the golden stdout equals the upstream `expected` text plus ONE final `\n` (R0); no other difference exists. Two fixtures make the difference visible: `objects.json#3` "encodes empty objects as empty string": expected `` (empty), golden `\n`; `whitespace.json#1` "produces no trailing newline at end of output": expected `id: 123`, golden `id: 123\n`. (`src/cli/mod.rs:187-188`) | the fixture text describes the library string; the CLI always terminates the document with a newline. The golden wins | `goldens/fx_enc_objects_03`, `goldens/fx_enc_whitespace_01` | bug-compatible (default) |
+| S10.68 | Indentation is purely `indent × depth`. Remaining fields of a list-item object sit at depth i+1, which lines up under the first field's key only when indent is 2 (`- ` is two characters): indent 1 → ` - x: 1⏎  y[2]:`; indent 3 → `   - p: 1⏎      z: 0`. With indent 0 all nesting disappears: `{"a":{"b":1},"l":[{"x":1},{"y":2}]}` → `a:⏎b: 1⏎l[2]:⏎- x: 1⏎- y: 2`, which no longer denotes the input. (`src/encode/encoders.rs:486-496`, `src/encode/encoders.rs:449`) | indent 0 output is lossy; other indents break visual alignment | `goldens/flag_indent_0_encode`, `goldens/flag_indent_1_encode` | bug-compatible (default) |
+| S10.69 | Unicode line-breaking characters are data, never structure: U+2028, U+2029, U+0085, U+000B, U+000C in the MIDDLE of a string leave it bare and raw (`ls: a<U+2028>b`); at an EDGE they force quotes but stay raw inside them (`nel: "<U+0085>x"`, R13 `vt: "<U+000B>"`). (`src/shared/validation.rs:52-54`, `src/shared/validation.rs:72-74`) | a consumer that splits lines on Unicode line terminators sees a broken document | `goldens/encstr_unicode` | bug-compatible (default) |
+| S10.70 | README.md:105-107 shows key folding of a two-field object as two fully folded lines (`config.database.host: localhost⏎config.database.port: 5432`). The original folds only single-field chains: `config.database:⏎  host: localhost⏎  port: 5432`. (`src/encode/folding.rs:97-99`) | documentation disagrees with behavior; the golden wins | `goldens/happy_config_folded` | bug-compatible (default) |
+| S10.71 | README.md:368 says tabular detection requires "identical keys in the same order". The original requires the same key SET; order may differ and cells follow the first row's order (S4.36, S4.37). (`src/encode/encoders.rs:320-340`) | documentation disagrees with behavior; the golden wins | `goldens/fx_enc_arrays_objects_15`, `goldens/enc_shapes_mixed` | bug-compatible (default) |
+| S10.72 | README.md:402 says folding is prevented when it "would exceed `--flatten-depth`". The original folds UP TO the budget and nests the rest (S4.77). (`src/encode/folding.rs:92`) | documentation disagrees with behavior; the golden wins | `goldens/fx_enc_key_folding_06`, `goldens/flag_flatten_depth_3` | bug-compatible (default) |
+| S10.73 | The original's own structure document (EXISTING_TOON_RUST_STRUCTURE.md:299-302) says an array of primitive arrays writes each row as `- a,b,c`. The original writes `- [N]: a,b,c` (S4.33). (`src/encode/encoders.rs:235-236`) | documentation disagrees with behavior; the golden wins | `goldens/fx_enc_arrays_nested_01` | bug-compatible (default) |
+| S10.74 | A literal dotted key is written bare (`a.b: 2`) right next to folded keys (`a.b.c: 1`), with folding on or off; the output does not record which dots are literal, so a decoder with path expansion cannot recover the literal key. (`src/shared/validation.rs:16`, `src/encode/encoders.rs:149`) | information loss for `--expand-paths safe` round trips (same as the upstream reference) | `goldens/enc_folding_mix`, `goldens/encstr_keys` | bug-compatible (default) |
+| S10.75 | Asymmetric rules: the key rule is ASCII-only and ignores literals (`"é": 8` quoted, `true: 13` bare) while the value rule is Unicode-permissive and literal-aware (`cafe: café` bare, `t: "true"` quoted). (`src/shared/validation.rs:5-23`, `src/shared/validation.rs:47-85`) | surprising but intended by the format; listed so nobody "harmonizes" the two rules | `goldens/encstr_keys`, `goldens/encstr_unicode`, `goldens/encstr_quoting` | bug-compatible (default) |
+| S10.76 | The absolute path of the root-literal check is a raw dot-join (S4.71): a nested key that itself contains dots contributes several apparent segments. R15 `{"u":{"v.w":{"a":{"b":1}}},"u.v.w.a.b":1}` → `u:⏎  v.w:⏎    a:⏎      b: 1⏎u.v.w.a.b: 1`: the unrelated root key `u.v.w.a.b` blocks the fold of `a.b` under `u` → `v.w`. (`src/encode/encoders.rs:89-90`, `src/encode/folding.rs:65-68`) | path ambiguity; conservative (refuses a fold), never produces a wrong document | (case to add: enc_fold_dotted_parent_path) | bug-compatible (default) |
+| S10.77 | The rules "non-finite number → null" (normalization and number text) are dead through the CLI: no JSON text yields a non-finite value (S3.5). (`src/encode/normalize.rs:22-23`, `src/encode/primitives.rs:89-91`) | unreachable behavior; the port needs no case and no code path for it unless a library driver is added | `goldens/encnum_overflow_positive` (shows the reader's rejection instead) | bug-compatible (default) |
+
+## Open questions
+
+No question about this surface is left unsettled: every doubt met during extraction was settled by an oracle run
+(listed in the report) and turned into a clause, an S10 row or a case to add. Two items are handed to other parts
+rather than asked:
+
+| id | question | clause | settled by |
+|---|---|---|---|
+| OQ-D1 | (handoff, number-text part) S4.4 takes "the number's text" as given for every non-zero finite number; the zero rule (`0` for both signs, also after underflow) and the dead non-finite rule are specified here. The number-text part owns every other digit. | S4.4, S3.5 | existing cases `fx_enc_primitives_27` … `fx_enc_primitives_36`, `encnum_root_negative_zero`, `encnum_tiny_huge_exponent` |
+| OQ-D2 | (handoff, CLI part) S5.12 states that `--stats` and `-o FILE` leave the document bytes unchanged and that a zero-line document is one `\n` in both paths (R16: `{}` with `-o /dev/stdout` prints `\n`). The stderr lines of those flags belong to the CLI part. | S5.1, S5.12 | existing cases `stats_empty_object`, `stats_small`, `flag_output_dev_stdout_encode` |
+
+## Cases to add
+
+Ready-to-paste lines for `cases/gen-hand-cases.py` (helper `enc(name, text, extra, cls, note)`), each followed by the
+output the oracle gave during extraction (so a re-capture can be checked by eye). All exit 0 with empty stderr.
+
+```python
+F = ["--key-folding", "safe"]
+# --- key folding: list items, collisions, root literals, budget (S4.63-S4.80, S10.61-S10.63, S10.66, S10.76)
+enc("enc_fold_list_item_first_field", json.dumps([{"a": {"b": 1}, "c": {"d": {"e": 2}}}]) + "\n", F, note="first field of a list item is never folded; the rest is")
+enc("enc_fold_list_item_dup_key", json.dumps([{"c.d": 7, "c": {"d": 1}}]) + "\n", F, note="S10.61: sibling check ignores the first field -> duplicate key c.d")
+enc("enc_fold_list_item_rest_collision", json.dumps([{"x": 1, "c": {"d": 1}, "c.d": 7}]) + "\n", F, note="sibling check among remaining fields works")
+enc("enc_fold_root_literal_nested", json.dumps({"x": {"a": {"b": 1}, "c": 2}, "x.a.b": 3}) + "\n", F, note="root-literal check through a path prefix")
+enc("enc_fold_nested_literal_not_root", json.dumps({"r": {"s": {"p": {"q": 1}}, "s.p.q": 9, "z": 1}}) + "\n", F, note="S10.62: nested dotted literals are not in the root set")
+enc("enc_fold_partial_prefix_literal", json.dumps({"a": {"b": {"c": {"d": 1}, "k": 2}}, "a.b.c.d": 5}) + "\n", F, note="prefix after a partial fold is the folded key")
+enc("enc_fold_root_literal_ignored_in_list", json.dumps({"arr": [{"x": 1, "c": {"d": 1}}], "c.d": 7}) + "\n", F, note="no root-literal set inside list items")
+enc("enc_fold_dotted_parent_path", json.dumps({"u": {"v.w": {"a": {"b": 1}}}, "u.v.w.a.b": 1}) + "\n", F, note="S10.76: raw dot-join of the path")
+enc("enc_fold_literal_words", json.dumps({"true": {"null": 1}, "_": {"_1": {"A": "x"}}, "": {"a": 1}, "é": {"a": 1}, "1a": {"b": 1}}) + "\n", F, note="identifier segments: true/null/_ fold; empty, non-ASCII, digit-first do not")
+enc("enc_fold_budget_threading_5", json.dumps({"a": {"b": {"x": {"y": {"z": {"w": 1}}}, "k": 1}}}) + "\n", F + ["--flatten-depth", "5"], note="budget 5-2=3 passed into the remainder")
+enc("enc_fold_budget_threading_4", json.dumps({"a": {"b": {"x": {"y": {"z": {"w": 1}}}, "k": 1}}}) + "\n", F + ["--flatten-depth", "4"], note="budget 4-2=2, then 0")
+enc("enc_fold_budget_not_consumed", json.dumps({"m": {"p": 1, "n": {"a": {"b": {"c": 1}}}}}) + "\n", F + ["--flatten-depth", "2"], note="a non-folded parent passes the budget unchanged")
+enc("enc_fold_budget_reset_in_list", json.dumps({"a": {"b": [{"x": 1, "c": {"d": {"e": 1}}}]}}) + "\n", F + ["--flatten-depth", "2"], note="S10.63: budget restarts inside list items")
+enc("enc_fold_budget_sibling", json.dumps({"a": {"b": {"c": 1}}, "a.b": 2}) + "\n", F + ["--flatten-depth", "2"], note="the budget creates a sibling collision")
+enc("enc_fold_unlimited_refuses", json.dumps({"a": {"b": {"c-d": 1}}}) + "\n", F, note="S10.66 pair: unlimited budget refuses the whole chain")
+enc("enc_fold_depth2_enables_fold", json.dumps({"a": {"b": {"c-d": 1}}}) + "\n", F + ["--flatten-depth", "2"], note="S10.66 pair: budget 2 folds a.b")
+# --- list items, tabular detection, arrays of arrays (S4.35-S4.54, S10.64)
+SHAPES = [{"p": 1, "z": 0}, {"ea": [], "z": 0}, {"pa": [1, "a"], "z": 0}, {"ta": [{"i": 1, "j": "x|y"}, {"j": "k", "i": 2}], "z": 0}, {"la": [{"i": 1}, {"j": 2}], "z": 0}, {"aa": [[1], []], "z": 0}, {"ma": [1, {"q": 1}, [2, [3]]], "z": 0}, {"o": {"k": 1, "l": {"m": 2}}, "z": 0}, {"eo": {}, "z": 0}, {"a b": [1, 2], "z": {"y": [{"id": 1}, {"id": 2}]}}, {}, {"only": {}}]
+enc("enc_list_first_field_shapes", json.dumps(SHAPES) + "\n", note="every first-field shape, depth i+1 vs i+2")
+enc("enc_list_first_field_shapes_pipe_indent3", json.dumps(SHAPES) + "\n", ["--delimiter", "|", "--indent", "3"], note="same under pipe and indent 3 (S10.68)")
+enc("enc_tabular_corners", json.dumps({"a": [{}, {}], "b": [{"a": 1, "b": 2}, {"a": 1, "c": 2}], "c": [{"a": 1}], "d": [{"a": 1, "b": None, "c": True, "d": "", "e": -0.0, "f": 1.5}], "e": [{"a": 1}, {"a": [1]}], "f": [{"a": [1]}, {"a": 1}], "g": [{"a": 1}, {"a": 1, "b": 2}], "h": [{"a": 1, "b": 2}, {"a": 1}], "i": [{"a": 1}, {}], "j": [{}, {"a": 1}], "k": [{"a": {}}], "l": [{"a": 1}, {"a": {}}]}) + "\n", note="tabular detection corner by corner")
+enc("enc_aoa_corners", json.dumps({"a": [[]], "b": [[], [1]], "c": [[[]]], "d": [[1], [[2]]], "e": [[], {}], "f": [[], 1], "g": [[1, 2], [3, {"x": 1}]], "h": [[{"id": 1}, {"id": 2}]], "i": [[[1, 2], [3]], [[4]]]}) + "\n", note="arrays of arrays with empties; S10.64 (h is not tabular)")
+ROWS = {"r": [{"s": "a,b", "t": "c|d", "u": "e\tf", "v": "", "w": " x", "y": "-z", "n": "12", "b": "true", "q": "a\"b", "c": "k:v"}, {"s": "p", "t": "q", "u": "r", "v": "s", "w": "t", "y": "u", "n": "v", "b": "w", "q": "x", "c": "y"}]}
+enc("enc_tabular_quoting_comma", json.dumps(ROWS) + "\n", note="cells that need quotes, comma")
+enc("enc_tabular_quoting_pipe", json.dumps(ROWS) + "\n", ["--delimiter", "pipe"], note="same, pipe")
+enc("enc_tabular_quoting_tab", json.dumps(ROWS) + "\n", ["--delimiter", "\\t"], note="same, tab")
+NAMES = [{"a,b": 1, "c|d": 2, "e\tf": 3, "ok": 4, "": 5, "true": 6, "1": 7}] * 2
+enc("enc_tabular_field_names_comma", json.dumps(NAMES) + "\n", note="field names under the key rule")
+enc("enc_tabular_field_names_pipe", json.dumps(NAMES) + "\n", ["--delimiter", "|"], note="same, pipe")
+enc("enc_tabular_field_names_tab", json.dumps(NAMES) + "\n", ["--delimiter", "tab"], note="same, tab")
+EMPTIES = {"a": [], "b": [[]], "c": [{"d": []}], "e": {"f": []}}
+enc("enc_empty_headers_tab", json.dumps(EMPTIES) + "\n", ["--delimiter", "tab"], note="[0<TAB>]: in every header position")
+enc("enc_empty_headers_pipe_folded", json.dumps(EMPTIES) + "\n", ["--delimiter", "|", "--key-folding", "safe"], note="[0|]: and a folded empty array e.f[0|]:")
+# --- strings and keys (S4.8-S4.11, S4.16, S4.22, S10.65)
+WS25 = [0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0x85, 0xA0, 0x1680, *range(0x2000, 0x200B), 0x2028, 0x2029, 0x202F, 0x205F, 0x3000]
+NEAR = [0x1C, 0x1F, 0x180E, 0x200B, 0x200D, 0x2060, 0xFEFF]
+enc("encstr_ws_edge_sweep", json.dumps({**{"L%04X" % c: chr(c) + "x" for c in WS25 + NEAR}, **{"T%04X" % c: "x" + chr(c) for c in WS25 + NEAR}}) + "\n", note="all 25 White_Space code points at both edges (quoted) and 7 near-misses (bare)")
+enc("encstr_ws_only", json.dumps({"sp": " ", "sp3": "   ", "tab": "\t", "tabs": "\t\t", "sptab": " \t ", "vt": "\u000b", "ff": "x\u000c", "nel": "\u0085", "ls": " ", "ps": "x ", "zwsp": "​x", "bom": "﻿", "mvs": "᠎x", "us": "\u001fx", "fs": "x\u001c", "nbsp_mid": "a b", "vt_mid": "a\u000bb", "ideo": "　", "nul": "\u0000", "del": "\u007f", "c1": "\u009fx"}) + "\n", note="whitespace-only and control-only strings")
+NUMLIKE = ["0", "00", "-0", "-00", "007", "007abc", "0123abc", "-01x", "00:", "0.5", "0x10", "1.", "1e", "1e+", "1e+5", "1E5", "-1E-5", "1.e5", "1.5e3", "01.5", "0e0", "00e", "0.", "-", ".5", "+5", "-.5", "1_000", "１２", "١٢", "1.2.3", "1 2", "Infinity", "NaN", "-Infinity", "0b1", "1e5x", "1.5x", "-a", "--1", "- 1", "-1", "a-", "1-", "12a", "1e5.5", "1.0e", "9" * 30, "0.0", "-0.0", "0e", "05", "5", "1e05", "1e-05", "00.5", "0-"]
+enc("encstr_numeric_like", json.dumps({"k%d" % i: v for i, v in enumerate(NUMLIKE)}) + "\n", note="numeric-like pattern and the leading-zero shortcut (S10.65)")
+enc("encstr_keys_literals", json.dumps({"null": 1, "false": 2, "_": 3, "a.": 4, "a.b.": 5, "Z9": 6, "a|b": 7, "a\tb": 8, "a\\b": 9, "x\u0001y": 10, "éa": 11, "aé": 12, "-1": 13, "1": 14, "1.5": 15, "e": 16, "k\rq": 17}) + "\n", note="keys that look like literals, numbers, or hold control characters")
+enc("encstr_root_delim_pipe", json.dumps("a|b") + "\n", ["--delimiter", "pipe"], note="the active delimiter also governs a root string")
+```
+
+Oracle outputs recorded for the most revealing of them (`⏎` = line break):
+
+| case | oracle stdout |
+|---|---|
+| enc_fold_list_item_first_field | `[1]:⏎  - a:⏎      b: 1⏎    c.d.e: 2` |
+| enc_fold_list_item_dup_key | `[1]:⏎  - c.d: 7⏎    c.d: 1` |
+| enc_fold_list_item_rest_collision | `[1]:⏎  - x: 1⏎    c:⏎      d: 1⏎    c.d: 7` |
+| enc_fold_root_literal_nested | `x:⏎  a:⏎    b: 1⏎  c: 2⏎x.a.b: 3` |
+| enc_fold_nested_literal_not_root | `r:⏎  s:⏎    p.q: 1⏎  s.p.q: 9⏎  z: 1` |
+| enc_fold_partial_prefix_literal | `a.b:⏎  c:⏎    d: 1⏎  k: 2⏎a.b.c.d: 5` |
+| enc_fold_root_literal_ignored_in_list | `arr[1]:⏎  - x: 1⏎    c.d: 1⏎c.d: 7` |
+| enc_fold_dotted_parent_path | `u:⏎  v.w:⏎    a:⏎      b: 1⏎u.v.w.a.b: 1` |
+| enc_fold_budget_threading_5 | `a.b:⏎  x.y.z:⏎    w: 1⏎  k: 1` |
+| enc_fold_budget_threading_4 | `a.b:⏎  x.y:⏎    z:⏎      w: 1⏎  k: 1` |
+| enc_fold_budget_not_consumed | `m:⏎  p: 1⏎  n.a:⏎    b:⏎      c: 1` |
+| enc_fold_budget_reset_in_list | `a.b[1]:⏎  - x: 1⏎    c.d:⏎      e: 1` |
+| enc_fold_budget_sibling | `a:⏎  b.c: 1⏎a.b: 2` |
+| enc_fold_unlimited_refuses | `a:⏎  b:⏎    "c-d": 1` |
+| enc_fold_depth2_enables_fold | `a.b:⏎  "c-d": 1` |
+| enc_aoa_corners (key `h`) | `h[1]:⏎  - [2]:⏎    - id: 1⏎    - id: 2` |
+| enc_tabular_quoting_pipe (row 1) | `  a,b\|"c\|d"\|"e\tf"\|""\|" x"\|"-z"\|"12"\|"true"\|"a\"b"\|"k:v"` |
+| enc_tabular_field_names_tab (header) | `[2⇥]{"a,b"⇥"c\|d"⇥"e\tf"⇥ok⇥""⇥true⇥"1"}:` |
+| encstr_root_delim_pipe | `"a\|b"` |
+
+## Extractor report
+
+**Files read** (all completely; line counts from `wc -l`, paths under `legacy/Toon/`): `src/encode/mod.rs` 84,
+`src/encode/encoders.rs` 638, `src/encode/primitives.rs` 244, `src/encode/normalize.rs` 228, `src/encode/folding.rs` 117,
+`src/shared/validation.rs` 90, `src/shared/string_utils.rs` 120, `src/shared/literal_utils.rs` 145,
+`src/shared/constants.rs` 25, `src/options.rs` 223, `src/cli/mod.rs` 239, `src/cli/conversion.rs` 79,
+`src/cli/args.rs` 174, `src/lib.rs` 190; for S10 only: `README.md` (lines 84–112, 360–405 of 565) and
+`EXISTING_TOON_RUST_STRUCTURE.md` (lines 236–345 of 821). Corpus: the 9 vendored encode fixture files
+(147 tests) with their inputs under `cases/inputs/fx/`, the 22 hand cases of my prefixes, and their goldens.
+**Skipped, out of scope (PLAN §3):** `src/encode/async_encode.rs` (431 lines), `src/encode/replacer.rs` (220 lines).
+Also not specified because no CLI path reaches them: `encode_stream_events` (`src/encode/mod.rs:43-84`, a library-only
+event list), the line-count estimate (`src/encode/encoders.rs:622-638`, a capacity hint with no observable effect),
+the saturating indentation arithmetic (unreachable: indent ≤ 16 and the JSON reader bounds the depth), the two panics
+in tabular row writing (`src/encode/encoders.rs:286-291`, unreachable because the same rows passed S4.36 first), and
+the fall-through after a fold whose leaf is a non-empty object with no remainder (`src/encode/encoders.rs:119-126`,
+unreachable: a non-empty object is always a remainder).
+
+**Oracle runs** (`./oracle/toon --encode`, stdin JSON, output inspected with `/bin/cat -A`):
+- R0: all 147 encode fixtures: golden stdout compared with upstream `expected` + `\n`: 147 equal, 0 different (S10.67).
+- R1: root forms `{}`, `{"a":{}}`, `[]`, `""`, `{}` with `--indent 0`.
+- R2: nine folding documents (root literal vs nested, nested dotted sibling, partial fold + prefix, list-item first field / rest / collisions, dotted first key in a list item).
+- R3: a five-key chain at `--flatten-depth` 0,1,2,3,4,5,6. R4: budget threading at depths 5,4,3,2. R5: budget not consumed by non-folded parents (2 runs). R6: budget decides which segments are examined (3 runs).
+- R7: folding with `true`/`null`/`_` segments, non-identifier keys, array leaves of every form, `--indent 4 --delimiter |`, tab delimiter, tabular first field + folded rest, first-field chain, list inside list.
+- R8: exhaustive sweep of all 1 112 064 Unicode scalar values as leading, trailing and middle character of a value (136 oracle calls); R8b: the same sweep for the first and a later character of a key; R8c: the same sweep for folding segments (first char, later char, last segment).
+- R9: 59 numeric-like probes. R10: key probes; tabular field names and tabular cells under comma, pipe and tab.
+- R11: twelve list-item shapes under defaults and under `--delimiter | --indent 3`. R12: `--indent` 0, 1, 16 (and 17, -1 rejected by the CLI, exit 2).
+- R13: whitespace-only, control-only and Unicode-edge strings; root strings under each delimiter. R14: tabular corners, arrays of arrays, root arrays.
+- R15: sibling before the chain, budget-made collision, dotted root key with object value, raw dot-join paths, empty leaf under a budget, root array with folding, folded values needing quotes, folding off.
+- R16: empty-array headers under tab and pipe, mixed nesting at indent 4, zero spellings, `{"k":[{}]}`, `{}` with `-o /dev/stdout`. R17: single-segment chains.
+- Verification beyond single runs: a throwaway model written ONLY from the clauses above (scratchpad, not part of the port) reproduces all 169 owned goldens byte for byte, all 33 proposed cases, and agreed with the oracle on 11 000 random documents with random flags (3 seeds, one folding-heavy generator): 0 mismatches.
+
+**Clause counts:** S3: 17 (S3.1–S3.17); S4: 84 (S4.1–S4.84); S5: 12 (S5.1–S5.12); S6: 9 (S6.30–S6.38); S10: 18 (S10.60–S10.77). Total 140. Proposed cases: 33. Open questions: 0 open, 2 handoffs.
+
+**Uncited-cases check** (the command of the assignment): prints nothing: 0 of 169 owned cases uncited.
+`scripts/spec-lint.py` on this part alone: `spec-lint: 140 clauses, 678 cases, 196 cases cited, 489 finding(s)`, of which 7 are
+the section headings a part file lacks, 482 are cases of other extractors' prefixes, and 0 concern this part.
+
+**Surprises worth the architect's attention:** the first field of a list-item object is invisible to the sibling check, so
+"safe" folding can emit a duplicate key (S10.61); the flatten-depth budget restarts inside every list item and the
+root-literal protection is off there (S4.73, S10.63); a SMALLER budget can enable a fold the unlimited budget refuses
+(S10.66); an array of uniform objects placed directly inside an array is never tabular (S10.64); the leading-zero shortcut
+quotes `007abc` (S10.65); the step-3 branch for arrays of primitive arrays is observably the same as plain list form (S4.39).
+
+**Least sure of:** (1) the text of non-zero numbers is outside this part; my verification model borrowed a shortest-round-trip
+printer and only simple numbers were fuzzed. (2) The White_Space set is the pinned toolchain's; it was measured
+exhaustively on the oracle (R8) and matches the Unicode property, stable since Unicode 6.3. (3) The sweeps are
+exhaustive per single code point; combinations were covered by fuzzing over a 41-string, 26-key alphabet, not
+exhaustively. (4) Provenance line numbers were read from `cat -n` at commit `f955c67` and spot-checked with `grep -n`.
+(5) Which `--delimiter` and `--indent` spellings are accepted is the CLI part's; here the delimiter is already one of
+three characters and the indent an integer 0–16.
+
+**Attestation:** `files_written: [docs/spec-parts/D_encode.md]`, `goldens_touched: false`, `cases_touched: false`, `port_touched: false`, `ran_original: true` (oracle only, read-only), `deleted: nothing` (scratch scripts left in the session scratchpad).

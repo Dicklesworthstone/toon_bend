@@ -29,7 +29,7 @@ def main():
     extra = ["--check"] if check else []
     rc = 0
     for gen in ("gen-hand-cases.py", "gen-fixture-cases.py"):
-        rc |= subprocess.run([sys.executable, os.path.join(HERE, gen), *extra]).returncode
+        rc |= subprocess.run([sys.executable, os.path.join(HERE, gen), *extra], timeout=600).returncode
     body = ""
     for part in ("hand-cases.tsv", "fixture-cases.tsv"):
         with open(os.path.join(HERE, part), encoding="utf-8") as fh:

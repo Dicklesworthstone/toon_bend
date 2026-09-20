@@ -87,7 +87,10 @@ def main():
         for path in sorted(glob.glob(os.path.join(FX, kind, "*.json"))):
             stem = os.path.splitext(os.path.basename(path))[0].replace("-", "_")
             with open(path, encoding="utf-8") as fh:
-                doc = json.loads(fh.read(), parse_int=Raw, parse_float=Raw)
+                try:
+                    doc = json.loads(fh.read(), parse_int=Raw, parse_float=Raw)
+                except json.JSONDecodeError as exc:
+                    raise SystemExit(f"vendored fixture {path} is not valid JSON: {exc}")
             for i, t in enumerate(doc["tests"], 1):
                 name = f"fx_{short}_{stem}_{i:02d}"
                 if kind == "encode":

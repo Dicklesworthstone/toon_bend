@@ -166,3 +166,30 @@ def has_char.go(s: String, +k: U32, found: Bool) -> Bool:
 # S2.121 whether a text contains a given character
 def has_char(s: String, k: U32) -> Bool:
   has_char.go(s, k, False{})
+
+# S2.126 whether a text starts with a given character
+def head_is(s: String, k: U32) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{Chr{c}, rest}:
+      U32.is_eq(c, k)
+
+# S2.126 a text cut at the FIRST occurrence of a character: whether it occurs, the text before it (the
+# whole text when it does not occur) and the text after it
+type Cut is Data:
+  Cut{found: Bool, before: String, after: String}
+
+# S2.126 the loop of cut: `hit` is the verdict for the head of `s`, so the walk stops at the first hit
+def cut.go(s: String, hit: Bool, +k: U32, rev: String) -> Cut:
+  match s hit:
+    case SNil{} _:
+      Cut{False{}, String.reverse(rev), SNil{}}
+    case SCon{c, rest} True{}:
+      Cut{True{}, String.reverse(rev), rest}
+    case SCon{c, +rest} False{}:
+      cut.go(rest, head_is(rest, k), k, SCon{c, rev})
+
+# S2.126 cut a text at the first occurrence of character k (a plain search, no quote awareness)
+def cut(+s: String, +k: U32) -> Cut:
+  cut.go(s, head_is(s, k), k, SNil{})

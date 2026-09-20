@@ -193,3 +193,46 @@ def cut.go(s: String, hit: Bool, +k: U32, rev: String) -> Cut:
 # S2.126 cut a text at the first occurrence of character k (a plain search, no quote awareness)
 def cut(+s: String, +k: U32) -> Cut:
   cut.go(s, head_is(s, k), k, SNil{})
+
+# S6.10 the loop of str_eq: stops at the first difference
+def str_eq.go(a: String, b: String, same: Bool) -> Bool:
+  match a b same:
+    case _ _ False{}:
+      False{}
+    case SNil{} SNil{} True{}:
+      True{}
+    case SCon{Chr{x}, ta} SCon{Chr{y}, tb} True{}:
+      str_eq.go(ta, tb, U32.is_eq(x, y))
+    case _ _ True{}:
+      False{}
+
+# S6.10 exact string equality, scalar by scalar: a loop that allocates nothing (Base's String.eq
+# recurses to the depth of the common prefix and rebuilds both texts)
+def str_eq(a: String, b: String) -> Bool:
+  str_eq.go(a, b, True{})
+
+# S4.21 a later character of a bare key: ASCII letter, digit, '_' or (when dots are allowed) '.'
+def key_char(+c: U32, dot: Bool) -> Bool:
+  Bool.or(Bool.and(U32.is_ge(c, 97), U32.is_le(c, 122)), Bool.or(Bool.and(U32.is_ge(c, 65), U32.is_le(c, 90)), Bool.or(Bool.and(U32.is_ge(c, 48), U32.is_le(c, 57)), Bool.or(U32.is_eq(c, 95), Bool.and(dot, U32.is_eq(c, 46))))))
+
+# S4.21 the first character of a bare key: ASCII letter or '_'
+def key_first(+c: U32) -> Bool:
+  Bool.or(Bool.and(U32.is_ge(c, 97), U32.is_le(c, 122)), Bool.or(Bool.and(U32.is_ge(c, 65), U32.is_le(c, 90)), U32.is_eq(c, 95)))
+
+# S4.21 the loop over the later characters: stops at the first that does not belong
+def key_rest.go(s: String, +dot: Bool, ok: Bool) -> Bool:
+  match s ok:
+    case _ False{}:
+      False{}
+    case SNil{} True{}:
+      True{}
+    case SCon{Chr{c}, rest} True{}:
+      key_rest.go(rest, dot, key_char(c, dot))
+
+# S4.21 (dot True) the key rule; S4.67, S4.241 (dot False) the identifier-segment rule
+def is_ident(s: String, dot: Bool) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{Chr{c}, rest}:
+      key_rest.go(rest, dot, key_first(c))

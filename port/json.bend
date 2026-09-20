@@ -50,7 +50,7 @@ def obj.has.go(c: Json, +k: String, found: Bool) -> Bool:
     case _ True{}:
       True{}
     case JECons{key, q, v, t} False{}:
-      obj.has.go(t, k, String.eq(key, k))
+      obj.has.go(t, k, T.str_eq(key, k))
     case _ False{}:
       False{}
 
@@ -78,7 +78,7 @@ def obj.rest(same: Bool, v: Maybe<&2, Json>) -> Maybe<&2, Json>:
 def obj.replace(c: Json, +k: String, +v: Maybe<&2, Json>, acc: Json) -> Json:
   match c:
     case JECons{+key, q, old, t}:
-      +same = String.eq(key, k)
+      +same = T.str_eq(key, k)
       obj.replace(t, k, obj.rest(same, v), JECons{key, q, obj.pick(same, old, v), acc})
     case other:
       acc

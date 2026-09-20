@@ -271,7 +271,7 @@ def prim.word(tr: Bool, fa: Bool, nu: Bool, +t: String) -> RV:
 
 # S2.124 a bare token: a word, a number, or itself
 def prim.bare(+t: String) -> RV:
-  prim.word(String.eq(t, "true"), String.eq(t, "false"), String.eq(t, "null"), t)
+  prim.word(T.str_eq(t, "true"), T.str_eq(t, "false"), T.str_eq(t, "null"), t)
 
 # S2.124 (2) a token that starts with a double quote is a string literal, errors included
 def prim.first(q: Bool, c: U32, rest: String) -> RV:
@@ -446,21 +446,15 @@ type KV is Data:
   KVOk{key: String, quoted: Bool, val: String}
   KVErr{msg: String}
 
-# S2.126 a quoted key after unescaping
-def kv.quoted.key(r: RS, val: String) -> KV:
-  match r:
-    case RSOk{k}:
-      KVOk{k, True{}, T.trim(val)}
-    case RSErr{msg}:
+# S2.126 a quoted key: its escapes are interpreted FIRST (S9.105 surfaces even when no ':' follows);
+# then the character right after the closing quote must be ':' (S9.106)
+def kv.quoted.key(r: RS, colon: Bool, after: String) -> KV:
+  match r colon after:
+    case RSErr{msg} _ _:
       KVErr{msg}
-
-# S2.126 the character right after the closing quote must be ':' (S9.106); the key's escapes are then
-# interpreted (errors surface)
-def kv.quoted.colon(colon: Bool, inner: String, after: String) -> KV:
-  match colon after:
-    case True{} SCon{c, val}:
-      kv.quoted.key(unesc(inner), val)
-    case _ _:
+    case RSOk{k} True{} SCon{c, val}:
+      KVOk{k, True{}, T.trim(val)}
+    case RSOk{k} _ _:
       KVErr{"Missing colon after key"}
 
 # S2.126 a content whose FIRST character is a double quote; S9.130 the message without a closing quote
@@ -470,7 +464,7 @@ def kv.quoted(q: QS) -> KV:
     case QS{False{}, inner, after}:
       KVErr{"Unterminated quoted key"}
     case QS{True{}, inner, +after}:
-      kv.quoted.colon(T.head_is(after, 58), inner, after)
+      kv.quoted.key(unesc(inner), T.head_is(after, 58), after)
 
 # S2.126 an unquoted key is everything before the FIRST ':' (no quote awareness), WS-trimmed
 def kv.plain(c: T.Cut) -> KV:
@@ -1271,3 +1265,357 @@ def decode.scanned(s: Scan, +strict: Bool) -> DR:
 # S4.200 the value of a TOON text with indent size `unit` (no path expansion)
 def decode(text: String, +strict: Bool, unit: Nat) -> DR:
   decode.scanned(scan(text, strict, unit), strict)
+
+# ---------------------------------------------------------------- S4.240–S4.249 safe path expansion
+#
+# Objects under construction are entry chains kept newest first; J.obj.put replaces a value at its
+# position or appends (S6.42). The depth counter c of S4.248 is carried as `left` = 256 - c: a step may
+# run only while left >= 1.
+
+# S4.240 a value (or, inside the walks, a chain), or the message of the first failure
+type ER is Data:
+  EOk{v: J.Json}
+  EErr{msg: String}
+
+# S9.118 the cap message
+def cap_msg() -> String:
+  "Path expansion exceeded maximum depth of 256"
+
+# S4.246 the type names of the conflict messages
+def ty(v: J.Json) -> String:
+  match v:
+    case J.JObj{entries}:
+      "object"
+    case J.JArr{n, items}:
+      "array"
+    case other:
+      "primitive"
+
+# S4.243, S4.244 what an object under construction holds under a key: nothing, an object (its entries
+# in order), or something else (its type name)
+type LK is Data:
+  LNone{}
+  LObj{entries: J.Json}
+  LOther{ty: String}
+
+# S4.244 classify a held value
+def lk.of(v: J.Json) -> LK:
+  match v:
+    case J.JObj{entries}:
+      LObj{entries}
+    case J.JArr{n, items}:
+      LOther{"array"}
+    case other:
+      LOther{"primitive"}
+
+# S4.244 keys are unique in an object under construction, so at most one entry answers
+def lk.pick(same: Bool, v: J.Json, acc: LK) -> LK:
+  match same:
+    case True{}:
+      lk.of(v)
+    case False{}:
+      acc
+
+# S4.244 the loop of lk
+def lk.go(c: J.Json, +k: String, acc: LK) -> LK:
+  match c:
+    case J.JECons{key, q, v, t}:
+      lk.go(t, k, lk.pick(T.str_eq(key, k), v, acc))
+    case other:
+      acc
+
+# S4.244 look a key up in an object under construction
+def lk(c: J.Json, k: String) -> LK:
+  lk.go(c, k, LNone{})
+
+# S4.244 what to do with the first entry of a source chain against a target under construction
+type Act is Data:
+  ANone{}
+  ACap{}
+  APut{}
+  AConf{msg: String}
+  AMerge{ex: J.Json}
+
+# S9.116 strict: a conflict names the key, the type of the EXISTING value, then the type of the new
+# one; lenient: the new value overwrites in place
+def plan.conf(strict: Bool, k: String, x: String, y: String) -> Act:
+  match strict:
+    case True{}:
+      AConf{"Path expansion conflict at key \"" ++ k ++ "\": cannot merge " ++ x ++ " with " ++ y}
+    case False{}:
+      APut{}
+
+# S4.244 no entry: append; two objects: deep merge; anything else: conflict or overwrite
+def plan.head(l: LK, v: J.Json, strict: Bool, k: String) -> Act:
+  match l v:
+    case LNone{} _:
+      APut{}
+    case LObj{ex} J.JObj{ve}:
+      AMerge{ex}
+    case LObj{ex} other:
+      plan.conf(strict, k, "object", ty(other))
+    case LOther{t} nv:
+      plan.conf(strict, k, t, ty(nv))
+
+# S4.248 a merge or a literal insertion may not run with c >= 256; a target that already failed, or a
+# source with nothing left, plans nothing
+def plan(left: Nat, tgt: ER, src: J.Json, strict: Bool) -> Act:
+  match left tgt src:
+    case 0n _ _:
+      ACap{}
+    case 1n+p EErr{m} _:
+      ANone{}
+    case 1n+p EOk{rev} J.JECons{+k, q, v, t}:
+      plan.head(lk(rev, k), v, strict, k)
+    case 1n+p EOk{rev} other:
+      ANone{}
+
+# S4.244 place a value
+def merge.put(rev: J.Json, k: String, v: J.Json) -> ER:
+  EOk{J.obj.put(rev, k, v)}
+
+# S4.245 place the result of a nested merge (a chain, newest first) as an object
+def merge.sub(rev: J.Json, k: String, sub: ER) -> ER:
+  match sub:
+    case EErr{m}:
+      EErr{m}
+    case EOk{srev}:
+      EOk{J.obj.put(rev, k, J.JObj{J.rev_entries(srev, J.JNil{})})}
+
+# S4.244, S4.245 insert the entries of a source chain, in order, into a target under construction, at
+# counter 256 - left; `act` is the plan for the FIRST entry of `src` (computed by the caller). A nested
+# merge runs one counter higher. ONE def: the recursion is on the source, whose nested objects are its
+# own subterms.
+def merge(src: J.Json, act: Act, tgt: ER, +strict: Bool, +left: Nat) -> ER:
+  match src act tgt:
+    case s ACap{} t:
+      EErr{cap_msg()}
+    case s AConf{msg} t:
+      EErr{msg}
+    case s ANone{} t:
+      t
+    case J.JECons{k, q, v, +rest} APut{} EOk{rev}:
+      +t2 = merge.put(rev, k, v)
+      merge(rest, plan(left, t2, rest, strict), t2, strict, left)
+    case J.JECons{k, q, J.JObj{+ve}, +rest} AMerge{ex} EOk{rev}:
+      +rx = J.rev_entries(ex, J.JNil{})
+      +t2 = merge.sub(rev, k, merge(ve, plan(Nat.sub(left, 1n), EOk{rx}, ve, strict), EOk{rx}, strict, Nat.sub(left, 1n)))
+      merge(rest, plan(left, t2, rest, strict), t2, strict, left)
+    case s a t:
+      t
+
+# S4.245 merge a whole source chain into a target under construction at counter 256 - left
+def merge.all(+src: J.Json, +rev: J.Json, +strict: Bool, +left: Nat) -> ER:
+  merge(src, plan(left, EOk{rev}, src, strict), EOk{rev}, strict, left)
+
+# S4.244 the literal insertion of (k, v) at counter 256 - left: a merge of the one-entry source
+def lit.ins(rev: J.Json, k: String, v: J.Json, strict: Bool, left: Nat) -> ER:
+  merge.all(J.JECons{k, False{}, v, J.JNil{}}, rev, strict, left)
+
+# S4.243 what the object under construction holds under the FIRST of the remaining segments
+def lk.head(segs: List<&2, String>, rev: J.Json) -> LK:
+  match segs:
+    case Nil{}:
+      LNone{}
+    case Con{s, more}:
+      lk(rev, s)
+
+# S4.243 the object reached through a segment goes back under that segment, at its position
+def path.put(rev: J.Json, s: String, sub: ER) -> ER:
+  match sub:
+    case EErr{m}:
+      EErr{m}
+    case EOk{srev}:
+      EOk{J.obj.put(rev, s, J.JObj{J.rev_entries(srev, J.JNil{})})}
+
+# S4.243 insert a path into an object under construction. Each call is one step of the walk, at
+# counter 256 - left; `look` is what the object holds under the first remaining segment. An object is
+# entered; nothing there, or (lenient) something that is not an object, becomes an empty object; strict:
+# S9.117. The last segment is a literal insertion one counter higher.
+def path.ins(segs: List<&2, String>, look: LK, left: Nat, strict: Bool, +rev: J.Json, v: J.Json) -> ER:
+  match segs look left strict:
+    case _ _ 0n _:
+      EErr{cap_msg()}
+    case Nil{} _ 1n+p _:
+      EOk{rev}
+    case Con{s, Nil{}} _ 1n+p +st:
+      lit.ins(rev, s, v, st, p)
+    case Con{s, +more} LObj{ex} 1n+p +st:
+      +rx = J.rev_entries(ex, J.JNil{})
+      path.put(rev, s, path.ins(more, lk.head(more, rx), p, st, rx, v))
+    case Con{s, more} LOther{t} 1n+p True{}:
+      EErr{"Path expansion conflict at segment \"" ++ s ++ "\": expected object but found " ++ t}
+    case Con{s, more} l0 1n+p +st:
+      path.put(rev, s, path.ins(more, LNone{}, p, st, J.JNil{}, v))
+
+# S4.241 splitter state: the current piece (reversed) and the finished pieces (newest first)
+type DT is Data:
+  DT{cur: String, acc: List<&2, String>}
+
+# S4.241 one character: a dot ends the piece
+def dots.ch(dot: Bool, c: U32, st: DT) -> DT:
+  match dot st:
+    case True{} DT{cur, acc}:
+      DT{SNil{}, String.reverse(cur) <> acc}
+    case False{} DT{cur, acc}:
+      DT{SCon{Chr{c}, cur}, acc}
+
+# S4.241 the loop over the key
+def dots.go(s: String, st: DT) -> DT:
+  match s:
+    case SNil{}:
+      st
+    case SCon{Chr{+c}, rest}:
+      dots.go(rest, dots.ch(U32.is_eq(c, 46), c, st))
+
+# S4.241 the pieces in order
+def dots.fin(st: DT) -> List<&2, String>:
+  match st:
+    case DT{cur, acc}:
+      List.reverse(&2, String, String.reverse(cur) <> acc)
+
+# S4.241 the pieces of a key between its dots
+def dots(k: String) -> List<&2, String>:
+  dots.fin(dots.go(k, DT{SNil{}, Nil{}}))
+
+# S4.241 the loop: every piece must be an identifier segment; stops at the first that is not
+def idents.go(segs: List<&2, String>, ok: Bool) -> Bool:
+  match segs ok:
+    case _ False{}:
+      False{}
+    case Nil{} True{}:
+      True{}
+    case Con{s, rest} True{}:
+      idents.go(rest, T.is_ident(s, False{}))
+
+# S3.26 the loop of in_set: stops at the first hit
+def in_set.go(qs: List<&2, String>, +k: String, hit: Bool) -> Bool:
+  match qs hit:
+    case _ True{}:
+      True{}
+    case Nil{} False{}:
+      False{}
+    case Con{x, rest} False{}:
+      in_set.go(rest, k, T.str_eq(x, k))
+
+# S3.26 whether a key string is in the object's quoted-key set
+def in_set(qs: List<&2, String>, k: String) -> Bool:
+  in_set.go(qs, k, False{})
+
+# S3.25 one entry's contribution to the quoted-key set
+def qset.add(q: Bool, k: String, acc: List<&2, String>) -> List<&2, String>:
+  match q:
+    case True{}:
+      k <> acc
+    case False{}:
+      acc
+
+# S3.25, S3.26 the quoted-key set of an object: the key STRINGS that occur quoted at least once in it
+def qset(c: J.Json, acc: List<&2, String>) -> List<&2, String>:
+  match c:
+    case J.JECons{k, q, v, t}:
+      qset(t, qset.add(q, k, acc))
+    case other:
+      acc
+
+# S4.243 the walk starts at the object itself
+def field.path(+segs: List<&2, String>, +rev: J.Json, v: J.Json, strict: Bool, left: Nat) -> ER:
+  path.ins(segs, lk.head(segs, rev), left, strict, rev, v)
+
+# S4.242 a key that is a path (S4.241: it has a dot, its string is not in the quoted-key set, every
+# piece is an identifier segment) is inserted by S4.243; any other key literally, by S4.244. Both run
+# at the counter of the object's entry values (S4.248: c + 2).
+def field.key(path: Bool, rev: J.Json, +k: String, v: J.Json, strict: Bool, left: Nat) -> ER:
+  match path:
+    case False{}:
+      lit.ins(rev, k, v, strict, left)
+    case True{}:
+      field.path(dots(k), rev, v, strict, left)
+
+# S4.242 FIRST the entry's value is expanded, THEN its key is inserted: a failure among the earlier
+# entries wins, then a failure inside the value, then the insertion's own
+def field.ins(acc: ER, +k: String, +qs: List<&2, String>, v: ER, strict: Bool, left: Nat) -> ER:
+  match acc v:
+    case EErr{m} _:
+      EErr{m}
+    case EOk{rev} EErr{m}:
+      EErr{m}
+    case EOk{rev} EOk{nv}:
+      field.key(Bool.and(T.has_char(k, 46), Bool.and(Bool.not(in_set(qs, k)), idents.go(dots(k), True{}))), rev, k, nv, strict, left)
+
+# S4.240 one more expanded item of an array (newest first)
+def item.push(acc: ER, v: ER) -> ER:
+  match acc v:
+    case EErr{m} _:
+      EErr{m}
+    case EOk{rev} EErr{m}:
+      EErr{m}
+    case EOk{rev} EOk{nv}:
+      EOk{J.JCons{nv, rev}}
+
+# S4.240 an expanded array
+def arr.fin(n: Nat, r: ER) -> ER:
+  match r:
+    case EErr{m}:
+      EErr{m}
+    case EOk{rev}:
+      EOk{J.JArr{n, J.rev_items(rev, J.JNil{})}}
+
+# S3.28 an expanded object: unique keys, in the order of S6.42
+def obj.fin(r: ER) -> ER:
+  match r:
+    case EErr{m}:
+      EErr{m}
+    case EOk{rev}:
+      EOk{J.JObj{J.rev_entries(rev, J.JNil{})}}
+
+# S4.240 how `expand` treats the node it is given. `left` = 256 - c for the value, the items or the
+# entry values; qs is the object's quoted-key set; acc is the container under construction
+type XC is Data:
+  XVal{left: Nat}
+  XItems{left: Nat, acc: ER}
+  XFields{left: Nat, qs: List<&2, String>, acc: ER}
+
+# S4.240, S4.248 expansion, depth-first in document order. ONE def over Json (values and their chains):
+# a value may run while c < 256; an array's items have c + 1; an object is rebuilt at c + 1 and its
+# entry values have c + 2. Siblings are a tail call; only nesting recurses.
+def expand(j: J.Json, cx: XC, +strict: Bool) -> ER:
+  match j cx:
+    case v XVal{0n}:
+      EErr{cap_msg()}
+    case J.JArr{n, items} XVal{1n+p}:
+      arr.fin(n, expand(items, XItems{p, EOk{J.JNil{}}}, strict))
+    case J.JObj{entries} XVal{1n+0n}:
+      EErr{cap_msg()}
+    case J.JObj{+entries} XVal{2n+q}:
+      obj.fin(expand(entries, XFields{q, qset(entries, Nil{}), EOk{J.JNil{}}}, strict))
+    case J.JCons{h, t} XItems{+p, acc}:
+      expand(t, XItems{p, item.push(acc, expand(h, XVal{p}, strict))}, strict)
+    case J.JECons{k, q, v, t} XFields{+p, +qs, acc}:
+      expand(t, XFields{p, qs, field.ins(acc, k, qs, expand(v, XVal{p}, strict), strict, p)}, strict)
+    case other XItems{p, acc}:
+      acc
+    case other XFields{p, qs, acc}:
+      acc
+    case v XVal{1n+p}:
+      EOk{v}
+
+# S4.249 expansion starts only after a complete, failure-free decode
+def decode.x.fin(r: ER) -> DR:
+  match r:
+    case EOk{v}:
+      DOk{v}
+    case EErr{m}:
+      DErr{m}
+
+# S4.240 expand a decoded value (the root has c = 0)
+def decode.x(r: DR, strict: Bool) -> DR:
+  match r:
+    case DErr{m}:
+      DErr{m}
+    case DOk{v}:
+      decode.x.fin(expand(v, XVal{256n}, strict))
+
+# S4.200 (5) the value of a TOON text under `--expand-paths safe`
+def decode_expanded(text: String, +strict: Bool, unit: Nat) -> DR:
+  decode.x(decode(text, strict, unit), strict)

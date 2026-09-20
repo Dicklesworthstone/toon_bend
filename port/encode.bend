@@ -45,37 +45,11 @@ def starts_dash(s: String) -> Bool:
 
 # S4.9 condition 3: exactly true, false or null
 def is_word(+s: String) -> Bool:
-  Bool.or(String.eq(s, "true"), Bool.or(String.eq(s, "false"), String.eq(s, "null")))
+  Bool.or(T.str_eq(s, "true"), Bool.or(T.str_eq(s, "false"), T.str_eq(s, "null")))
 
 # S4.6 the value rule: bare only when none of the ten conditions S4.7–S4.17 holds
 def needs_quote(+s: String, delim: U32) -> Bool:
   Bool.or(String.is_empty(s), Bool.or(T.has_edge_ws(s), Bool.or(is_word(s), Bool.or(F.is_like(s), Bool.or(has_bad(s, delim), starts_dash(s))))))
-
-# S4.21 a later character of a bare key: ASCII letter, digit, '_' or (when dots are allowed) '.'
-def key_char(+c: U32, dot: Bool) -> Bool:
-  Bool.or(Bool.and(U32.is_ge(c, 97), U32.is_le(c, 122)), Bool.or(Bool.and(U32.is_ge(c, 65), U32.is_le(c, 90)), Bool.or(Bool.and(U32.is_ge(c, 48), U32.is_le(c, 57)), Bool.or(U32.is_eq(c, 95), Bool.and(dot, U32.is_eq(c, 46))))))
-
-# S4.21 the first character of a bare key: ASCII letter or '_'
-def key_first(+c: U32) -> Bool:
-  Bool.or(Bool.and(U32.is_ge(c, 97), U32.is_le(c, 122)), Bool.or(Bool.and(U32.is_ge(c, 65), U32.is_le(c, 90)), U32.is_eq(c, 95)))
-
-# S4.21 the loop over the later characters: stops at the first that does not belong
-def key_rest.go(s: String, +dot: Bool, ok: Bool) -> Bool:
-  match s ok:
-    case _ False{}:
-      False{}
-    case SNil{} True{}:
-      True{}
-    case SCon{Chr{c}, rest} True{}:
-      key_rest.go(rest, dot, key_char(c, dot))
-
-# S4.21 (dot True) the key rule; S4.67 (dot False) the identifier-segment rule
-def is_ident(s: String, dot: Bool) -> Bool:
-  match s:
-    case SNil{}:
-      False{}
-    case SCon{Chr{c}, rest}:
-      key_rest.go(rest, dot, key_first(c))
 
 # S4.19 exactly five escapes, per scalar, onto a reversed accumulator; everything else is copied.
 # k is the scalar c as a Nat: a match on U32 literals compiles to a bit tree per arm set (bend #867).
@@ -120,7 +94,7 @@ def put.value(+s: String, delim: U32, acc: String) -> String:
 
 # S4.21 a key: bare when the key rule allows, else quoted
 def put.key(+k: String, acc: String) -> String:
-  put.value.if(Bool.not(is_ident(k, True{})), k, acc)
+  put.value.if(Bool.not(T.is_ident(k, True{})), k, acc)
 
 # S4.3–S4.5 a primitive's text: null, true, false, the number's TOON text (S4.130), or a string
 def put.prim(j: J.Json, delim: U32, acc: String) -> String:
@@ -206,7 +180,7 @@ def lookup.go(c: J.Json, +k: String, hit: Bool, val: J.Json) -> J.Json:
     case _ True{}:
       val
     case J.JECons{key, q, v, t} False{}:
-      lookup.go(t, k, String.eq(key, k), v)
+      lookup.go(t, k, T.str_eq(key, k), v)
     case _ False{}:
       J.JNull{}
 
@@ -220,7 +194,7 @@ def has_prim.go(c: J.Json, +k: String, hit: Bool, prim: Bool) -> Bool:
     case _ True{}:
       prim
     case J.JECons{key, q, v, t} False{}:
-      has_prim.go(t, k, String.eq(key, k), is_prim(v))
+      has_prim.go(t, k, T.str_eq(key, k), is_prim(v))
     case _ False{}:
       False{}
 
@@ -439,7 +413,7 @@ def segs_ok.go(segs: List<&2, String>, ok: Bool) -> Bool:
     case Nil{} True{}:
       True{}
     case Con{s, rest} True{}:
-      segs_ok.go(rest, is_ident(s, False{}))
+      segs_ok.go(rest, T.is_ident(s, False{}))
 
 # S4.68 one segment in front of what is already joined
 def join_segs.one(s: String, acc: String) -> String:
@@ -466,7 +440,7 @@ def any_eq.go(xs: List<&2, String>, +k: String, hit: Bool) -> Bool:
     case Nil{} False{}:
       False{}
     case Con{x, rest} False{}:
-      any_eq.go(rest, k, String.eq(x, k))
+      any_eq.go(rest, k, T.str_eq(x, k))
 
 # S4.69, S4.72 membership by exact string equality (S6.34, S6.35: never iterated into output)
 def any_eq(xs: List<&2, String>, k: String) -> Bool:

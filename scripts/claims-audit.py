@@ -140,6 +140,9 @@ def facts():
     m = re.search(r"oracle/toon sha256 ([0-9a-f]{64})", pin) or re.search(
         r"(?m)^\s*sha256\s*=\s*\"([0-9a-f]{64})\"", pin)
     f["oracle_sha"] = m.group(1) if m else None
+    # the pinned Bend version (`version = "2.0.16"` in PIN.toml's bend table)
+    m = re.search(r'(?m)^version\s*=\s*"(\d+\.\d+\.\d+)"', pin)
+    f["bend_version"] = m.group(1) if m else None
     f["ratios"] = {round(j["ratio"], d) for j in ev.values() if j.get("ratio") for d in (2, 3, 4)}
     f["medians"] = {round(j[side]["median_ms"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1, 2)}
     f["cvs"] = {round(j[side]["cv_pct"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1)}
@@ -148,6 +151,12 @@ def facts():
     state = read("docs/PORT_STATE.md")
     f["round_rows"] = [int(m) for m in re.findall(r"(?m)^\| (\d+) \| ", state)]
     f["round_findings"] = {int(a): int(b) for a, b in re.findall(r"(?m)^\| (\d+) \| .*? \| (\d+) \| \d+ \| (?:yes|no) \|", state)}
+    # The first round the table labels "(non-author)". A range that starts at or after it summarises the
+    # review series SO FAR and must reach the latest round; one that starts before it (the author rounds,
+    # "rounds 1 to 5") is a closed, complete set and is left alone.
+    na = [int(a) for a, lens in re.findall(r"(?m)^\| (\d+) \| (.*?) \| \d+ \| \d+ \| (?:yes|no) \|", state)
+          if lens.rstrip().endswith("(non-author)")]
+    f["first_non_author"] = min(na) if na else None
     return f
 
 
@@ -167,6 +176,20 @@ def gate_lines():
 
 
 JSON_OBJ = re.compile(r'\{"[^\n]*?\}(?=[^"]*$|`| |,|\.|$)')
+
+# A clause ends at `;`, at `|` (a table cell), at a colon or full stop followed by a space, and at an
+# opening or closing parenthesis. The history exemption is judged on the CLAUSE around a number, never on
+# its whole line.
+CLAUSE_END = re.compile(r";|\||[.:](?=\s|$)|[()]")
+
+
+def clause_of(line, start, end):
+    """The clause of `line` that contains the span [start, end)."""
+    lo = 0
+    for m in CLAUSE_END.finditer(line, 0, start):
+        lo = m.end()
+    m = CLAUSE_END.search(line, end)
+    return line[lo:(m.start() if m else len(line))]
 
 
 def pasted_objects(line):
@@ -263,6 +286,35 @@ ROUNDS_SPAN = re.compile(r"rounds?,? (\d+) to (\d+),? (?:[a-z ]{0,30})?found ([\
 ROUNDS_BARE = re.compile(r"(\d+(?:, \d+){3,}(?: and \d+)?) findings", re.I)
 
 
+ROUNDS_ANY = re.compile(r"\brounds?,? (\d+) to (\d+)\b", re.I)
+
+
+def rounds_series_stale(text, facts, first_na):
+    """(line, reason) for any 'rounds A to B' that summarises the non-author series but stops short.
+
+    ROUNDS_SPAN below only sees a range followed by "found <list>", so "rounds 6 to 13 are non-author
+    subagents" went stale unseen (round 15, R15-9). This checks EVERY range that starts inside the
+    non-author series. A range starting before it ("rounds 1 to 5", the author rounds) is a closed set,
+    and a clause that says it is historical is exempt. Measured on the documents before adoption: of the
+    ranges that stop short, the author series is the only one this rule must leave alone.
+    """
+    if not facts or first_na is None:
+        return []
+    last, out = max(facts), []
+    for m in ROUNDS_ANY.finditer(text):
+        lo, hi = int(m.group(1)), int(m.group(2))
+        if lo < first_na or hi >= last:
+            continue
+        line_no = text[:m.start()].count("\n") + 1
+        line = text.splitlines()[line_no - 1]
+        col = m.start() - (text.rfind("\n", 0, m.start()) + 1)
+        if HISTORY.search(clause_of(line, col, col + (m.end() - m.start()))):
+            continue
+        out.append((line_no, "'rounds %d to %d' summarises the review series but stops at %d; the table now "
+                             "has %d rounds" % (lo, hi, hi, last)))
+    return out
+
+
 def rounds_prose(text, facts):
     """(line, reason) for every summary of the rounds table that disagrees with the table.
 
@@ -305,6 +357,56 @@ def rounds_prose(text, facts):
     return uniq
 
 
+CONVERGE_KEYS = {"clean_tail", "last_two_clean", "non_author_round", "open_oq", "open_disc", "tier"}
+
+
+def live_mismatches(o, f, gates):
+    """Reasons a pasted gate object disagrees with that gate's LIVE output or with the repository.
+
+    Round 15 (R15-3) passed a law-coverage line with "unsafe": 9 (only the prose spelling of the unsafe
+    count was compared), a converge line that merely omitted `tier` and `clean_tail` (the field-by-field
+    comparison required both), a doctor line with "board": "FULL", a floor line with "stable": 999, a
+    diff-fuzz line with 3 differences and PASS, and a probe line whose counts did not add up. Each gate
+    shape is now recognised by the keys only it prints, and compared with what that gate says today.
+    """
+    out = []
+
+    def cmp(label, live):
+        for k, want in (live or {}).items():
+            if k in o and not isinstance(want, (list, dict)) and o[k] != want:
+                out.append("a pasted %s line says %s=%r; %s says %r today" % (label, k, o[k], label, want))
+
+    if "verdict" in o and CONVERGE_KEYS & set(o):
+        cmp("converge.sh", gates.get("converge"))
+    if "proofs" in o and "unproved" in o:
+        cmp("law-coverage.sh", gates.get("law_coverage"))
+    if "present" in o and "excluded" in o and "rows" in o:
+        cmp("parity-board.sh", gates.get("parity_board"))
+    if "board" in o and "proof" in o and (gates.get("parity_board") or {}).get("verdict"):
+        if o["board"] != gates["parity_board"]["verdict"]:
+            out.append("a pasted port-doctor line says board=%r; parity-board.sh says %r today"
+                       % (o["board"], gates["parity_board"]["verdict"]))
+    # floor: every case is stable, unstable or inconclusive, and there are exactly f["cases"] of them
+    if "stable" in o and "unstable" in o and isinstance(o.get("unstable"), list):
+        total = o["stable"] + len(o["unstable"]) + len(o.get("inconclusive") or [])
+        if total != f["cases"]:
+            out.append("a pasted floor line accounts for %d cases; the corpus has %d" % (total, f["cases"]))
+    # diff-fuzz: PASS means no difference and nothing too slow
+    if "differences" in o and "lens" in o and "verdict" in o:
+        clean = o["differences"] == 0 and not o.get("too_slow")
+        if clean != (o["verdict"] == "PASS"):
+            out.append("a pasted diff-fuzz line says verdict %r with %r differences and %r too slow"
+                       % (o["verdict"], o["differences"], o.get("too_slow")))
+    # stdio-probe: every row is same, known, fixed or new; PASS means nothing new
+    if "rows" in o and "same" in o and isinstance(o.get("known"), list):
+        total = o["same"] + len(o["known"]) + len(o.get("fixed") or []) + len(o.get("new") or [])
+        if total != o["rows"]:
+            out.append("a pasted stdio-probe line has %d rows but same+known+fixed+new = %d" % (o["rows"], total))
+        if "verdict" in o and (not o.get("new")) != (o["verdict"] == "PASS"):
+            out.append("a pasted stdio-probe line says verdict %r with new %r" % (o["verdict"], o.get("new")))
+    return out
+
+
 def audit(files, f, gates, verbose):
     findings, absent = [], []
     exempt = 0
@@ -317,6 +419,11 @@ def audit(files, f, gates, verbose):
         ("laws", r"(?<!of )\b(\d+) laws\b", f["laws"]),   # "a reduced proof OF 123 laws" is scoped, not a count of the file
         ("quantified laws", r"\b(\d+) quantified\b", f["laws_quantified"]),
         ("closed unit laws", r"\b(\d+) closed unit laws\b", f["laws_closed"]),
+        # Other spellings of the same two numbers. docs/PORT_REPORT.md said "360 closed laws ... 65 unit laws"
+        # for two rounds (R14-4, then R15-5) because only the spelling above was ever checked.
+        ("closed laws", r"\b(\d+) closed laws\b", f["laws"] - f["laws_quantified"]),
+        ("unit laws", r"\b(\d+) unit laws\b", f["laws_closed"]),
+        ("mutants in all", r"\b(\d+) mutants in all\b", f["mutants"]),
         ("whole-pipeline laws", r"\b(\d+) closed whole-pipeline\b", f["laws_golden"]),
         ("proofs", r'"proofs": (\d+)', f["proofs"]),
         ("laws in a pasted line", r'"laws": (\d+)', f["laws"]),
@@ -347,7 +454,12 @@ def audit(files, f, gates, verbose):
             continue
         if path not in ARCHIVE:
             lines = text.splitlines()
-            for n, why in rounds_prose(text, f.get("round_findings") or {}):
+            rf = f.get("round_findings") or {}
+            seen_lines = set()
+            for n, why in rounds_prose(text, rf) + rounds_series_stale(text, rf, f.get("first_non_author")):
+                if n in seen_lines:
+                    continue  # one stale sentence, one finding
+                seen_lines.add(n)
                 hit(path, n, why, lines[n - 1] if 0 < n <= len(lines) else "")
         for n, line in enumerate(text.splitlines(), 1):
             historical = bool(HISTORY.search(line))
@@ -359,19 +471,12 @@ def audit(files, f, gates, verbose):
                     why = inconsistent(obj)
                     if why:
                         hit(path, n, "a pasted gate line contradicts itself: %s" % why, line)
-                    # converge.sh is RUN by gate_lines(), so a pasted converge line is compared
-                    # field by field with what it says TODAY. Only `rounds` was compared before,
-                    # so round 14 (R14-2) flipped a pasted "NOT_CONVERGED" to "CONVERGED" with
-                    # "missing": [] and the gate stayed green -- the single worst hole it found,
-                    # because that verdict is the one thing standing between HOLD and SHIP.
-                    live = gates.get("converge") or {}
-                    if live and "tier" in obj and "clean_tail" in obj and "verdict" in obj:
-                        for k, want in live.items():
-                            if k not in obj or isinstance(want, (list, dict)):
-                                continue
-                            if obj[k] != want:
-                                hit(path, n, "a pasted converge line says %s=%r; converge.sh says "
-                                             "%r today" % (k, obj[k], want), line)
+                    # Compared with each gate's LIVE output, not only with itself. A pasted converge
+                    # line reading "CONVERGED" is the one string between HOLD and SHIP, so this is the
+                    # check that matters most (R14-2's worst hole; R15-3 found it could be dodged by
+                    # leaving out two keys, which no longer helps).
+                    for why in live_mismatches(obj, f, gates):
+                        hit(path, n, why, line)
                 # "unsafe 0 = 0 @unsafe + 0 template instances" must add up AND match the live
                 # law-coverage number. Round 14 rewrote a proof row to "unsafe 7 = 7 @unsafe" and
                 # nothing objected; the unsafe count is stated beside every parity claim, so it is
@@ -382,35 +487,75 @@ def audit(files, f, gates, verbose):
                     if tot != expl + inst:
                         hit(path, n, "unsafe %d does not equal %d @unsafe + %d template instances"
                             % (tot, expl, inst), line)
-                    elif live_unsafe is not None and tot != live_unsafe and not historical:
+                    elif (live_unsafe is not None and tot != live_unsafe
+                          and not HISTORY.search(clause_of(line, m.start(), m.end()))):
                         hit(path, n, "says unsafe %d; law-coverage.sh says %d today"
                             % (tot, live_unsafe), line)
-                # The oracle's sha256 is the one number docs/PIN.toml exists to pin, and nothing
-                # compared a document's copy of it with PIN.toml's (R14-2). Deliberately NOT gated
-                # on `historical`: the first version was, and a single aside ("this file said so")
-                # on a line otherwise full of CURRENT facts exempted the sha with it. An exemption
-                # covers a whole line, so a check that matters must not depend on one.
-                if f.get("oracle_sha"):
-                    for m in re.finditer(r"\b([0-9a-f]{64})\b", line):
-                        near = line[max(0, m.start() - 90):m.start()].lower()
-                        if "oracle" in near and m.group(1) != f["oracle_sha"]:
-                            hit(path, n, "names an oracle sha256 %s…; docs/PIN.toml pins %s…"
-                                % (m.group(1)[:12], f["oracle_sha"][:12]), line)
+                # Verdicts written in PROSE (R15-3 (e)): the converge verdict, and the report's own title.
+                # A pasted JSON verdict was checked; the same verdict written as words was not, so
+                # "`converge.sh`: `CONVERGED`" and a title of SHIP both passed.
+                live_cv = (gates.get("converge") or {}).get("verdict")
+                if live_cv:
+                    for m in re.finditer(r"`converge\.sh`[^`\n]{0,40}`(NOT_CONVERGED|CONVERGED)`", line):
+                        if m.group(1) != live_cv and not HISTORY.search(clause_of(line, m.start(), m.end())):
+                            hit(path, n, "says converge.sh gives %s; it gives %s today" % (m.group(1), live_cv), line)
+                    if path == "docs/PORT_REPORT.md" and n == 1 and live_cv != "CONVERGED" and re.search(r"\bSHIP\b", line):
+                        hit(path, n, "the report's title says SHIP while converge.sh says %s" % live_cv, line)
+                # parity-board's own key=value spelling (R15-3 (f)): only its JSON spelling was compared
+                live_pb = gates.get("parity_board") or {}
+                for m in re.finditer(r"rows=(\d+) present=(\d+) partial=(\d+) missing=(\d+) excluded=(\d+)"
+                                     r" n/a=(\d+) no-evidence=(\d+) verdict=([A-Z]+)", line):
+                    said = dict(zip(("rows", "present", "partial", "missing", "excluded", "na", "no_evidence"),
+                                    (int(x) for x in m.groups()[:7])), verdict=m.group(8))
+                    for k, v in said.items():
+                        if k in live_pb and live_pb[k] != v:
+                            hit(path, n, "a pasted parity-board line says %s=%r; parity-board.sh says %r today"
+                                % (k, v, live_pb[k]), line)
+                # the Bend version beside a verdict must be the pinned one
+                if f.get("bend_version"):
+                    for m in re.finditer(r"\bbend (\d+\.\d+\.\d+)\b", line):
+                        if (m.group(1) != f["bend_version"]
+                                and not HISTORY.search(clause_of(line, m.start(), m.end()))):
+                            hit(path, n, "names bend %s; docs/PIN.toml pins %s" % (m.group(1), f["bend_version"]), line)
+            # The oracle's sha256 is the one number docs/PIN.toml exists to pin. Checked in EVERY document,
+            # ARCHIVE included (R15-3 (g): PLAN §2's copy was skipped as archival, although a pinned hash
+            # does not age), on either side of the word "oracle", and never exempted as history: a single
+            # aside on a line otherwise full of current facts once exempted the sha along with it.
+            # A hash is taken to BE the oracle's only when the sentence binds the two within one clause:
+            # "oracle/toon … sha256 `X`", or `X` followed closely by "the oracle". Mere proximity is not
+            # enough: PLAN §2 names the opt-level=3 build's sha right after the aside "(like `oracle/toon`)",
+            # and a ±90-character window read that as a false oracle hash.
+            if f.get("oracle_sha"):
+                for m in re.finditer(r"\b([0-9a-f]{64})\b", line):
+                    before = line[max(0, m.start() - 90):m.start()]
+                    after = line[m.end():m.end() + 50]
+                    bound = (re.search(r"oracle(?:/toon)?`?[^;.|]{0,60}sha256(?:\s+is)?\W{0,3}$", before, re.I)
+                             or re.search(r"^\W{0,3}[^;.|]{0,30}\boracle\b", after, re.I))
+                    if bound and m.group(1) != f["oracle_sha"]:
+                        hit(path, n, "names an oracle sha256 %s…; docs/PIN.toml pins %s…"
+                            % (m.group(1)[:12], f["oracle_sha"][:12]), line)
             # `hand-mutants.py M24 M25 M26` runs a SELECTION and reports that many mutants: a line that names
             # the ids it ran is not a stale full-set line. It must still name ids that exist (REFERENCES).
             selective = bool(re.search(r"\bM\d\d\b[^\n]*\bM\d\d\b", line))
             for name, pat, want in counts:
                 if want is None or path in ARCHIVE:
                     continue
-                if selective and name.startswith("mutants"):
-                    continue
                 for m in re.finditer(pat, line):
-                    said = next(g for g in m.groups() if g)
-                    if int(said) != want:
-                        if historical:
-                            exempt += 1
-                        else:
-                            hit(path, n, "%s: says %s, the repository has %d" % (name, said, want), line)
+                    said = int(next(g for g in m.groups() if g))
+                    if said == want:
+                        continue
+                    # A line that names mutant ids reports a SELECTION, which may be smaller than the set but
+                    # never larger. This used to skip every mutant count on such a line, so round 15 wrote
+                    # `"mutants": 99` beside two ids and nothing objected.
+                    if selective and name.startswith("mutants") and said < want:
+                        continue
+                    # Judged on the CLAUSE around this number. The exemption used to cover the whole line, so
+                    # appending "earlier" to a line made every count on it unchecked -- and README's headline
+                    # row carried "earlier kills stand", which silently exempted its law and mutant counts.
+                    if HISTORY.search(clause_of(line, m.start(), m.end())):
+                        exempt += 1
+                    else:
+                        hit(path, n, "%s: says %d, the repository has %d" % (name, said, want), line)
             # references that must exist
             for ident in re.findall(r"\bDISC-\d+\b", line):
                 if ident not in f["disc_ids"]:
@@ -525,7 +670,10 @@ def audit(files, f, gates, verbose):
             # R14-16 as "(not a finding: confirmation)" -- a DISC it re-verified as accurately
             # registered, filed under an id so the next round does not re-raise it. Counting it
             # would force the rounds table to overstate the round by one.
-            rows = len([m for m in re.finditer(r"(?m)^\| \*{0,2}R\d+-[^\n]*", read("docs/reviews/" + path))
+            # Only THIS round's own ids (`R15-n` in round-15.md). A report's "claims that held" table cites
+            # earlier rounds' ids too -- round 15 has a row "| R14-3, R14-9, R14-13 repairs |" -- and the
+            # counter used to match any `R<n>-`, so it read that row as a fifteenth-round finding.
+            rows = len([m for m in re.finditer(r"(?m)^\| \*{0,2}R%d-\d+\b[^\n]*" % r, read("docs/reviews/" + path))
                         if not re.search(r"not a finding|confirmation only", m.group(0), re.I)])
             if rows and rows != f["round_findings"][r]:
                 findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",

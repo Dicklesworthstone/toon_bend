@@ -7,10 +7,10 @@
 
 | field | value |
 |---|---|
-| phase | 4 parity gate (NOT converged: seven non-author rounds in a row were not clean: 6, 11, 8, 3, 10, 12 and 13 findings (rounds 10 and 11 audited the documents and a fresh clone; rounds 9, 10 and 11 found 0 differences in conversion content); every DISC is ACCEPTED or RESOLVED since the owner's delegation) and 5 performance (three number levers PROVISIONAL, the key carriers ledgered); the reference port is complete and green on every lane |
+| phase | 4 parity gate (NOT converged: EIGHT non-author rounds in a row were not clean: 6, 11, 8, 3, 10, 12, 13 and 9 findings (rounds 10, 11, 12 and 13 audited the documents and a fresh clone; rounds 9 to 13 found 0 differences in conversion content); every DISC is ACCEPTED or RESOLVED since the owner's delegation) and 5 performance (three number levers PROVISIONAL, the key carriers ledgered, and a fourth lever REFUSED and reverted: EXP-005, NE-007, 2026-09-21); the reference port is complete and green on every lane |
 | tier | T2 |
 | bend | `bend 2.0.16` (checkout `15ae0c8`, run as `bun /tmp/bend/bend2/main.ts`); drift vs the previous pin: none, same pin since Phase 0 (VERSION-DRIFT) |
-| last updated | 2026-09-20 by Claude (Claude Code session, author of phases −1 to 5; rounds 6 to 12 are non-author subagents; their reports are in `docs/reviews/`) |
+| last updated | 2026-09-21 by Claude (Claude Code session, author of phases −1 to 5; rounds 6 to 13 are non-author subagents; their reports are in `docs/reviews/`) |
 
 ## Last gate outputs (paste, do not paraphrase)
 

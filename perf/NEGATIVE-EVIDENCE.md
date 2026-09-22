@@ -174,6 +174,25 @@ Outcome taxonomy (closed set):
   js; kill-switch parity on six real documents (`TOON_SPEC=1` and off, both equal to the original);
   `diff-fuzz docs` 2500 inputs and `numbers`, 0 differences; `port-lint` OK. The INTERPRETER lane had
   not been run when this line was written
+- **The runtime tax a parallel let puts on the SEQUENTIAL phases of the same program** (2026-09-22, the
+  finding that matters most here). The encode-only build made `--decode` SLOWER, although decode never
+  calls the pass: interleaved, min of 5, decode of mesh at `--threads 8`, base 1285 ms → 1609 ms (1.25×)
+  and flights_200k 9220 → 12170 ms (1.32×). Attribution, decode of mesh, base against that build:
+  `--threads 1` 0.99× with the twins on and 1.05× with `TOON_SPEC=1`; `--threads 8` **1.36×** with the
+  twins on and **1.34×** with `TOON_SPEC=1`, which disables the pass entirely. The penalty is the same
+  whether the pass runs or not and does not exist at one thread, so it is not the pass executing: a
+  program that CONTAINS a parallel let takes the runtime's parallel path above one thread, and every
+  sequential phase pays for it in proportion to its heap traffic (mesh decode, allocation-heavy, pays 35%;
+  twitter encode, string-heavy, pays nothing measurable — 179.3 ms against base's 184.6 ms with everything
+  off). **Partial parallelisation is therefore a trap in this runtime**: whatever phase is left sequential
+  regresses at the default thread count, which is why the decode half is a repair and not an extension
+- **The decode half** (2026-09-22): the same pass before `J.write_ln`, rendering the JSON number text.
+  Interleaved, min of 5, base against both passes at `--threads 8`: decode numbers 376 → 175 ms (2.15×),
+  mesh 1234 → 627 ms (1.97×), flights_200k 9228 → 5053 ms (1.83×), gsoc_2018 1074 → 1100 ms (0.98×);
+  encode canada 5270 → 3843 ms (1.37×), twitter 154 → 175 ms (0.88×). At `--threads 1` every case is 3 to
+  7% slower than base. Gates: `All terms check.`; conform 1071/1071 on c-1t, c-8t and js; 72 decode runs
+  (6 documents × 6 thread counts × the kill-switch both ways) byte-identical to the original; diff-fuzz
+  docs and expand, 1500 inputs each, 0 differences
 - **Thread-count determinism, the risk this lever actually carries** (2026-09-22, on the wired build):
   8 documents (numbers, canada, mesh, flights_20k, twitter, citm_catalog, jobs, us_10m) encoded at
   `--threads` 1, 2, 3, 8, 16, 64 and 128 — 56 runs, every one byte-identical to the original. A fork-order

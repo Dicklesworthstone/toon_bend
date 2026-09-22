@@ -8,7 +8,8 @@ usage:
   python3 perf/e2e/bench.py report  <run dir>
 
 fetch     downloads every document of perf/e2e/corpus.json (pinned upstream commit) into the corpus
-          directory (default perf/e2e/corpus/, gitignored) and verifies each sha256; a mismatch is fatal.
+          directory (default perf/e2e/corpus/, gitignored) and verifies each sha256; a mismatch is fatal. Then it
+          derives the manifest's `derive` entries (prefix slices of a fetched array) and pins them the same way.
 prepare   makes the TOON inputs of the decode scenarios with the REFERENCE binary (the pinned original):
           <name>.toon from `--encode`, <name>.fold.toon from `--encode --key-folding safe`.
 run       times every (document, scenario) cell on every arm. An arm is NAME=KIND:PATH, where KIND is
@@ -99,6 +100,8 @@ def cmd_fetch(args):
     corpus.mkdir(parents=True, exist_ok=True)
     bad = 0
     for entry in manifest['files']:
+        if 'derive' in entry:
+            continue
         dest = corpus / (entry['name'] + '.json')
         if dest.is_file() and sha256_file(dest) == entry['sha256']:
             print(f"ok      {entry['name']:18} {entry['bytes']:>9} bytes (cached)")
@@ -118,8 +121,44 @@ def cmd_fetch(args):
             continue
         os.replace(tmp, dest)
         print(f"fetched {entry['name']:18} {entry['bytes']:>9} bytes")
+    for entry in manifest['files']:
+        if 'derive' in entry:
+            bad += derive(entry, corpus)
     if bad:
         sys.exit(1)
+
+
+def has_float(v):
+    if isinstance(v, float):
+        return True
+    if isinstance(v, dict):
+        return any(has_float(x) for x in v.values())
+    if isinstance(v, list):
+        return any(has_float(x) for x in v)
+    return False
+
+
+def derive(entry, corpus):
+    """The first N records of a fetched document's top-level array, re-serialized compactly (UTF-8 kept). Refused when the
+    source holds a non-integer number: Python would re-print its text (1E5 -> 100000.0), and the slice would stop being the
+    document's own bytes. Returns 1 on a sha256 mismatch, 0 otherwise."""
+    dest = corpus / (entry['name'] + '.json')
+    if dest.is_file() and sha256_file(dest) == entry['sha256']:
+        print(f"ok      {entry['name']:18} {entry['bytes']:>9} bytes (cached)")
+        return 0
+    src_path = corpus / (entry['derive']['from'] + '.json')
+    with open(src_path, encoding='utf-8') as fh:
+        src = json.load(fh)
+    if not isinstance(src, list) or has_float(src):
+        sys.exit(f"fetch: {src_path} is not a float-free top-level array; {entry['name']} cannot be derived from it")
+    data = json.dumps(src[:entry['derive']['records']], ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+    if hashlib.sha256(data).hexdigest() != entry['sha256']:
+        print(f"BAD     {entry['name']}: derived bytes differ from the pinned sha256", file=sys.stderr)
+        return 1
+    dest.write_bytes(data)
+    print(f"derived {entry['name']:18} {len(data):>9} bytes (first {entry['derive']['records']} records of "
+          f"{entry['derive']['from']})")
+    return 0
 
 
 def cmd_prepare(args):
@@ -309,7 +348,7 @@ def cmd_run(args):
     cells_path.write_text('')
     samples_path.write_text('')
 
-    work = [(e, s) for e in entries for s in scenarios]
+    work = [(e, s) for e in entries for s in scenarios if s == 'version' or s in e.get('scenarios', SCENARIOS)]
     if 'version' in scenarios:  # start-up needs no document; one cell is enough
         work = [(e, s) for (e, s) in work if s != 'version'] + [(entries[0], 'version')]
     for entry, scen in work:
@@ -321,6 +360,8 @@ def cmd_run(args):
         label = f"{entry['name'] if spec['input'] else '-'}/{scen}"
         cell = {'file': entry['name'] if spec['input'] else None, 'tier': entry['tier'] if spec['input'] else None,
                 'scenario': scen, 'input_bytes': in_bytes, 'argv': argv, 'arms': {},
+                'json_bytes': os.path.getsize(inputs['json']) if spec['input'] else 0,
+                'series': entry.get('series') if spec['input'] else None,
                 'load_start': os.getloadavg()}
 
         # 1. The verification run of every arm: the bytes must agree with the reference. It is also the warm-up.
@@ -456,6 +497,67 @@ def write_report(out):
         to = sum(1 for c in cells if c['scenario'] == scen and c['status'] == 'TIMEOUT')
         L.append(f"| {scen} | {len(cs)}{f' (+{to} timeout)' if to else ''} | {same}/{len(cs)} | "
                  + ' | '.join(g) + ' | ' + ' | '.join(r) + ' |')
+    L.append('')
+
+    ok_cells = [c for c in cells if c['status'] != 'TIMEOUT' and not errpath(c) and c['file']]
+    L.append('## By document\n')
+    L.append(f'Geometric mean over the scenarios of each document of `<arm> / {ref}`; the MEASURED column counts cells within the '
+             'cv gate.\n')
+    L.append('| document | tier | JSON size | scenarios | MEASURED | ' + ' | '.join(f'geomean {o}/{ref}' for o in others) + ' |')
+    L.append('|---|---|---|---|---|' + '---|' * len(others))
+    for doc in dict.fromkeys(c['file'] for c in ok_cells):
+        cs = [c for c in ok_cells if c['file'] == doc]
+        gm = [geomean([c['arms'][o].get('ratio_vs_ref') for c in cs]) for o in others]
+        L.append(f"| {doc} | {cs[0]['tier']} | {cs[0].get('json_bytes', 0) / 1e6:.2f} MB | {len(cs)} | "
+                 f"{sum(c['status'] == 'MEASURED' for c in cs)} | " + ' | '.join(f'{g:.1f}×' if g else '-' for g in gm) + ' |')
+    L.append('')
+
+    series = {}
+    for c in ok_cells:
+        if c.get('series'):
+            series.setdefault((c['series']['group'], c['scenario']), []).append(c)
+    if series:
+        L.append('## Scaling\n')
+        L.append('Each series is ONE schema at several sizes (records `n`). `b` is the least-squares slope of log(median time) '
+                 'against log(n): 1.0 is linear, above 1 grows faster than the input. Start-up is inside every point, which '
+                 'pulls `b` below 1 when the smallest points are short. `ms / 1k rec` is the marginal cost between the two '
+                 'largest points.\n')
+        for (group, scen), cs in series.items():
+            cs = sorted(cs, key=lambda c: c['series']['n'])
+            if len(cs) < 2:
+                continue
+            ns = [c['series']['n'] for c in cs]
+            L.append(f'### {group} / {scen}\n')
+            L.append('| arm | ' + ' | '.join(f'n={n}' for n in ns) + ' | b | ms / 1k rec |' +
+                     ''.join(f' {a}/{ref} at n={ns[-1]} |' for a in arms if a != ref))
+            L.append('|---|' + '---|' * (len(ns) + 2 + len(others)))
+            for a in arms:
+                ys = [c['arms'][a]['median_ms'] for c in cs]
+                lx, ly = [math.log(n) for n in ns], [math.log(y) for y in ys]
+                mx, my = statistics.fmean(lx), statistics.fmean(ly)
+                b = sum((x - mx) * (y - my) for x, y in zip(lx, ly)) / sum((x - mx) ** 2 for x in lx)
+                marg = (ys[-1] - ys[-2]) / ((ns[-1] - ns[-2]) / 1000)
+                tail = ''.join(f" {cs[-1]['arms'][o]['ratio_vs_ref']:.2f}× |" for o in others) if a == ref else \
+                    ' |' * len(others)
+                L.append(f'| {a} | ' + ' | '.join(fmt_ms(y) for y in ys) + f' | {b:.2f} | {marg:.2f} |' + tail)
+            L.append('')
+
+    L.append('## Memory\n')
+    L.append('Peak RSS of the verification run of each cell (GNU time), as a geometric mean over the cells of a scenario, and '
+             'as bytes of peak RSS per byte of the scenario\'s input.\n')
+    L.append('| scenario | ' + ' | '.join(f'{a} peak RSS | {a} B/B' for a in arms) + ' | '
+             + ' | '.join(f'{o}/{ref} RSS' for o in others) + ' |')
+    L.append('|---|' + '---|' * (2 * len(arms) + len(others)))
+    for scen in dict.fromkeys(c['scenario'] for c in ok_cells):
+        cs = [c for c in ok_cells if c['scenario'] == scen and all(c['arms'][a].get('peak_rss_mb') for a in arms)]
+        if not cs:
+            continue
+        row = []
+        for a in arms:
+            row.append(f"{geomean([c['arms'][a]['peak_rss_mb'] for c in cs]):.0f} MB")
+            row.append(f"{geomean([c['arms'][a]['peak_rss_mb'] * 1048576 / c['input_bytes'] for c in cs]):.0f}")
+        row += [f"{geomean([c['arms'][o]['peak_rss_mb'] / c['arms'][ref]['peak_rss_mb'] for c in cs]):.1f}×" for o in others]
+        L.append(f'| {scen} | ' + ' | '.join(row) + ' |')
     L.append('')
 
     for scen in dict.fromkeys(c['scenario'] for c in cells):

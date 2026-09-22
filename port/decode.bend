@@ -897,7 +897,7 @@ def header(+content: String) -> Hdr:
 #   share a name (then each row resolves its repeated keys, S3.26).
 # FList: a list body: items so far, N, items read, item depth t, the blank-line candidate.
 type Frame is Data:
-  FObj{rev: J.Json, kt: T.KT, b: Nat, d: Nat, item: Bool, key: String, q: Bool}
+  FObj{rev: J.Json, kt: T.KT, km: J.KM, b: Nat, d: Nat, item: Bool, key: String, q: Bool}
   FTab{rev: J.Json, n: Nat, cnt: Nat, r: Nat, fields: List<&2, Field>, nf: Nat, delim: U32, cand: Nat, dupf: Bool}
   FList{rev: J.Json, n: Nat, cnt: Nat, t: Nat, cand: Nat}
 
@@ -983,7 +983,7 @@ def fits.obj(below: Bool, marker: Bool, same: Bool, strict: Bool) -> Nat:
 # item likewise, at the item depth, and a list item (S2.140). 0 close, 1 consume, 2 over-indented.
 def fits(f: Frame, +depth: Nat, +content: String, +strict: Bool) -> Nat:
   match f:
-    case FObj{rev, kt, b, d, item, key, q}:
+    case FObj{rev, kt, km, b, d, item, key, q}:
       fits.obj(Nat.is_lt(depth, b), Bool.and(item, is_item(content)), Nat.is_eq(depth, d), strict)
     case FTab{rev, n, cnt, r, fields, nf, delim, first, dupf}:
       Bool.pick(Nat, Bool.and(Bool.or(Bool.not(strict), Nat.is_lt(cnt, n)), Bool.and(Nat.is_eq(depth, r), is_row(content, delim))), 1n, 0n)
@@ -993,7 +993,7 @@ def fits(f: Frame, +depth: Nat, +content: String, +strict: Bool) -> Nat:
 # S4.206 the field depth of the innermost object (for S9.150)
 def fields.depth(f: Frame) -> Nat:
   match f:
-    case FObj{rev, kt, b, d, item, key, q}:
+    case FObj{rev, kt, km, b, d, item, key, q}:
       d
     case other:
       0n
@@ -1098,20 +1098,53 @@ def dups.go(src: J.Json, look: Maybe<&2, J.Json>, +tgt: J.Json, +strict: Bool, e
 def dups(+src: J.Json, +tgt: J.Json, strict: Bool) -> MR:
   dups.go(src, dups.look(src, tgt), tgt, strict, None{})
 
-# S3.26 an object after a repeated key was merged into its entries
-def attach.merged(m: MR, kt: T.KT, b: Nat, d: Nat, item: Bool, more: List<&2, Frame>, pk: Peek, g: G) -> Step:
+# S3.26 the quoted flag and the value a repeated key ends with, and the failure if the pair does not
+# merge: two objects merge recursively; any other pair is a failure in strict mode (the EARLIER value
+# stays) and the later value in lenient mode. The later occurrence's quoted flag is kept.
+type MP is Data:
+  MP{q: Bool, val: J.Json, err: Maybe<&2, String>}
+
+# S3.26 the outcome of a nested object merge as a pair
+def mp.of(q: Bool, m: MR) -> MP:
   match m:
     case MR{entries, err}:
-      decide(FObj{J.rev_entries(entries, J.JNil{}), kt, b, d, item, SNil{}, False{}} <> more, pk, g.dup(g, err))
+      MP{q, J.JObj{entries}, err}
 
-# S3.22, S3.26 a finished value under the pending key of an object: a new key is stored and noted in
-# the key set; a key stored before is merged (S3.26), and G remembers the first failure
-def attach.obj(seen: Bool, v: J.Json, rev: J.Json, +kt: T.KT, b: Nat, d: Nat, item: Bool, +key: String, q: Bool, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
+# S3.26 merge the later occurrence of a key into the value stored under it
+def dup.merge(+key: String, q0: Bool, v0: J.Json, q: Bool, v: J.Json, +strict: Bool) -> MP:
+  match v0 v strict:
+    case J.JObj{+te} J.JObj{+se} _:
+      mp.of(q, dups(se, te, strict))
+    case ov nv True{}:
+      MP{q0, ov, Some{dup.msg(key)}}
+    case ov nv False{}:
+      MP{q, nv, None{}}
+
+# S3.26 the frame after a repeated key: the CHAIN keeps the key's first position and is not touched,
+# the MAP takes the merged pair (round 16, bead toon_bend-qgu: walking the chain per repeated key made
+# the merge quadratic -- 2000 keys repeated once took 2.66 s against the original's 0.01 s)
+def attach.put(m: MP, +key: String, kt: T.KT, km: J.KM, rev: J.Json, b: Nat, d: Nat, item: Bool, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
+  match m:
+    case MP{q2, v2, err}:
+      decide(FObj{rev, kt, J.km.put(km, key, J.JECons{key, q2, v2, J.JNil{}}), b, d, item, SNil{}, False{}} <> more, pk, g.dup(g, err))
+
+# S3.26 the pair stored under a repeated key (the key set said it is there)
+def attach.dup(old: Maybe<&2, J.Json>, +key: String, q: Bool, v: J.Json, kt: T.KT, km: J.KM, rev: J.Json, b: Nat, d: Nat, item: Bool, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
+  match old:
+    case Some{J.JECons{k0, q0, v0, t0}}:
+      attach.put(dup.merge(key, q0, v0, q, v, g.strict(g)), key, kt, km, rev, b, d, item, more, pk, g)
+    case other:
+      decide(FObj{rev, kt, km, b, d, item, SNil{}, False{}} <> more, pk, g)
+
+# S3.22, S3.26 a finished value under the pending key of an object: a new key is stored in the chain,
+# in the key set and in the map; a key stored before is merged (S3.26) in the MAP alone, and G
+# remembers the first failure
+def attach.obj(seen: Bool, +v: J.Json, rev: J.Json, +kt: T.KT, +km: J.KM, b: Nat, d: Nat, item: Bool, +key: String, +q: Bool, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
   match seen:
     case False{}:
-      decide(FObj{J.JECons{key, q, v, rev}, T.kt.put(kt, key), b, d, item, SNil{}, False{}} <> more, pk, g)
+      decide(FObj{J.JECons{key, q, v, rev}, T.kt.put(kt, key), J.km.put(km, key, J.JECons{key, q, v, J.JNil{}}), b, d, item, SNil{}, False{}} <> more, pk, g)
     case True{}:
-      attach.merged(dups(J.JECons{key, q, v, J.JNil{}}, J.rev_entries(rev, J.JNil{}), g.strict(g)), kt, b, d, item, more, pk, g)
+      attach.dup(J.km.get(km, key), key, q, v, kt, km, rev, b, d, item, more, pk, g)
 
 # S3.22 a finished value goes to the construct that awaits it: under the pending key of an object, as
 # the next item of a list, or, with nothing open, it is the root value and the pass ends
@@ -1119,8 +1152,8 @@ def attach(v: J.Json, frames: List<&2, Frame>, pk: Peek, g: G) -> Step:
   match frames g:
     case Nil{} G{strict, blanks, last, spec, dup}:
       SDone{v, dup}
-    case Con{FObj{rev, +kt, b, d, item, +key, q}, more} g0:
-      attach.obj(T.kt.has(kt, key), v, rev, kt, b, d, item, key, q, more, pk, g0)
+    case Con{FObj{rev, +kt, +km, b, d, item, +key, q}, more} g0:
+      attach.obj(T.kt.has(kt, key), v, rev, kt, km, b, d, item, key, q, more, pk, g0)
     case Con{FList{rev, n, cnt, t, first}, more} g0:
       decide(FList{J.JCons{v, rev}, n, 1n+cnt, t, first} <> more, pk, g0)
     case Con{FTab{rev, n, cnt, r, fields, nf, delim, first, dupf}, more} g0:
@@ -1216,14 +1249,32 @@ def close.fin(msg: Maybe<&2, String>, v: J.Json, frames: List<&2, Frame>, pk: Pe
     case None{}:
       attach(v, frames, pk, g)
 
+# S3.26 one entry of a closing object: the chain gives the key its FIRST position, the map gives the
+# value and the quoted flag the key ends with (a repeated key updated the map, never the chain)
+def obj.pair(m: Maybe<&2, J.Json>, k: String, q: Bool, v: J.Json, acc: J.Json) -> J.Json:
+  match m:
+    case Some{J.JECons{k2, q2, v2, t2}}:
+      J.JECons{k, q2, v2, acc}
+    case other:
+      J.JECons{k, q, v, acc}
+
+# S3.26 the entries of a closing object, in first-occurrence order (the chain is newest first, so
+# walking it and prepending gives document order)
+def obj.entries(c: J.Json, +km: J.KM, acc: J.Json) -> J.Json:
+  match c:
+    case J.JECons{+k, q, v, t}:
+      obj.entries(t, km, obj.pair(J.km.get(km, k), k, q, v, acc))
+    case other:
+      acc
+
 # S4.207 close the innermost construct: an object simply ends (its keys are unique, S3.26); a body
 # runs its checks first
 def pop(frames: List<&2, Frame>, +pk: Peek, g: G) -> Step:
   match frames g:
     case Nil{} g0:
       SErr{"internal: nothing to close"}
-    case Con{FObj{rev, kt, b, d, item, key, q}, more} g0:
-      attach(J.JObj{J.rev_entries(rev, J.JNil{})}, more, pk, g0)
+    case Con{FObj{rev, kt, +km, b, d, item, key, q}, more} g0:
+      attach(J.JObj{obj.entries(rev, km, J.JNil{})}, more, pk, g0)
     case Con{FTab{rev, +n, +cnt, r, fields, nf, delim, first, dupf}, more} G{+strict, +blanks, +last, spec, dup}:
       close.fin(close.msg(strict, Nat.is_ne(cnt, n), blank.in(first, last), surplus.tab(pk, r, delim), True{}, n, cnt), J.JArr{cnt, J.rev_items(rev, J.JNil{})}, more, pk, G{strict, blanks, last, spec, dup})
     case Con{FList{rev, +n, +cnt, t, first}, more} G{+strict, +blanks, +last, spec, dup}:
@@ -1347,7 +1398,7 @@ def eat.kv.jump(jump: Bool, +dd: Nat, +base: Nat, num: Nat, frames: List<&2, Fra
     case True{}:
       SErr{"Validation error at line " ++ Nat.show(num) ++ ": Indentation depth jump: expected depth " ++ Nat.show(1n+base) ++ ", but found " ++ Nat.show(dd)}
     case False{}:
-      decide(FObj{J.JNil{}, T.kt.empty(), 1n+base, dd, False{}, SNil{}, False{}} <> frames, pk, g)
+      decide(FObj{J.JNil{}, T.kt.empty(), J.km.empty(), 1n+base, dd, False{}, SNil{}, False{}} <> frames, pk, g)
 
 # S4.205 (b) an empty value is a nested object when the next line is deeper than the base, else the
 # empty object
@@ -1376,24 +1427,24 @@ def eat.kv.val(empty: Bool, base: Nat, pk: Peek, val: String, +frames: List<&2, 
       eat.kv.obj(nest.over(frames, 1n), base, pk, frames, g)
 
 # S4.205 (b) the key token; the object that receives the field remembers the key while the value is read
-def eat.kv.plain(k: KV, pk: Peek, rev: J.Json, kt: T.KT, b: Nat, d: Nat, base: Nat, item: Bool, more: List<&2, Frame>, g: G) -> Step:
+def eat.kv.plain(k: KV, pk: Peek, rev: J.Json, kt: T.KT, km: J.KM, b: Nat, d: Nat, base: Nat, item: Bool, more: List<&2, Frame>, g: G) -> Step:
   match k:
     case KVErr{msg}:
       SErr{msg}
     case KVOk{key, quoted, +val}:
-      eat.kv.val(String.is_empty(val), base, pk, val, FObj{rev, kt, b, d, item, key, quoted} <> more, g)
+      eat.kv.val(String.is_empty(val), base, pk, val, FObj{rev, kt, km, b, d, item, key, quoted} <> more, g)
 
 # S4.205 a key-value content at base depth `base` (its own depth, S4.206), given the header parse of
 # the content: header failures surface first; (a) a header WITH a key is a keyed array; (b) anything
 # else is read as key and value. rev, kt, b, d, item describe the object that receives the field.
-def eat.kv(h: Hdr, content: String, pk: Peek, rev: J.Json, kt: T.KT, b: Nat, d: Nat, base: Nat, item: Bool, more: List<&2, Frame>, g: G) -> Step:
+def eat.kv(h: Hdr, content: String, pk: Peek, rev: J.Json, kt: T.KT, km: J.KM, b: Nat, d: Nat, base: Nat, item: Bool, more: List<&2, Frame>, g: G) -> Step:
   match h:
     case HErr{msg}:
       SErr{msg}
     case HOk{True{}, key, quoted, n, delim, has_seg, +fields, +inline_text}:
-      array(Bool.not(String.is_empty(inline_text)), Bool.not(List.is_empty(&2, Field, fields)), n, delim, fields, inline_text, base, FObj{rev, kt, b, d, item, key, quoted} <> more, pk, g)
+      array(Bool.not(String.is_empty(inline_text)), Bool.not(List.is_empty(&2, Field, fields)), n, delim, fields, inline_text, base, FObj{rev, kt, km, b, d, item, key, quoted} <> more, pk, g)
     case other:
-      eat.kv.plain(kv(content), pk, rev, kt, b, d, base, item, more, g)
+      eat.kv.plain(kv(content), pk, rev, kt, km, b, d, base, item, more, g)
 
 # S4.212, S6.41 a row object: the fields in header order, each with its value; a field without a value
 # is null (lenient only); surplus values are dropped. Entries are built newest first.
@@ -1465,7 +1516,7 @@ def item.kv(over: Bool, h: Hdr, r: String, +t: Nat, lst: Frame, more: List<&2, F
     case True{}:
       SErr{nest.msg(g.last(g))}
     case False{}:
-      eat.kv(h, r, pk, J.JNil{}, T.kt.empty(), 1n+t, 1n+t, 1n+t, True{}, lst <> more, g)
+      eat.kv(h, r, pk, J.JNil{}, T.kt.empty(), J.km.empty(), 1n+t, 1n+t, 1n+t, True{}, lst <> more, g)
 
 # S4.220–S4.226 one list item with rest R, given R's header parse (failures surface, whatever R looks
 # like), whether R starts with '[' after leading White_Space, and whether R has a ':' outside quotes.
@@ -1482,7 +1533,7 @@ def item.route(blank: Bool, h: Hdr, br: Bool, colon: Bool, r: String, +lst: Fram
     case False{} HOk{hk, key, quoted, n, delim, has_seg, +fields, +inline_text} True{} True{}:
       array(Bool.not(String.is_empty(inline_text)), Bool.not(List.is_empty(&2, Field, fields)), n, delim, fields, inline_text, t, lst <> more, pk, g)
     case False{} HOk{True{}, key, quoted, n, delim, True{}, +fields, +inline_text} _ _:
-      array(Bool.not(String.is_empty(inline_text)), Bool.not(List.is_empty(&2, Field, fields)), n, delim, fields, inline_text, 1n+t, FObj{J.JNil{}, T.kt.empty(), 1n+t, 1n+t, True{}, key, quoted} <> lst <> more, pk, g)
+      array(Bool.not(String.is_empty(inline_text)), Bool.not(List.is_empty(&2, Field, fields)), n, delim, fields, inline_text, 1n+t, FObj{J.JNil{}, T.kt.empty(), J.km.empty(), 1n+t, 1n+t, True{}, key, quoted} <> lst <> more, pk, g)
     case False{} h0 _ True{}:
       item.kv(nest.over(lst <> more, 1n), h0, r, t, lst, more, pk, g)
     case False{} h0 _ False{}:
@@ -1498,8 +1549,8 @@ def eat(l: Line, pk: Peek, frames: List<&2, Frame>, g: G) -> Step:
   match l frames g:
     case Line{num, depth, content} Nil{} g0:
       SErr{"internal: a line with nothing open"}
-    case Line{+num, depth, +content} Con{FObj{rev, kt, b, d, item, key, q}, more} G{strict, +blanks, last, spec, dup}:
-      eat.kv(header(content), content, pk, rev, kt, b, d, depth, item, more, G{strict, blank.drop(blanks, blank.lt(blanks, num), num), num, spec, dup})
+    case Line{+num, depth, +content} Con{FObj{rev, kt, km, b, d, item, key, q}, more} G{strict, +blanks, last, spec, dup}:
+      eat.kv(header(content), content, pk, rev, kt, km, b, d, depth, item, more, G{strict, blank.drop(blanks, blank.lt(blanks, num), num), num, spec, dup})
     case Line{+num, depth, content} Con{FTab{rev, n, cnt, r, fields, nf, +delim, first, dupf}, more} G{strict, +blanks, last, spec, dup}:
       +pb = blank.drop(blanks, blank.lt(blanks, num), num)
       eat.row(split(content, delim), num, rev, n, cnt, r, fields, nf, delim, blank.start(first, pb), dupf, more, pk, G{strict, pb, num, spec, dup})
@@ -1562,7 +1613,7 @@ def root.object(single: Bool, is_kv: Bool, line: Line, +rest: List<&2, Line>, +s
     case True{} False{} Line{num, depth, content}:
       root.prim(prim(content, spec))
     case _ _ Line{+num, depth, +content}:
-      run(rest, 8n, eat.kv(header(content), content, peek(rest), J.JNil{}, T.kt.empty(), 0n, 0n, 0n, False{}, Nil{}, G{strict, blank.drop(blanks, blank.lt(blanks, num), num), num, spec, None{}}), strict)
+      run(rest, 8n, eat.kv(header(content), content, peek(rest), J.JNil{}, T.kt.empty(), J.km.empty(), 0n, 0n, 0n, False{}, Nil{}, G{strict, blank.drop(blanks, blank.lt(blanks, num), num), num, spec, None{}}), strict)
 
 # S4.202 the root-array test, third part: the first line parses as a header (failures surface): the
 # array is decoded at base depth 0 whatever the line's own depth. A content that is not a header falls

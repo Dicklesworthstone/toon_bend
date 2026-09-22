@@ -1,0 +1,54 @@
+{
+ "about": "toon_bend-qgu: decode of n distinct keys each repeated once (the OUTER chain shape). Medians of 3 runs, shared host under load; growth WITHIN an arm is the claim, not the ratio between arms (the cv-gated capture of that ratio was REFUSED: perf/evidence/QGU.wide2000.json).",
+ "rows": [
+  {
+   "keys": 500,
+   "bytes": 17340,
+   "original": 0.005,
+   "original_sha": "6514a8007652",
+   "port_before": 0.2,
+   "port_before_sha": "6514a8007652",
+   "port_after": 0.039,
+   "port_after_sha": "6514a8007652"
+  },
+  {
+   "keys": 1000,
+   "bytes": 35340,
+   "original": 0.017,
+   "original_sha": "48355ad9ca35",
+   "port_before": 0.785,
+   "port_before_sha": "48355ad9ca35",
+   "port_after": 0.068,
+   "port_after_sha": "48355ad9ca35"
+  },
+  {
+   "keys": 2000,
+   "bytes": 77340,
+   "original": 0.076,
+   "original_sha": "27055568e210",
+   "port_before": 2.872,
+   "port_before_sha": "27055568e210",
+   "port_after": 0.082,
+   "port_after_sha": "27055568e210"
+  },
+  {
+   "keys": 4000,
+   "bytes": 161340,
+   "original": 0.023,
+   "original_sha": "b99a7b42055c",
+   "port_before": 11.301,
+   "port_before_sha": "b99a7b42055c",
+   "port_after": 0.246,
+   "port_after_sha": "b99a7b42055c"
+  },
+  {
+   "keys": 8000,
+   "bytes": 329340,
+   "original": 0.091,
+   "original_sha": "6a8806fc6561",
+   "port_before": null,
+   "port_after": 0.526,
+   "port_after_sha": "6a8806fc6561"
+  }
+ ]
+}

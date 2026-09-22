@@ -174,6 +174,12 @@ Outcome taxonomy (closed set):
   js; kill-switch parity on six real documents (`TOON_SPEC=1` and off, both equal to the original);
   `diff-fuzz docs` 2500 inputs and `numbers`, 0 differences; `port-lint` OK. The INTERPRETER lane had
   not been run when this line was written
+- **Thread-count determinism, the risk this lever actually carries** (2026-09-22, on the wired build):
+  8 documents (numbers, canada, mesh, flights_20k, twitter, citm_catalog, jobs, us_10m) encoded at
+  `--threads` 1, 2, 3, 8, 16, 64 and 128 — 56 runs, every one byte-identical to the original. A fork-order
+  bug would show as a thread count whose output differs from the others; none does. This is evidence about
+  THESE documents at THESE thread counts, not a proof: the laws cover what a rendered number prints, not
+  the order in which the pool renders them
 - **The ratios are still NO_EVIDENCE and the entry keeps that word.** Three interleaved cv-gated
   captures on 2026-09-22 (base at `--threads 1` against the wired build at `--threads 8`, 7 pairs each)
   were all REFUSED: 10001 doubles 418.6 → 155.6 ms (cv 10.2% / 16.3%), canada 6025.5 → 4504.7 ms (cv

@@ -12,6 +12,10 @@ rows, folding, expansion and repeated keys (about a third of the laws, about 3 m
 --all-laws runs the whole proof per mutant.
 usage: python3 scripts/hand-mutants.py [--all-laws] [M01 M05 ...]
 exit: 0 every mutant KILLED, 1 otherwise. Last stdout line: JSON summary. Temp copies are kept (path printed).
+
+The set holds 25 mutants and the ids run M01..M12 and M14..M26: `M13` is a numbering slip that was never
+defined (`git log -S M13 -- scripts/hand-mutants.py` is empty), NOT a mutant that was removed for being
+INVALID. Count the set with `len(MUTANTS)`, never by reading the highest id.
 """
 import json, os, re, shutil, subprocess, sys, tempfile, time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -68,6 +72,13 @@ def reduced(laws_text, proof_text):
 def run_proof(d):
     t = time.time()
     try:
+        # `check=` is deliberately absent and must stay absent: a NON-ZERO return is the signal this whole
+        # script exists to read (the checker refusing a law is a KILLED mutant), so check=True would raise on
+        # every kill and turn the evidence into a crash. The returncode is inspected by the caller.
+        # `BEND` is the harness-wide BEND_CLI contract (AGENTS.md). It is passed as a LIST, never through a
+        # shell, so there is no injection path: it names the compiler the operator chose to run.
+        # UBS reports both as findings (python.taint.command critical, py.subprocess-no-check info) on this
+        # file and on scripts/diff-fuzz.py; both are false positives for this design and predate this comment.
         r = subprocess.run(BEND + ["PROOF.bend"], cwd=d, capture_output=True, text=True, env=ENV, timeout=1200)
         return r.returncode, (r.stdout + r.stderr), time.time() - t
     except subprocess.TimeoutExpired:

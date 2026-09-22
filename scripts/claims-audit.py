@@ -100,6 +100,11 @@ def facts():
     for cell in re.findall(r"(?m)^\| ([^|]+) \|", read("docs/OPEN_QUESTIONS.md")):
         f["oq_ids"].update(re.findall(r"OQ-[A-Z0-9-]+", cell))  # one row may answer two (`OQ-C2 / OQ-E1`)
     f["mutants"] = len(re.findall(r"(?m)^ \(\"M\d+\"", read("scripts/hand-mutants.py")))
+    # harness-selftest.sh names each of its mutations `M<n>_<slug>`. Round 13's R13-3 was one gate pasted
+    # into two documents with two numbers (11 and 12); it was repaired by hand and never gated, so it
+    # would recur silently the day a thirteenth mutation is added. (`"mutants"` above is hand-mutants.py,
+    # a different script: this is `"mutations"`.)
+    f["selftest_mutations"] = len(set(re.findall(r"\bM\d+_[a-z_]+", read_opt("scripts/harness-selftest.sh")))) or None
     f["probe_rows"] = len(re.findall(r"(?m)^    row\(", read("scripts/stdio-probe.py")))
     beads = {}
     for line in read_opt(".beads/issues.jsonl").splitlines():
@@ -325,6 +330,7 @@ def audit(files, f, gates, verbose):
         # `\*{0,2}` because these documents bold a number as **16**, which would otherwise put `**`
         # between the digits and the noun and silently stop the row from ever matching.
         ("REFUSED_CV captures", r"\b(\d+)\*{0,2} files? in `perf/evidence/` carry\b", f["refused"]),
+        ("self-test mutations in a pasted line", r'"mutations":\s*(\d+)', f["selftest_mutations"]),
         ("probe rows", r"\b(\d+) descriptor-state rows\b", f["probe_rows"]),
         ("probe rows in a pasted line", r'"rows":\s*(\d+),\s*"same"', f["probe_rows"]),
         ("rounds in a pasted converge line", r'"rounds":\s*(\d+)', gates.get("converge", {}).get("rounds")),

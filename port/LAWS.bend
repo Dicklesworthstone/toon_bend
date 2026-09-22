@@ -20,6 +20,7 @@ import ./json.bend as J
 import ./decode.bend as D
 import ./encode.bend as E
 import ./cli.bend as C
+import ./encode.bend as E
 
 # ---------------------------------------------------------------- first failure wins
 
@@ -1760,3 +1761,48 @@ law pre_raw_is_num:
   for delim: U32
   for acc: String
   {E.put.prim(J.JRaw{neg, ints, fracs, eneg, x}, delim, spec, acc) == E.put.prim(J.JNum{J.raw.f64(neg, ints, fracs, eneg, x, spec)}, delim, spec, acc) : String}
+
+# S4.131 (EXP-006) one limb: nothing is dropped, the estimate is the digit (45 = 6 * 7 + 3)
+law dg_digit_fast_1limb:
+  {F.dg.digit_fast([45], [7]) == F.dg.digit(10n, [45], [7], 0) : List<&2, U32> & U32}
+
+# S4.131 (EXP-006) two limbs: nothing is dropped, the estimate is the digit
+law dg_digit_fast_2limb:
+  {F.dg.digit_fast([1234, 5], [4000, 1]) == F.dg.digit(10n, [1234, 5], [4000, 1], 0) : List<&2, U32> & U32}
+
+# S4.131 (EXP-006) three limbs, r = 9 s with s = 2^32: the estimate floor(589824 / 65537) = 8 is one low and the
+# correction adds the ninth (the checker's Nat arithmetic stays below 2^20 here; values near 2^48 exhaust it)
+law dg_digit_fast_low:
+  {F.dg.digit_fast([0, 0, 9], [0, 0, 1]) == F.dg.digit(10n, [0, 0, 9], [0, 0, 1], 0) : List<&2, U32> & U32}
+
+# S4.131 (EXP-006) three limbs where the estimate is already the digit (7)
+law dg_digit_fast_exact:
+  {F.dg.digit_fast([100, 200, 15], [7, 3, 2]) == F.dg.digit(10n, [100, 200, 15], [7, 3, 2], 0) : List<&2, U32> & U32}
+
+# S4.131 (EXP-006) r >= 10 s: the estimate is 10 or more and the spec loop decides, so both return (r - 10 s, 10)
+law dg_digit_fast_fallback:
+  {F.dg.digit_fast([0, 0, 30], [0, 0, 2]) == F.dg.digit(10n, [0, 0, 30], [0, 0, 2], 0) : List<&2, U32> & U32}
+
+# S4.131 (EXP-006) r < s: the estimate is 0 and nothing is subtracted
+law dg_digit_fast_zero:
+  {F.dg.digit_fast([5, 0, 1], [6, 0, 1]) == F.dg.digit(10n, [5, 0, 1], [6, 0, 1], 0) : List<&2, U32> & U32}
+
+# S4.64, S4.78 (EXP-008) with folding off a fold attempt never folds, whatever the prefix, the budget, the
+# root-literal set and the lean flag hold: the prefix is observable only through a fold, so a lean context
+# that stops growing it changes no output
+law fold_off_never_folds:
+  for k: String
+  for v: J.Json
+  for budget: Nat
+  for hs: Bool
+  for set: T.KT
+  for hp: Bool
+  for pre: String
+  for lean: Bool
+  for sibs: T.KT
+  {E.fold(k, v, E.FCtx{False{}, budget, hs, set, hp, pre, lean}, sibs) == E.Fold{0n, SNil{}} : E.Fold}
+
+# S4.64 (EXP-008) under TOON_SPEC=1 no context is lean: the spec twin always grows the prefix
+law fctx_lean_closed_by_switch:
+  for fo: Bool
+  {E.fctx.lean(fo, True{}) == False{} : Bool}

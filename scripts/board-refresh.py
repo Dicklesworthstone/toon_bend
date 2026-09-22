@@ -80,6 +80,8 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"token_", ["TOON number tokens"]),
  (r"golden_fx_dec_numbers_", ["TOON number tokens"]),
  (r"twin_gate_", ["JSON number reading", "TOON number text", "TOON number tokens", "JSON number text"]),
+ (r"dg_digit_fast_", ["TOON number text", "JSON number text"]),
+ (r"(fold_off_never_folds|fctx_lean_closed_by_switch)$", ["safe key folding"]),
  (r"golden_(encstr_root_|fx_enc_primitives_|fx_enc_objects_(04|17|20))", ["encoder primitives"]),
  (r"golden_fx_enc_arrays_(primitive|nested_0[13]|tabular|objects_(15|02))", ["array headers, joins"]),
  (r"golden_(fx_enc_arrays_objects_|fx_enc_objects_|fx_enc_arrays_nested_10|flag_indent_(0|16)_encode|fx_enc_whitespace_)", ["list items in every shape"]),
@@ -141,7 +143,7 @@ def finalize(commit, log):
     quant = [n for n, b in zip(names, blocks) if re.search(r"(?m)^  for ", b.split("\nlaw ")[0])]
     golden = [n for n in names if n.startswith("golden_")]
     closed = [n for n in names if n not in quant and n not in golden]
-    twin = [n for n in names if re.match(r"(twin_gate_|div_pow10_|div_p10_|from_dec_p10_|serde_|token_|show_(toon|json)_fast_|int_fit_|int_text_|short_of_digits_)", n)]
+    twin = [n for n in names if re.match(r"(twin_gate_|dg_digit_fast_|fold_off_never_folds|fctx_lean_closed_by_switch|div_pow10_|div_p10_|from_dec_p10_|serde_|token_|show_(toon|json)_fast_|int_fit_|int_text_|short_of_digits_)", n)]
     s = read(BOARD)
     a = s.index("Last gate run:")
     b = s.index("| feature |")
@@ -162,7 +164,7 @@ def finalize(commit, log):
     | kind | count | list |
     |---|---|---|
     | quantified laws (hold for every input) | %d | %s |
-    | laws about the fast twins (one quantified gate pair; the rest closed instances, `perf/NEGATIVE-EVIDENCE.md` NE-001..003) | %d | %s |
+    | laws about the fast twins (the quantified gate pair and the two quantified key-folding gate laws; the rest closed instances, `perf/NEGATIVE-EVIDENCE.md` NE-001..003, NE-010, NE-011) | %d | %s |
     | other closed unit laws | %d | %s |
     | closed goldens as laws (`C.run_pure(argv, bytes) == Out`) | %d | `golden_<case>` for %d corpus cases, each cited on its row above |
     | `@unsafe` defs | 0 | none; template instances: 0 |

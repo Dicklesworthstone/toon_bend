@@ -247,7 +247,7 @@ set a 25% gate this code could not meet.
 | created (UTC) | 2026-09-20 |
 | agent | Claude (Claude Code session, author) |
 | graveyard sweep | `rg -i 'digit\|shortest\|dragon\|quotient' perf/NEGATIVE-EVIDENCE.md` → NE-001 (integers print their own digits: a different path, kept) |
-| status | PROPOSED (not started, for the reason on EXP-005's card) |
+| status | BUILT 2026-09-22, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-010): 1071/1071 on c-1t both switch settings and js, 10^6-double differential SAME, six closed laws; the card's capture REFUSED_CV at load 9 (medians 1278 → 675 ms) |
 | precommitted | true |
 
 ### Hypothesis
@@ -321,3 +321,36 @@ The reader keeps a token RAW when it cannot overflow (`num.safe`: a negative exp
 1. A quantified law `{encode(pre(f, j, …), opt) == encode(j, opt) : List<&2, String>}` — the pass is a reordering of the same function, and `port-lint.py` PL-11 demands a law for anything that behaves like a twin
 2. A quiet host, ≥ 15 pairs, an A/A arm, and a document whose ORIGINAL arm reaches 100 ms (NE-006's predicate)
 3. The allocation cost first (bead `toon_bend-2t0`): on the 17-digit-double documents the scaling stops at two threads, and no thread count moves it
+
+## EXP-008 — a lean fold context: no path prefix grown while key folding is off
+
+| field | value |
+|---|---|
+| experiment_id | EXP-008 |
+| program / def | `port/encode.bend` / `fctx.child` (a `lean` field on `FCtx`, set through `F.twin.on`) |
+| created (UTC) | 2026-09-22 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'fold\|fctx\|prefix\|path' perf/NEGATIVE-EVIDENCE.md` → NE-004 (the folding capture, `--key-folding safe`: a different mode; this lever acts only with folding OFF) |
+| status | BUILT 2026-09-22, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-011). Carded AFTER the lever was built, from bead `toon_bend-gzg` and the profile below; the precommitted gate is stated now and not moved |
+| precommitted | false (see status) |
+
+### Hypothesis
+`fctx.child` extends the dotted path prefix with `T.cat` for every non-folded object field, and only `fold.go` reads the prefix,
+which runs only when folding is on. With folding off (the default) a context that is passed on unchanged removes that work, and the
+median wall of `--encode` on a deep, key-heavy document falls by at least 10%.
+
+### Evidence before the lever
+`perf/e2e/results/2026-09-22-694d73b/profiles/openapi_encode.inclusive.txt`: `WL_FID_ENCODE_CTX_FIELD_K1169` 18.5% inclusive (207030
+calls) through `spin_263`/`spin_84`/`spin_86` (the join); 14.3% on `vscode_lock`.
+
+### Lever (one)
+`FCtx` gains `lean: Bool = F.twin.on(spec, not fo)`; `fctx.child` returns a lean context unchanged. Laws: `fold_off_never_folds`
+(quantified: with folding off a fold attempt never folds, whatever the prefix) and `fctx_lean_closed_by_switch` (quantified).
+
+### Precommitted gate
+≥ 10% below the NE-010 lever binary on the e2e corpus's `openapi_github.json` (sha256 `ab1d3dfd…` in `perf/e2e/corpus.json`; gitignored, fetched by `python3 perf/e2e/bench.py fetch`) (`--encode`, `--threads 1`), cv ≤ 5% on both arms.
+
+### Result
+Orientation (interleaved ABBA, 8 rounds, load 10): 4785.5 → 3858.4 ms, 1.240× by median (19% below), cv 1.6% / 4.4%; 1.329× by
+minimum, 1.269× by CPU. The gate's figure is met inside the cv bound by this harness; the repository's cv-gated tool with an A/A arm
+has not run (NE-011).

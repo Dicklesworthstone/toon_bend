@@ -9,6 +9,7 @@ import ./json.bend as J
 import ./decode.bend as D
 import ./encode.bend as E
 import ./cli.bend as C
+import ./encode.bend as E
 import ./LAWS.bend as Laws
 
 # S1.4 the first arm of on.tok matches a stopped scan whatever the token is
@@ -1663,4 +1664,36 @@ def Laws.pre_txt_is_num(f, spec, delim, acc):
 
 # S2.51 a deferred token prints its own conversion
 def Laws.pre_raw_is_num(neg, ints, fracs, eneg, x, spec, delim, acc):
+  {==}
+
+# S4.131 computed
+def Laws.dg_digit_fast_1limb():
+  {==}
+
+# S4.131 computed
+def Laws.dg_digit_fast_2limb():
+  {==}
+
+# S4.131 computed
+def Laws.dg_digit_fast_low():
+  {==}
+
+# S4.131 computed
+def Laws.dg_digit_fast_exact():
+  {==}
+
+# S4.131 computed
+def Laws.dg_digit_fast_fallback():
+  {==}
+
+# S4.131 computed
+def Laws.dg_digit_fast_zero():
+  {==}
+
+# S4.64 fc.can reduces to False through Bool.and's first argument, and fold.if(False, ...) is the no-fold verdict
+def Laws.fold_off_never_folds(k, v, budget, hs, set, hp, pre, lean, sibs):
+  {==}
+
+# S4.64 twin.on(True, _) is False
+def Laws.fctx_lean_closed_by_switch(fo):
   {==}

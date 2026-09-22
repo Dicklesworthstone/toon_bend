@@ -458,9 +458,11 @@ def rows(c: J.Json, +hdr: List<&2, String>, +d: Nat, +opt: Opts, acc: List<&2, S
 # ---------------------------------------------------------------- S4.63–S4.84 key folding
 
 # S4.70–S4.78 what a body knows about folding: whether folding is on, the budget, the root-literal
-# set (present only below the root object, absent inside list items, S4.73), and the path prefix
+# set (present only below the root object, absent inside list items, S4.73), and the path prefix.
+# lean (a fast twin through F.twin.on, EXP-008): folding is off, so nobody reads the prefix (only fold.go
+# does, and only when fc.can); a lean context is passed to children unchanged instead of growing a prefix
 type FCtx is Data:
-  FCtx{on: Bool, budget: Nat, has_set: Bool, set: T.KT, has_pre: Bool, pre: String}
+  FCtx{on: Bool, budget: Nat, has_set: Bool, set: T.KT, has_pre: Bool, pre: String, lean: Bool}
 
 # S4.65 the chain walk: while there is room and the value is an object with EXACTLY one field, take that
 # field's key and enter its value. Segments are collected newest first. Arrays are never entered.
@@ -530,7 +532,7 @@ def fold.check(two: Bool, idents: Bool, sib: Bool, lit: Bool, n: Nat, fkey: Stri
 # S4.68–S4.72 judge the collected segments
 def fold.go(fc: FCtx, +segs: List<&2, String>, sibs: T.KT) -> Fold:
   match fc:
-    case FCtx{on, budget, has_set, set, has_pre, pre}:
+    case FCtx{on, budget, has_set, set, has_pre, pre, lean}:
       +n = T.llen(&2, String, segs, 0n)
       +fkey = join_segs(segs, SNil{})
       fold.check(Nat.is_ge(n, 2n), segs_ok.go(segs, True{}), T.kt.has(sibs, fkey), Bool.and(has_set, T.kt.has(set, path(has_pre, pre, fkey))), n, fkey)
@@ -538,21 +540,21 @@ def fold.go(fc: FCtx, +segs: List<&2, String>, sibs: T.KT) -> Fold:
 # S4.64 whether folding is on
 def fc.on(fc: FCtx) -> Bool:
   match fc:
-    case FCtx{on, budget, has_set, set, has_pre, pre}:
+    case FCtx{on, budget, has_set, set, has_pre, pre, lean}:
       on
 
 # S4.64 the preconditions that do not depend on the value: folding is on and the budget is at least 2
 def fc.can(fc: FCtx) -> Bool:
   match fc:
-    case FCtx{on, budget, has_set, set, has_pre, pre}:
+    case FCtx{on, budget, has_set, set, has_pre, pre, lean}:
       Bool.and(on, Nat.is_ge(budget, 2n))
 
 # S4.65 how many more segments the walk may take after the starting key: budget - 1, none when folding is off
 def fc.room(fc: FCtx) -> Nat:
   match fc:
-    case FCtx{True{}, budget, has_set, set, has_pre, pre}:
+    case FCtx{True{}, budget, has_set, set, has_pre, pre, lean}:
       Nat.sub(budget, 1n)
-    case FCtx{False{}, budget, has_set, set, has_pre, pre}:
+    case FCtx{False{}, budget, has_set, set, has_pre, pre, lean}:
       0n
 
 # S4.64 attempt or not
@@ -567,23 +569,30 @@ def fold.if(can: Bool, segs: List<&2, String>, fc: FCtx, sibs: T.KT) -> Fold:
 def fold(k: String, +v: J.Json, +fc: FCtx, sibs: T.KT) -> Fold:
   fold.if(Bool.and(fc.can(fc), is_obj(v)), walk(v, fc.room(fc), k <> Nil{}), fc, sibs)
 
-# S4.78 the body under a NON-folded object field: the same budget, the prefix extended by the raw key
+# S4.78 the body under a NON-folded object field: the same budget, the prefix extended by the raw key; a lean
+# context (folding off, EXP-008) is passed on unchanged, since nothing reads its prefix
 def fctx.child(fc: FCtx, k: String) -> FCtx:
   match fc:
-    case FCtx{on, budget, has_set, set, has_pre, pre}:
-      FCtx{on, budget, has_set, set, True{}, path(has_pre, pre, k)}
+    case FCtx{on, budget, has_set, set, has_pre, pre, True{}}:
+      FCtx{on, budget, has_set, set, has_pre, pre, True{}}
+    case FCtx{on, budget, has_set, set, has_pre, pre, False{}}:
+      FCtx{on, budget, has_set, set, True{}, path(has_pre, pre, k), False{}}
 
 # S4.77 the body under a partial fold: budget minus the segment count (never below 0), prefix + folded key
 def fctx.rem(fc: FCtx, segs: Nat, fkey: String) -> FCtx:
   match fc:
-    case FCtx{on, budget, has_set, set, has_pre, pre}:
-      FCtx{on, Nat.sub(budget, segs), has_set, set, True{}, path(has_pre, pre, fkey)}
+    case FCtx{on, budget, has_set, set, has_pre, pre, lean}:
+      FCtx{on, Nat.sub(budget, segs), has_set, set, True{}, path(has_pre, pre, fkey), lean}
+
+# S4.64 (EXP-008) a context is lean when folding is off and the gate is open (TOON_SPEC=1 closes it)
+def fctx.lean(+fo: Bool, spec: Bool) -> Bool:
+  F.twin.on(spec, Bool.not(fo))
 
 # S4.73 bodies started from a list item: no root-literal set, no prefix, the budget reset to the option
 def fctx.item(opt: Opts) -> FCtx:
   match opt:
-    case Opts{indent, delim, fo, budget, spec}:
-      FCtx{fo, budget, False{}, T.kt.empty(), False{}, SNil{}}
+    case Opts{indent, delim, +fo, budget, spec}:
+      FCtx{fo, budget, False{}, T.kt.empty(), False{}, SNil{}, fctx.lean(fo, spec)}
 
 # S4.70 add a root key to the set when it contains a dot
 def dotted.add(has: Bool, k: String, acc: T.KT) -> T.KT:
@@ -612,10 +621,10 @@ def dotted.set(on: Bool, c: J.Json) -> T.KT:
 # S4.70 the fold context of the root object's body: the root-literal set, no prefix, the full budget
 def fctx.root(opt: Opts, j: J.Json) -> FCtx:
   match opt j:
-    case Opts{indent, delim, +fo, budget, spec} J.JObj{entries}:
-      FCtx{fo, budget, True{}, dotted.set(fo, entries), False{}, SNil{}}
-    case Opts{indent, delim, fo, budget, spec} other:
-      FCtx{fo, budget, False{}, T.kt.empty(), False{}, SNil{}}
+    case Opts{indent, delim, +fo, budget, +spec} J.JObj{entries}:
+      FCtx{fo, budget, True{}, dotted.set(fo, entries), False{}, SNil{}, fctx.lean(fo, spec)}
+    case Opts{indent, delim, +fo, budget, spec} other:
+      FCtx{fo, budget, False{}, T.kt.empty(), False{}, SNil{}, fctx.lean(fo, spec)}
 
 # ---------------------------------------------------------------- S4.40–S4.62 the emitter
 

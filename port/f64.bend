@@ -538,6 +538,30 @@ def dg.digit(fuel: Nat, +r: List<&2, U32>, +s: List<&2, U32>, d: U32) -> List<&2
       +ge = BN.is_ge(r, s)
       dg.digit(f, dg.sub_if(ge, r, s), s, (d + Bool.pick(U32, ge, 1, 0) : U32))
 
+# S4.131 (fast twin of dg.digit, EXP-006) the corrected estimate: at most one more subtraction
+def dg.digit_fast.fix(+r: List<&2, U32>, +s: List<&2, U32>, +d: U32) -> List<&2, U32> & U32:
+  +ge = BN.is_ge(r, s)
+  (dg.sub_if(ge, r, s), (d + Bool.pick(U32, ge, 1, 0) : U32))
+
+# S4.131 (fast twin of dg.digit, EXP-006) an estimate of 10 or more means the caller's r >= 10 s: the spec
+# loop decides that case, so the twin equals the spec twin on every input, not only on the generator's
+def dg.digit_fast.fin(ok: Bool, +r: List<&2, U32>, +s: List<&2, U32>, +est: Nat) -> List<&2, U32> & U32:
+  match ok:
+    case False{}:
+      dg.digit(10n, r, s, 0)
+    case True{}:
+      dg.digit_fast.fix(BN.sub(r, BN.mul_small(s, U32.from_nat(est), 0), 0), s, U32.from_nat(est))
+
+# S4.131 (fast twin of dg.digit, EXP-006) the next digit floor(r/s) from a quotient estimate. With k = n - 2
+# limbs dropped (n the limb count of s), S2 = floor(s / B^k) >= 2^16 and R2 = floor(r / B^k): the estimate
+# floor(R2 / (S2 + 1)) is never above the digit and at most one below it (error < 11 / S2 < 1); with n <= 2
+# nothing is dropped and floor(R2 / S2) is the digit itself. One multiplication, one subtraction and one
+# comparison replace up to nine compare-and-subtract rounds.
+def dg.digit_fast(+r: List<&2, U32>, +s: List<&2, U32>) -> List<&2, U32> & U32:
+  +k = Nat.sub(BN.len(s), 2n)
+  +est = Nat.div(BN.to_nat(BN.above(k, r)), Nat.add(BN.to_nat(BN.above(k, s)), Bool.pick(Nat, Nat.is_gt(k, 0n), 1n, 0n)))
+  dg.digit_fast.fin(Nat.is_le(est, 9n), r, s, est)
+
 # S4.132, S4.172 both ends reached: the nearer candidate wins (S4.133); on an EXACT tie the even last
 # digit wins, in both printers (JavaScript's Number::toString rule)
 def dg.tie(c: Cmp, d_odd: Bool) -> Bool:
@@ -583,6 +607,30 @@ def dg.gen(fuel: Nat, st: Dg, +low_ok: Bool, +high_ok: Bool) -> Dg:
     case 1n+f:
       dg.gen(f, dg.step(st, low_ok, high_ok), low_ok, high_ok)
 
+# S4.131 (fast twin of dg.step, EXP-006) one digit through the quotient estimate
+def dg.step.fast(st: Dg, low_ok: Bool, high_ok: Bool) -> Dg:
+  match st:
+    case Dg{r, s, mp, mm, ds, True{}}:
+      Dg{r, s, mp, mm, ds, True{}}
+    case Dg{r, +s, mp, mm, ds, False{}}:
+      dg.step2(dg.digit_fast(BN.mul_small(r, 10, 0), s), s, BN.mul_small(mp, 10, 0), BN.mul_small(mm, 10, 0), ds, low_ok, high_ok)
+
+# S4.131 the digit step the gate selects (fast only when F.twin.on said so)
+def dg.step.with(fast: Bool, st: Dg, low_ok: Bool, high_ok: Bool) -> Dg:
+  match fast:
+    case False{}:
+      dg.step(st, low_ok, high_ok)
+    case True{}:
+      dg.step.fast(st, low_ok, high_ok)
+
+# S7.30 dg.gen with the digit step chosen by the gate
+def dg.gen.with(fuel: Nat, st: Dg, +low_ok: Bool, +high_ok: Bool, +fast: Bool) -> Dg:
+  match fuel:
+    case 0n:
+      st
+    case 1n+f:
+      dg.gen.with(f, dg.step.with(fast, st, low_ok, high_ok), low_ok, high_ok, fast)
+
 # S4.131 the digits d1..dn (each 0..9, no trailing zero) and k as an Int: the value is 0.d1d2...dn * 10^k
 type Short is Data:
   Short{digits: List<&2, U32>, k: Int}
@@ -599,6 +647,12 @@ def dg.run(fixed: DgK, +even: Bool) -> Short:
     case DgK{st, kb}:
       dg.finish(dg.gen(25n, st, even, even), kb)
 
+# S4.131 dg.run with the digit step chosen by the gate
+def dg.run.with(fixed: DgK, +even: Bool, +fast: Bool) -> Short:
+  match fixed:
+    case DgK{st, kb}:
+      dg.finish(dg.gen.with(25n, st, even, even, fast), kb)
+
 # S4.131 shortest round-trip digits of  man * 2^(tb - 100000) > 0.  The estimate
 # floor((bitlen + t - 1) * 78913 / 2^18) never exceeds k (78913/2^18 is just below log10 2); it is
 # formed with the bias 262144, whose product with the ratio is the integer 78913.
@@ -608,6 +662,14 @@ def shortest(+man: List<&2, U32>, +tb: Nat) -> Short:
   +up = Nat.is_ge(kb, 78913n)
   +p = BN.pow10(Bool.pick(Nat, up, Nat.sub(kb, 78913n), Nat.sub(78913n, kb)), [1])
   dg.run(dg.fix(5n, dg.scale(up, dg.init(Nat.is_ge(tb, 100000n), Bool.and(BN.is_eq(man, two52()), Nat.is_gt(tb, 98926n)), man, tb), p), even, kb), even)
+
+# S4.131 shortest with the digit step chosen by the gate (fast = False is shortest itself, line for line)
+def shortest.with(+man: List<&2, U32>, +tb: Nat, +fast: Bool) -> Short:
+  +even = Bool.not(BN.is_odd(man))
+  +kb = Nat.div(Nat.mul(Nat.add(Nat.sub(Nat.add(BN.bitlen(man, 0n), tb), 1n), 162144n), 78913n), 262144n)
+  +up = Nat.is_ge(kb, 78913n)
+  +p = BN.pow10(Bool.pick(Nat, up, Nat.sub(kb, 78913n), Nat.sub(78913n, kb)), [1])
+  dg.run.with(dg.fix(5n, dg.scale(up, dg.init(Nat.is_ge(tb, 100000n), Bool.and(BN.is_eq(man, two52()), Nat.is_gt(tb, 98926n)), man, tb), p), even, kb), even, fast)
 
 # ---------------------------------------------------------------- S5.30–S5.42 the two layouts
 
@@ -712,17 +774,19 @@ def int.fit(in_range: Bool, man: List<&2, U32>, tb: Nat) -> IntFit:
     case True{}:
       int.fit.q(BN.shr(man, Nat.sub(100000n, tb)))
 
-# S4.131 an integer below 2^48 prints its own digits; every other value takes the spec twin
-def shortest.pick(fit: IntFit, man: List<&2, U32>, tb: Nat) -> Short:
+# S4.131 an integer below 2^48 prints its own digits; every other value takes the digit generator, whose
+# digit step is the quotient-estimate twin when the gate says so (EXP-006)
+def shortest.pick(fit: IntFit, man: List<&2, U32>, tb: Nat, +dfast: Bool) -> Short:
   match fit:
     case IntFit{True{}, q}:
       short.of_digits(nat.digits(16n, BN.to_nat(q), Nil{}))
     case IntFit{False{}, q}:
-      shortest(man, tb)
+      shortest.with(man, tb, dfast)
 
-# S4.131 the fast twin of shortest: an integer below 2^48 (a binary exponent in -52..0) through the gate
-def shortest_fast(+man: List<&2, U32>, +tb: Nat, spec: Bool) -> Short:
-  shortest.pick(int.fit(twin.on(spec, Bool.and(Nat.is_le(tb, 100000n), Nat.is_ge(tb, 99948n))), man, tb), man, tb)
+# S4.131 the fast twin of shortest: an integer below 2^48 (a binary exponent in -52..0) through the gate,
+# and every other value through the quotient-estimate digit step (EXP-006) through the same gate
+def shortest_fast(+man: List<&2, U32>, +tb: Nat, +spec: Bool) -> Short:
+  shortest.pick(int.fit(twin.on(spec, Bool.and(Nat.is_le(tb, 100000n), Nat.is_ge(tb, 99948n))), man, tb), man, tb, twin.on(spec, True{}))
 
 # S4.130 the TOON text of a number: 0 for zero, null for a non-finite value, else the shortest digits
 # with exact ties going to the even digit (S4.132), laid out per S5.31

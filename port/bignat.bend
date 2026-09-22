@@ -318,6 +318,28 @@ def to_nat.go(hi_first: List<&2, U32>, acc: Nat) -> Nat:
     case Con{x, t}:
       to_nat.go(t, Nat.add(Nat.mul(acc, 65536n), U32.to_nat(x)))
 
+# S4.131 the limb count of a big natural (loop over its limbs)
+def len.go(a: List<&2, U32>, acc: Nat) -> Nat:
+  match a:
+    case Nil{}:
+      acc
+    case Con{x, t}:
+      len.go(t, Nat.add(acc, 1n))
+
+# S4.131 the limb count of a big natural
+def len(a: List<&2, U32>) -> Nat:
+  len.go(a, 0n)
+
+# S4.131 floor(a / 65536^k): the limbs of a from index k up (Nil when a has k limbs or fewer)
+def above(k: Nat, a: List<&2, U32>) -> List<&2, U32>:
+  match k a:
+    case 0n _:
+      a
+    case 1n+j Nil{}:
+      Nil{}
+    case 1n+j Con{x, t}:
+      above(j, t)
+
 # S7.7 the value of a SMALL big natural as a Nat (the caller bounds it below 2^48)
 def to_nat(a: List<&2, U32>) -> Nat:
   to_nat.go(List.reverse(&2, U32, a), 0n)

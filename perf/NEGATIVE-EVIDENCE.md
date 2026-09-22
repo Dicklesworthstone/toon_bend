@@ -238,6 +238,39 @@ Outcome taxonomy (closed set):
 
 ---
 
+### NE-010 — a quotient estimate per digit in the shortest-digit generator (EXP-006)   [2026-09-22 | PROVISIONAL]
+- Program / def: `port/f64.bend` / `dg.digit_fast` (+ `.fin`, `.fix`), `dg.step.fast`, `dg.step.with`, `dg.gen.with`, `dg.run.with`, `shortest.with`, the gate in `shortest_fast`; `port/bignat.bend` / `len`, `above`. Kept behind `F.twin.on` (`TOON_SPEC=1` selects the ten-round spec loop)
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, SHARED HOST AT LOAD 9-13 (other agents' gates); base binary sha256 `3581658e…` (HEAD `3c55410` without the lever), lever binary `4903d373…`, `--threads 1`
+- Binding (the weaker kind, as NE-001..003): six closed laws on the digit step at each branch of the estimate (`dg_digit_fast_1limb`, `_2limb`, `_low` (estimate one below the digit), `_exact`, `_fallback` (estimate >= 10: the spec loop decides), `_zero`), `All terms check.` over 401 laws (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16); no quantified `fast == spec` law (the checker's Nat arithmetic exhausts memory at 2^48-scale values: a first `_low` instance at s = 2^48 - 1 aborted at the 6 GiB probe cap, the committed one uses s = 2^32). The argument that makes it exact on every input is in the def's comment: with k = n - 2 limbs dropped, S2 >= 2^16 and the estimate floor(R2 / (S2 + 1)) is within one below the digit (error < 11 / S2); an estimate >= 10 falls back to the spec loop
+- Correctness evidence: `conform.sh` 1071/1071 on c-1t with and without `TOON_SPEC=1`, 1071/1071 on js; a seeded differential of 1,000,000 doubles (random bit patterns, 17-digit values, subnormals, neighbours of powers of two and ten, short decimals; 50 documents of 20000) encoded and decoded by the original `694d73b`, the fast twin and the spec twin: `{"numbers": 1000000, "diffs": 0, "verdict": "SAME"}`
+- Exact command (the card's): `scripts/incumbent-bench.sh --runs 15 --max-cv 5 --tag EXP-006 --original <base> --threads 1 -- -e perf/inputs/doubles_20000.json --port <lever> --threads 1 -- -e perf/inputs/doubles_20000.json` → **REFUSED_CV** (`perf/evidence/EXP-006.capture-refused-cv.json`): medians 1278.4 → 675.5 ms, cv 5.3% / 8.8%, 30 samples per arm, stdout sha identical
+- Orientation (interleaved ABBA, 8 rounds, not the cv-gated tool): `canada` 6112.6 → 3243.8 ms, 1.884× by median, 1.935× by minimum, 1.852× by CPU, cv 3.3% / 4.2%; `numbers` 1.79× / 1.97× / 1.87×; `mesh` 1.62× / 1.89× / 1.70×; `doubles_20000` 1.87× / 1.86× / 1.83×. Every estimator on every input clears the card's precommitted gate (≥ 30% below the baseline); the cv gate on the card's own input does not
+- Profile after the lever (gprof, `canada --encode`): `BN.cmp` 22.8 M → 7.5 M calls, 45.5% → 25.7% inclusive
+- Killing metric: none yet. Promotion to a ledger WIN needs: a cv-gated capture (a quiet host, the card's command) AND either a quantified law or the owner's acceptance of closed laws + the 10^6 differential (bead `toon_bend-clf`, the same question as NE-001..003)
+- **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
+- Tally: W0/L0/N1 (provisional)
+- Agent: Claude (session ef481f9c, 2026-09-22)
+
+### NE-011 — a lean fold context: no path prefix grown while folding is off (EXP-008)   [2026-09-22 | PROVISIONAL]
+- Program / def: `port/encode.bend` / `FCtx.lean`, `fctx.child`, `fctx.lean`, `fctx.item`, `fctx.root`. Kept behind `F.twin.on` (`TOON_SPEC=1` makes no context lean)
+- Provenance: as NE-010; base = the NE-010 lever binary `4903d373…`, lever binary `edfd3d5c…`
+- Binding (stronger than NE-010): two QUANTIFIED laws, `fold_off_never_folds` (with folding off a fold attempt yields `Fold{0n, SNil}` whatever the prefix, budget, root-literal set and lean flag hold: the prefix is observable only through a fold) and `fctx_lean_closed_by_switch` (under `TOON_SPEC=1` no context is lean); both `All terms check.` in 1.7 s each
+- Correctness evidence: `conform.sh` 1071/1071 on c-1t with and without `TOON_SPEC=1`
+- Orientation (interleaved ABBA, 8 rounds): `openapi_github --encode` (13 MB, deep schemas) 4785.5 → 3858.4 ms, 1.240× by median, 1.329× by minimum, 1.269× by CPU, cv 1.6% / 4.4%; `vscode_lock` 1.305× / 1.275× / 1.26× (cv 8.9% / 6.5%); `twitter` 1.09× / 1.13× / 1.12×. The profile had given `fctx.child` 18.5% inclusive on the OpenAPI encode (`perf/e2e/results/2026-09-22-694d73b/profiles/openapi_encode.inclusive.txt`)
+- Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
+- **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
+- Tally: W0/L0/N1 (provisional)
+- Agent: Claude (session ef481f9c, 2026-09-22)
+
+### NE-012 — BN.cmp that borrows its operands instead of taking shared copies (bead toon_bend-2t0)   [2026-09-22 | NEGATIVE(not built)]
+- Program / def: `port/bignat.bend` / `cmp`. Probe: a ten-def program comparing `List<&2, U32>` operands through the recursive shape, a tail-recursive verdict accumulator, and a variant whose match binds the limb plainly and hands both scalars to a helper; call sites as nested calls, sequential lets, a parallel let, and a reader that returns the operand
+- Result (`scripts/keep-audit.sh` of bend2-mega-skill on the probe and on `port/main.bend`): every variant TAKES both lists (`ctr_take`, `take` 3, `peek` 0) and every call site KEEPS its operands (`keep` 2-4); the tail-recursive form compiles to a flat `spin_N` loop but still `ctr_take`s. Borrow inference never lent a `List<&2, U32>` in any shape tried, although the skill's own `keeps_shared.bend` borrows a user tree read twice. So the `span_fade` time under `cmp` (the shared copies taken apart) has no source-level lever found
+- **Do-not-retry unless:** a Bend release changes borrow inference for `List` (re-run the probe first: `scratchpad` copy in the session, ten lines), OR the number path stops carrying big naturals as lists (a limb-array or scalar-pair representation for values below 2^106)
+- Tally: W0/L0/N0 (negative finding, nothing built)
+- Agent: Claude (session ef481f9c, 2026-09-22)
+
+---
+
 ## Inherited priors (re-confirm on THIS program's shape; not local evidence)
 
 From `bend guide shaders` (10-core M4 mini, 2.0.13), the runtime's comments,

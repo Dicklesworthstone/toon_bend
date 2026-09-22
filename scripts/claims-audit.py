@@ -39,8 +39,17 @@ CURRENT = ["README.md", "CONTRIBUTING.md", "AGENTS.md", "docs/PORT_STATE.md", "d
 # names on purpose BECAUSE they do not exist). Only their references to ids and paths are checked.
 ARCHIVE = ["docs/PLAN_TO_PORT_Toon_TO_BEND2.md", "docs/PROPOSED_ARCHITECTURE.md", "docs/NUMERIC_PLAN.md"]
 DOCS = CURRENT + ARCHIVE
-HISTORY = re.compile(r"`[0-9a-f]{7,40}`|\bhistorical\b|\bused to\b|\bwhen (?:written|this was written)\b"
-                     r"|\bearlier\b|\b(?:at|after) Phase \d\b|\bthe corpus at\b|\bre-counted\b", re.I)
+# A line is exempt only when it SAYS it describes a past state. It used to begin with a bare
+# `[0-9a-f]{7,40}` alternative, so ANY line quoting a commit was exempt from every count check --
+# and this project's convention puts the compiler checkout `15ae0c8` on every proof line, which
+# left docs/PORT_STATE.md's whole law breakdown permanently unchecked. Round 14 (R14-2) rewrote it
+# to "7 laws = 1 quantified + ..." and the gate still printed verdict OK. A commit reference is
+# NOT a historical marker; a commit reference NEXT TO one of these words is.
+HISTORY = re.compile(r"\bhistorical\b|\bused to\b|\bwhen (?:written|this was written)\b"
+                     r"|\bearlier\b|\b(?:at|after) Phase \d\b|\bthe corpus at\b|\bre-counted\b"
+                     r"|\bsuperseded\b|\buntil 20\d\d-\d\d-\d\d\b|\bthis (?:row|line|file) said\b"
+                     r"|\bpreviously\b|\bthe previous table\b|\bwas \d+ until\b"
+                     r"|\bat that commit\b|\bas of \d+\b", re.I)
 # paths a document may name although they are not in the repository (build outputs, the gitignored oracle,
 # the skills' own scripts, and the placeholders of a command line)
 ABSENT_OK = re.compile(r"^(oracle/|legacy/|port/toon|port/[a-z_]+\.(?:c|gpu)$|/tmp/|~/|<|\./x|scripts/<|"
@@ -119,6 +128,11 @@ def facts():
     # rounds ("ten files" while fifteen carried the verdict) because nothing computed it: the five refusals
     # rounds 12 and 13 added were never counted. The count is over the same two-arm captures as `ratios`.
     f["refused"] = sum(1 for j in ev.values() if j.get("verdict") == "REFUSED_CV")
+    # The oracle's sha256 as docs/PIN.toml pins it, so a document's copy can be compared with it.
+    pin = read_opt("docs/PIN.toml") or ""
+    m = re.search(r"oracle/toon sha256 ([0-9a-f]{64})", pin) or re.search(
+        r"(?m)^\s*sha256\s*=\s*\"([0-9a-f]{64})\"", pin)
+    f["oracle_sha"] = m.group(1) if m else None
     f["ratios"] = {round(j["ratio"], d) for j in ev.values() if j.get("ratio") for d in (2, 3, 4)}
     f["medians"] = {round(j[side]["median_ms"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1, 2)}
     f["cvs"] = {round(j[side]["cv_pct"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1)}
@@ -143,6 +157,96 @@ def gate_lines():
         except (OSError, ValueError, subprocess.SubprocessError):
             out[key] = {}
     return out
+
+
+JSON_OBJ = re.compile(r'\{"[^\n]*?\}(?=[^"]*$|`| |,|\.|$)')
+
+
+def pasted_objects(line):
+    """Every one-line JSON object pasted in a document line, longest match first."""
+    out = []
+    for m in re.finditer(r'\{"', line):
+        for end in range(len(line), m.start(), -1):
+            if line[end - 1] != "}":
+                continue
+            try:
+                obj = json.loads(line[m.start():end])
+            except ValueError:
+                continue
+            if isinstance(obj, dict):
+                out.append(obj)
+            break
+    return out
+
+
+def inconsistent(o):
+    """Is a pasted gate line self-contradictory? Returns a reason or None.
+
+    Round 14 (R14-2) flipped eleven pasted gate lines -- the js lane to "FAIL" with failed 0, the
+    floor to "UNSTABLE" with unstable [], the self-test to "caught": 2 against "mutations": 12, the
+    mutant tally to "killed": 3 of 25 -- and every one passed, because nothing compared a verdict
+    with the numbers beside it. A gate's own output is internally consistent by construction, so a
+    pasted line that is NOT is either falsified or mis-transcribed. This needs no gate re-run.
+    """
+    v = o.get("verdict")
+    if "lanes" in o and isinstance(o["lanes"], list) and o["lanes"]:
+        for lane in o["lanes"]:
+            if not isinstance(lane, dict) or "failed" not in lane:
+                continue
+            ok = lane.get("failed") == 0 and lane.get("passed", 0) > 0
+            if ok != (lane.get("verdict") == "PASS"):
+                return 'lane %s says verdict %r with passed %r failed %r' % (
+                    lane.get("lane"), lane.get("verdict"), lane.get("passed"), lane.get("failed"))
+        allpass = all(l.get("verdict") == "PASS" for l in o["lanes"] if isinstance(l, dict))
+        if v is not None and allpass != (v == "PASS"):
+            return 'verdict %r with %d lanes that are %s' % (
+                v, len(o["lanes"]), "all PASS" if allpass else "not all PASS")
+    if "stable" in o and "unstable" in o:
+        clean = not o.get("unstable") and not o.get("inconclusive")
+        if v is not None and clean != (v == "STABLE"):
+            return 'verdict %r with unstable %r and inconclusive %r' % (
+                v, o.get("unstable"), o.get("inconclusive"))
+    if "mutants" in o and "killed" in o:
+        clean = o["killed"] == o["mutants"] and not o.get("survived") and not o.get("not_evidence")
+        if v is not None and clean != (v == "STRONG"):
+            return 'verdict %r with killed %r of %r, survived %r' % (
+                v, o["killed"], o["mutants"], o.get("survived"))
+    if "mutations" in o and "caught" in o:
+        clean = o["caught"] == o["mutations"] and not o.get("leaked") and not o.get("untestable")
+        if v is not None and clean != (v == "OK"):
+            return 'verdict %r with caught %r of %r, leaked %r, untestable %r' % (
+                v, o["caught"], o["mutations"], o.get("leaked"), o.get("untestable"))
+    if "native" in o and "js" in o and isinstance(o.get("conform_c1t"), dict):
+        clean = (o["native"] == "built" and o["js"] == "built"
+                 and o["conform_c1t"].get("failed") == 0 and o["conform_c1t"].get("passed", 0) > 0)
+        if v is not None and clean != (v == "PASS"):
+            return 'verdict %r with native %r js %r conform %r' % (
+                v, o["native"], o["js"], o["conform_c1t"])
+    if "proofs" in o and "laws" in o and "unproved" in o:
+        clean = (o["laws"] == o["proofs"] and not o.get("unproved") and not o.get("ghost_proofs")
+                 and not o.get("ghost_cited") and not o.get("uncited")
+                 and not o.get("duplicate_laws") and not o.get("duplicate_proofs"))
+        if v is not None and clean != (v == "OK"):
+            return 'verdict %r with laws %r proofs %r unproved %r' % (
+                v, o["laws"], o["proofs"], o.get("unproved"))
+    if "proof" in o and "lanes" in o and "floor" in o and "switch" in o:
+        clean = (o["proof"] == "All terms check." and o["lanes"] == "PASS"
+                 and o["floor"] == "STABLE" and o["switch"] == "PASS")
+        if v is not None and clean != (v == "GREEN"):
+            return 'doctor verdict %r with proof %r lanes %r floor %r switch %r' % (
+                v, o["proof"], o["lanes"], o["floor"], o["switch"])
+    # port-lint's contract is "0 clean (or only infos)": its verdict is OK when no ERROR and no
+    # WARNING is reported, however many infos there are (41 of them here, all PL-02). Keyed on
+    # "errors" so it is not confused with claims-audit's own shape below, whose verdict turns on
+    # `findings` alone -- the first draft of this rule read port-lint's 41 infos as a contradiction.
+    if "errors" in o and "warnings" in o and "infos" in o:
+        clean = o["errors"] == 0 and o["warnings"] == 0
+        if v is not None and clean != (v == "OK"):
+            return 'port-lint verdict %r with errors %r warnings %r' % (v, o["errors"], o["warnings"])
+    elif "findings" in o and "verdict" in o and ("absent" in o or "disc" in o):
+        if (o["findings"] == 0) != (v == "OK"):
+            return 'verdict %r with findings %r' % (v, o["findings"])
+    return None
 
 
 def audit(files, f, gates, verbose):
@@ -186,6 +290,51 @@ def audit(files, f, gates, verbose):
             continue
         for n, line in enumerate(text.splitlines(), 1):
             historical = bool(HISTORY.search(line))
+            # A pasted gate line is internally consistent by construction, so one that contradicts
+            # itself is falsified or mis-transcribed. Checked even on a historical line: a gate's
+            # output was self-consistent on the day it ran too.
+            if path not in ARCHIVE:
+                for obj in pasted_objects(line):
+                    why = inconsistent(obj)
+                    if why:
+                        hit(path, n, "a pasted gate line contradicts itself: %s" % why, line)
+                    # converge.sh is RUN by gate_lines(), so a pasted converge line is compared
+                    # field by field with what it says TODAY. Only `rounds` was compared before,
+                    # so round 14 (R14-2) flipped a pasted "NOT_CONVERGED" to "CONVERGED" with
+                    # "missing": [] and the gate stayed green -- the single worst hole it found,
+                    # because that verdict is the one thing standing between HOLD and SHIP.
+                    live = gates.get("converge") or {}
+                    if live and "tier" in obj and "clean_tail" in obj and "verdict" in obj:
+                        for k, want in live.items():
+                            if k not in obj or isinstance(want, (list, dict)):
+                                continue
+                            if obj[k] != want:
+                                hit(path, n, "a pasted converge line says %s=%r; converge.sh says "
+                                             "%r today" % (k, obj[k], want), line)
+                # "unsafe 0 = 0 @unsafe + 0 template instances" must add up AND match the live
+                # law-coverage number. Round 14 rewrote a proof row to "unsafe 7 = 7 @unsafe" and
+                # nothing objected; the unsafe count is stated beside every parity claim, so it is
+                # exactly the number a reader trusts without re-running the proof.
+                live_unsafe = (gates.get("law_coverage") or {}).get("unsafe")
+                for m in re.finditer(r"unsafe (\d+) = (\d+) `?@unsafe`? \+ (\d+) template instances", line):
+                    tot, expl, inst = (int(x) for x in m.groups())
+                    if tot != expl + inst:
+                        hit(path, n, "unsafe %d does not equal %d @unsafe + %d template instances"
+                            % (tot, expl, inst), line)
+                    elif live_unsafe is not None and tot != live_unsafe and not historical:
+                        hit(path, n, "says unsafe %d; law-coverage.sh says %d today"
+                            % (tot, live_unsafe), line)
+                # The oracle's sha256 is the one number docs/PIN.toml exists to pin, and nothing
+                # compared a document's copy of it with PIN.toml's (R14-2). Deliberately NOT gated
+                # on `historical`: the first version was, and a single aside ("this file said so")
+                # on a line otherwise full of CURRENT facts exempted the sha with it. An exemption
+                # covers a whole line, so a check that matters must not depend on one.
+                if f.get("oracle_sha"):
+                    for m in re.finditer(r"\b([0-9a-f]{64})\b", line):
+                        near = line[max(0, m.start() - 90):m.start()].lower()
+                        if "oracle" in near and m.group(1) != f["oracle_sha"]:
+                            hit(path, n, "names an oracle sha256 %s…; docs/PIN.toml pins %s…"
+                                % (m.group(1)[:12], f["oracle_sha"][:12]), line)
             # `hand-mutants.py M24 M25 M26` runs a SELECTION and reports that many mutants: a line that names
             # the ids it ran is not a stale full-set line. It must still name ids that exist (REFERENCES).
             selective = bool(re.search(r"\bM\d\d\b[^\n]*\bM\d\d\b", line))
@@ -289,7 +438,12 @@ def audit(files, f, gates, verbose):
         else:
             # A report bolds its HIGH and MEDIUM rows (`| **R12-1** |`): count those too, or a round
             # with two MEDIUM findings reads as two findings short (round 12, found by this gate).
-            rows = len(re.findall(r"(?m)^\| \*{0,2}R\d+-", read("docs/reviews/" + path)))
+            # A row a report explicitly marks as NOT a finding is not counted. Round 14 recorded
+            # R14-16 as "(not a finding: confirmation)" -- a DISC it re-verified as accurately
+            # registered, filed under an id so the next round does not re-raise it. Counting it
+            # would force the rounds table to overstate the round by one.
+            rows = len([m for m in re.finditer(r"(?m)^\| \*{0,2}R\d+-[^\n]*", read("docs/reviews/" + path))
+                        if not re.search(r"not a finding|confirmation only", m.group(0), re.I)])
             if rows and rows != f["round_findings"][r]:
                 findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
                                  "finding": "round %d: the table says %d findings, docs/reviews/%s lists %d"

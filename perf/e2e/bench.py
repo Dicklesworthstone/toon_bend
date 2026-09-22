@@ -435,12 +435,17 @@ def write_report(out):
     L.append('- timed runs write stdout to /dev/null; the untimed first run of each cell compared stdout, '
              'stderr and exit code of every arm with the reference byte for byte\n')
 
+    def errpath(c):
+        return c['arms'].get(ref, {}).get('exit', 0) != 0
+
     L.append('## Summary\n')
+    L.append('A cell whose reference exits non-zero times an ERROR PATH (the same failure on every arm, byte for byte); '
+             'it is listed in its table but left out of these geometric means.\n')
     L.append('| scenario | cells | outputs identical | ' + ' | '.join(f'geomean {o}/{ref}' for o in others)
              + ' | ' + ' | '.join(f'range {o}/{ref}' for o in others) + ' |')
     L.append('|---|---|---|' + '---|' * (2 * len(others)))
     for scen in dict.fromkeys(c['scenario'] for c in cells):
-        cs = [c for c in cells if c['scenario'] == scen and c['status'] != 'TIMEOUT']
+        cs = [c for c in cells if c['scenario'] == scen and c['status'] != 'TIMEOUT' and not errpath(c)]
         same = sum(1 for c in cs if c['output'] == 'SAME')
         g, r = [], []
         for o in others:
@@ -472,7 +477,8 @@ def write_report(out):
             row += [f"{c['arms'][a]['mb_per_s']:.2f}" if 'mb_per_s' in c['arms'][a] else '-' for a in arms]
             row += [f"{c['arms'][a]['peak_rss_mb']:.0f} MB" if c['arms'][a].get('peak_rss_mb') else '-' for a in arms]
             row += ['/'.join(f"{c['arms'][a]['cv_pct']:.1f}" for a in arms), str(c['arms'][ref]['n']),
-                    c['status'] + ('' if c['output'] == 'SAME' else f" ({c['output']})")]
+                    c['status'] + ('' if c['output'] == 'SAME' else f" ({c['output']})")
+                    + (f" ERROR PATH (exit {c['arms'][ref]['exit']})" if errpath(c) else '')]
             L.append('| ' + ' | '.join(row) + ' |')
         L.append('')
     (out / 'report.md').write_text('\n'.join(L) + '\n')

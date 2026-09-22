@@ -16,3 +16,5 @@ port/toon
 .ruff_cache/
 oracle/
 /-
+# the real-world benchmark documents and their TOON twins (python3 perf/e2e/bench.py fetch / prepare)
+/perf/e2e/corpus/

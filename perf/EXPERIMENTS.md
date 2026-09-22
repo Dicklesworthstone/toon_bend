@@ -272,6 +272,14 @@ Two things about EXP-006 are nonetheless stronger than EXP-005 was, and the prof
 STRUCTURAL reduction (one estimate replaces up to nine compare-and-subtract rounds per digit, so the work removed is not merely the same
 work in fewer calls), and the defs it touches run per DIGIT of every number rather than once per power of ten.
 
+**Precondition MET, 2026-09-22** (`perf/evidence/EXP-006.wall-profile.txt`: `perf record -g`, 2552 samples, the emitted C rebuilt with frame
+pointers). Inclusive wall shares on this input: `BN.cmp` **51.6%**, `BN.sub` 10.0%, `F.dg.digit` 3.8% + 2.5% self, `BN.add` 3.8%. The digit
+step owns about 68% of the wall, so the 30% gate is reachable by construction and the card may proceed. The profile adds one fact the call
+census could not show: almost all of `BN.cmp`'s time is BendRT memory management UNDER it (`span_fade` 34.6% self, which takes a SHARED `+`
+value apart with atomic refcount bumps, and `term_drop` 37.0% self), not comparison work. A comparison that consumes shared copies of both
+operands is therefore a competing lever (a cmp that does not take its arguments apart through the refcount path); per the one-lever rule it
+gets its own card, and whichever runs first must re-profile for the other.
+
 ### Lever (one)
 A fast twin of the digit step behind `F.twin.on`. Laws: the shortest-digit generator does not normalize in the checker (ARCH §11 A7), so
 the twin is bound by closed laws on the DIGIT STEP alone (R, S pairs at the estimate's two failure boundaries) and by

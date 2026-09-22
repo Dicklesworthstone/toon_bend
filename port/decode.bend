@@ -756,13 +756,21 @@ def hdr.a.quoted(q: QS) -> Hdr:
     case QS{True{}, inner, +after}:
       hdr.a.after(T.head_is(after, 91), inner, after)
 
-# S2.130 without a leading quote the bracket is the first '[' anywhere in the content
+# S2.130 an unquoted key has no ':', so a first '[' with a ':' before it belongs to the value
+def hdr.a.key(colon: Bool, before: String, after: String) -> Hdr:
+  match colon:
+    case True{}:
+      HNot{}
+    case False{}:
+      hdr.b(T.cut(after, 93), False{}, before)
+
+# S2.130 without a leading quote the bracket is the first '[' of the content, when no ':' precedes it
 def hdr.a.plain(c: T.Cut) -> Hdr:
   match c:
     case T.Cut{False{}, before, after}:
       HNot{}
-    case T.Cut{True{}, before, after}:
-      hdr.b(T.cut(after, 93), False{}, before)
+    case T.Cut{True{}, +before, after}:
+      hdr.a.key(T.has_char(before, 58), before, after)
 
 # S2.130 quoted or not
 def hdr.a.first(q: Bool, rest: String, content: String) -> Hdr:

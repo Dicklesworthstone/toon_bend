@@ -736,7 +736,7 @@ law golden_toonerr_object_empty_nested:
 
 # S5.112 goldens/toonerr_value_is_header_like
 law golden_toonerr_value_is_header_like:
-  {C.run_pure(["--decode"], T.ascii_bytes("a: [2]: x\n", Nil{})) == C.Out{1n, "", "Expected 2 inline array items, but got 1"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("a: [2]: x\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"[2]: x\"\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonerr_hyphen_value
 law golden_toonerr_hyphen_value:
@@ -988,15 +988,15 @@ law golden_toonedge_crlf_bare_dash:
 
 # S5.112 goldens/toonedge_header_key_with_colon
 law golden_toonedge_header_key_with_colon:
-  {C.run_pure(["--decode"], T.ascii_bytes("a: [1]: x\n", Nil{})) == C.Out{0n, "{\n  \"a:\": [\n    \"x\"\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("a: [1]: x\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"[1]: x\"\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonedge_header_in_quoted_value
 law golden_toonedge_header_in_quoted_value:
-  {C.run_pure(["--decode"], T.ascii_bytes("a: \"x[1]: y\"\n", Nil{})) == C.Out{0n, "{\n  \"a: \\\"x\": [\n    \"y\\\"\"\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("a: \"x[1]: y\"\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"x[1]: y\"\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonerr_cap_in_quoted_value
 law golden_toonerr_cap_in_quoted_value:
-  {C.run_pure(["--decode"], T.ascii_bytes("note: \"see [999999999999]: x\"\n", Nil{})) == C.Out{1n, "", "Declared array length 999999999999 exceeds maximum allowed (100000000)"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("note: \"see [999999999999]: x\"\n", Nil{})) == C.Out{0n, "{\n  \"note\": \"see [999999999999]: x\"\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonerr_length_u64_max_list
 law golden_toonerr_length_u64_max_list:

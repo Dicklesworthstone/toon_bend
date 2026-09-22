@@ -630,9 +630,9 @@ toonedge_crlf_bare_dash	["--decode"]	cases/inputs/hand/toonedge_crlf_bare_dash.t
 toonedge_bom_root_array	["--decode"]	cases/inputs/hand/toonedge_bom_root_array.toon	toon-edge	S2.114: BOM defeats the root-array test -> object with key U+FEFF
 toonerr_tab_delim_empty_first_cell	["--decode"]	cases/inputs/hand/toonerr_tab_delim_empty_first_cell.toon	toon-error	S10.94: leading tab cell hits the strict tab check
 toonedge_header_ignored_text	["--decode"]	cases/inputs/hand/toonedge_header_ignored_text.toon	toon-edge	S2.133: text between ] and { or : is ignored
-toonedge_header_key_with_colon	["--decode"]	cases/inputs/hand/toonedge_header_key_with_colon.toon	toon-edge	S2.134: key is everything before '[' -> {"a:":["x"]}
-toonedge_header_in_quoted_value	["--decode"]	cases/inputs/hand/toonedge_header_in_quoted_value.toon	toon-edge	S10.83: bracket inside a quoted value is taken as a header
-toonerr_cap_in_quoted_value	["--decode"]	cases/inputs/hand/toonerr_cap_in_quoted_value.toon	toon-error	S10.84: the cap fires inside a quoted value
+toonedge_header_key_with_colon	["--decode"]	cases/inputs/hand/toonedge_header_key_with_colon.toon	toon-edge	S2.130: a '[' after the key colon is value text -> {"a":"[1]: x"} (until 7c1d6e4 the key was {"a:":["x"]}, S10.89)
+toonedge_header_in_quoted_value	["--decode"]	cases/inputs/hand/toonedge_header_in_quoted_value.toon	toon-edge	S10.83 (fixed in 7c1d6e4): a bracket inside a quoted value is value text -> {"a":"x[1]: y"}
+toonerr_cap_in_quoted_value	["--decode"]	cases/inputs/hand/toonerr_cap_in_quoted_value.toon	toon-error	S10.84 (fixed in 7c1d6e4): the cap no longer fires inside a quoted value -> the string
 toonedge_length_plus_and_zero	["--decode"]	cases/inputs/hand/toonedge_length_plus_and_zero.toon	toon-edge	S2.135: '+2' and '02' are lengths, ' 2' is not
 toonedge_length_u64_overflow	["--decode"]	cases/inputs/hand/toonedge_length_u64_overflow.toon	toon-edge	S2.135: 2^64 does not parse -> plain key
 toonerr_length_u64_max_list	["--decode"]	cases/inputs/hand/toonerr_length_u64_max_list.toon	toon-error	S2.136: 2^64-1 parses -> cap message with the full number (list-header variant of toonerr_length_u64_max)
@@ -696,11 +696,11 @@ io_output_dev_full_lines_8193	["-e", "-o", "/dev/full"]	cases/inputs/hand/io_out
 enc_tabular_field_name_close_brace	["--encode"]	cases/inputs/hand/enc_tabular_field_name_close_brace.json	enc-string	S4.26: the field name is quoted, the brace stays raw inside the quotes
 toonerr_field_name_close_brace	["--decode"]	cases/inputs/hand/toonerr_field_name_close_brace.toon	toon-error	S2.132/S10.200: the encoder's own output; the fields segment is cut at the brace inside the quotes -> Unterminated string
 toonedge_field_name_open_brace_ok	["--decode"]	cases/inputs/hand/toonedge_field_name_open_brace_ok.toon	toon-edge	S2.132: an opening brace inside a quoted field name is harmless
-enc_value_looks_like_header	["--encode"]	cases/inputs/hand/enc_value_looks_like_header.json	enc-string	S4.12/S4.14: such values are quoted and nothing else; lines a, b and the item line f are the ones S10.83 breaks on the way back
+enc_value_looks_like_header	["--encode"]	cases/inputs/hand/enc_value_looks_like_header.json	enc-string	S4.12/S4.14: such values are quoted and nothing else; lines a, b and the item line f were the ones S10.83 broke on the way back before 7c1d6e4
 toonedge_header_in_value_first_bracket_only	["--decode"]	cases/inputs/hand/toonedge_header_in_value_first_bracket_only.toon	toon-edge	S2.130-S2.135/S10.83: only the FIRST [ of the line is tried, it needs a length inside and a colon after; all four values survive
-toonerr_header_in_value_unterminated	["--decode"]	cases/inputs/hand/toonerr_header_in_value_unterminated.toon	toon-error	S10.83: the inline text is the value's closing quote -> Unterminated string
-toonerr_header_in_value_count	["--decode"]	cases/inputs/hand/toonerr_header_in_value_count.toon	toon-error	S10.83: -> Expected 2 inline array items, but got 1
-toonedge_header_in_value_list_item_field	["--decode"]	cases/inputs/hand/toonedge_header_in_value_list_item_field.toon	toon-edge	S10.83: the first field of a list-item object is a key-value line too
+toonerr_header_in_value_unterminated	["--decode"]	cases/inputs/hand/toonerr_header_in_value_unterminated.toon	toon-error	S10.83 (fixed in 7c1d6e4): was Unterminated string; now the string [1]:
+toonerr_header_in_value_count	["--decode"]	cases/inputs/hand/toonerr_header_in_value_count.toon	toon-error	S10.83 (fixed in 7c1d6e4): was Expected 2 inline array items, but got 1; now the string
+toonedge_header_in_value_list_item_field	["--decode"]	cases/inputs/hand/toonedge_header_in_value_list_item_field.toon	toon-edge	S10.83 (fixed in 7c1d6e4): the first field of a list-item object keeps its string value
 toonedge_crlf_all_constructs	["--decode"]	cases/inputs/hand/toonedge_crlf_all_constructs.toon	toon-edge	S2.113: nested object, quoted key, table rows, list items of every shape and an empty array decode like the LF twin
 toonerr_crlf_blank_line_in_list	["--decode"]	cases/inputs/hand/toonerr_crlf_blank_line_in_list.toon	toon-error	S2.105/S2.113: a line holding only CR is blank -> Line 3: Blank lines inside list array are not allowed in strict mode
 encnum_long_text_in_rows_tab	["--encode", "--delimiter", "\t"]	cases/inputs/hand/encnum_long_text_in_rows_tab.json	enc-number	S4.130: 301- to 326-character number texts inside tab-delimited rows, never quoted

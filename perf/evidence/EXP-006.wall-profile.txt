@@ -1,0 +1,32 @@
+# EXP-006 precondition: WALL-time profile of --encode perf/inputs/doubles_20000.json, 1 thread (2026-09-22)
+# perf record -F 1999 -g (2552 samples) on the port's emitted C (toon_bend 866aa8a + the C-10 fix; same code in port/f64.bend and port/bignat.bend)
+# rebuilt with clang -std=c11 -O3 -g -fno-omit-frame-pointer (bend's own flags plus frame pointers); perf report --children -g none
+# columns: inclusive %, self %, symbol. WL_FID_<DEF> is a port def; term_drop/span_fade/rfc_wrap are BendRT memory management
+    99.95%     0.00%  [.] __libc_start_main
+    99.95%     0.00%  [.] _start
+    99.95%     0.00%  [.] io_loop
+    99.95%     0.00%  [.] main
+    99.95%     0.00%  [.] 0x000078d82a42a601
+    99.33%     0.00%  [.] io_step
+    99.09%     0.00%  [.] term_loc (inlined)
+    99.09%     0.00%  [.] term_peek (inlined)
+    97.31%     0.00%  [.] corpus_eval
+    68.29%    34.59%  [.] span_fade
+    51.59%     0.62%  [.] WL_FID_BIGNAT_CMP
+    51.29%     0.00%  [.] ctr_take (inlined)
+    37.42%    36.99%  [.] term_drop
+    33.07%     0.00%  [.] rfc_bump (inlined)
+    10.02%     0.44%  [.] WL_FID_BIGNAT_SUB
+     9.90%     0.00%  [.] ctr_take (inlined)
+     5.06%     3.37%  [.] spin_140
+     4.17%     3.86%  [.] rfc_wrap
+     3.81%     3.18%  [.] WL_FID_F64_DG_DIGIT
+     3.80%     0.23%  [.] WL_FID_BIGNAT_ADD
+     3.37%     0.00%  [.] term_keep (inlined)
+     3.14%     0.00%  [.] rfc_bump (inlined)
+     2.52%     2.52%  [.] WL_FID_F64_DG_DIGIT_K207
+     2.52%     0.00%  [.] term_keep (inlined)
+     2.41%     0.00%  [.] rfc_bump (inlined)
+     2.16%     0.00%  [.] rfc_seal (inlined)
+     2.14%     0.56%  [.] WL_FID_BIGNAT_SUB_K236
+     2.06%     0.75%  [.] WL_FID_BIGNAT_MUL_SMALL_K799

@@ -190,6 +190,8 @@ to change the contract. Keep the historical entry and its original evidence.
 
 **Ruling, 2026-09-20.** The repository owner delegated it to the author ("You decide on everything. I approve whatever you want to do."). The author's ruling: EVERY candidate stays bug-compatible. A port that fixes one of them is a different program for anyone who pipes both, none of them loses data silently without the original doing the same, and each has its clause in S10 and its cases, so a later owner can turn any of them into a `BugFix` DISC with a kill-switch without reading code. C-6 had already left this list (it is DISC-010).
 
+**Owner's order, 2026-09-22** (verbatim): "you must fix ANY bug found in either toon_rust or toon_bend immediately". It overrides the ruling above for the bug it was given about: C-10, found again by the end-to-end benchmark on a real document (`perf/e2e/`), is fixed UPSTREAM in `toon_rust` `7c1d6e4` and the port is re-pinned to that commit (PLAN §2), so the port stays bug-compatible with its original and no DISC is needed. The other ten candidates are unchanged and await the owner's word on whether the order reaches them.
+
 These are behaviors of the pinned original that look unintended. The port reproduces all of them and the goldens pin them. Turning any into a fix is a `BugFix` DISC with the owner's approval, a kill-switch and a re-capture; none has been taken.
 
 | # | observed (golden) | note |
@@ -203,7 +205,7 @@ These are behaviors of the pinned original that look unintended. The port reprod
 | C-7 | without `--stats`, a failing write to the `-o` file is silently lost when the output is at most 8192 bytes: success line, exit 0 (`io_output_dev_full_8192` vs `io_output_dev_full_8193`) | the original's buffered writer drops the flush error; reproduced (OQ-A6) |
 | C-8 | "safe" key folding can emit two equal keys in one list-item object: `[{"c.d":7,"c":{"d":1}}]` encodes as `- c.d: 7` then `c.d: 1` (`enc_fold_list_item_dup_key`) | S10.61: the sibling check for the remaining fields does not see the first field |
 | C-9 | a line indented deeper than any open block silently ends the root object and everything after it is dropped, exit 0: `a:`, `  b: 1`, `    c: 2`, `  d: 3`, `e: 4` decodes to `{"a":{"b":1.0}}` | S10 rows of part E; strict mode does not catch it |
-| C-10 | the header parser finds `[` inside a quoted value, so the original's own output `a: "x[1]: y"` decodes to `{"a: \"x":["y\""]}` | S10.84; breaks the round trip for such strings |
+| C-10 | RESOLVED 2026-09-22, fixed UPSTREAM: the header parser found `[` inside a quoted value, so the original's own output `a: "x[1]: y"` decoded to `{"a: \"x":["y\""]}` and a real document (the Semantic Scholar corpus of `perf/e2e/`) could not be decoded after its own encode. The owner ordered every bug found fixed in both repositories: `toon_rust` `7c1d6e4` fixes the parser, the port is re-pinned to it (PLAN §2) and fixed the same way (S2.130); 7 goldens re-captured, no other changed | S10.83, S10.84, S10.89 |
 | C-11 | `1.7976931348623158e308` is rejected as `number out of range` although it rounds to the largest finite value; the encoder's own TOON text for that value is rejected when fed back as JSON | S10.41 |
 
 <!-- template for the next entry -->

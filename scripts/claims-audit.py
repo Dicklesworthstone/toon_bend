@@ -13,12 +13,26 @@ the ratios of `perf/evidence/*.json`. Then, in every claim-bearing document, it 
   COUNTS         a sentence that states one of those numbers must state the current one
   REFERENCES     every DISC-, NE-, EXP-, OQ-, bead, law, case, clause, review report and repository path
                  that a document names must exist, the parity board's goldens and laws columns included
-  PASTED LINES   a pasted JSON line of a gate (stdio-probe, converge, lanes, law-coverage, parity-board)
-                 must agree with what that gate says today
+  PASTED LINES   a pasted gate line must be internally consistent (lanes, floor, mutants, self-test,
+                 clean-build, law-coverage, port-doctor, port-lint, diff-fuzz, stdio-probe), and where the
+                 gate runs in a second (converge, law-coverage, parity-board) it must agree with what that
+                 gate says TODAY, field by field; verdicts written in prose are held to the same
+  SUMMARIES      every prose summary of the rounds table, and every range inside the non-author series,
+                 must reach the latest round
 
-A line that records HISTORY (a commit `abc1234` in backticks, or the words "historical", "used to", "when
-written", "earlier", "before") is exempt from the count checks and says so in the summary: history is not a
-stale claim. Referring to something that does not exist is never exempt.
+HISTORY is judged on the CLAUSE around a number, never on its whole line: a count is exempt only when a
+phrase that says it is historical ("at that commit", "earlier", "superseded", "until 2026-…", …) stands in
+the same clause. It used to be line-wide, and a line quoting any commit hash was exempt entirely; appending
+one word to a false line then silenced every count on it (rounds 14 and 15). Referring to something that
+does not exist is never exempt, and neither is the oracle's sha256.
+
+WHAT THIS CANNOT CHECK: a pasted result of a gate too expensive to re-run here (the lanes, the proof,
+clean-build-check) is checked for internal consistency only. A line that is consistent but was never
+produced -- `clean-build-check` reported as PASS at a commit it never ran on -- passes; only re-running
+that gate at that commit refutes it (round 15's L15). Nor is a pass count spelled "N/N" ("PASS 1065/1065")
+compared with the corpus: a check for it was built and MEASURED before adoption, and 4 of its 7 flags were
+correct historical records at a past corpus size (NE-001..003's "PASS 1053/1053", an OQ run "at `1230a0d`")
+that no clause-level marker distinguishes from a stale current claim. Such counts are kept current by hand.
 
 usage: python3 scripts/claims-audit.py [--files F...] [--verbose]
 exit: 0 no finding, 1 findings, 2 usage. Last stdout line: JSON.
@@ -440,6 +454,9 @@ def audit(files, f, gates, verbose):
         # between the digits and the noun and silently stop the row from ever matching.
         ("REFUSED_CV captures", r"\b(\d+)\*{0,2} files? in `perf/evidence/` carry\b", f["refused"]),
         ("self-test mutations in a pasted line", r'"mutations":\s*(\d+)', f["selftest_mutations"]),
+        # a bare "N unsafe" (round 15's L17 appended "of 7 unsafe" and nothing objected); measured before
+        # adoption: its only occurrence in the documents was a true "0 unsafe"
+        ("unsafe count", r"\b(\d+) unsafe\b", (gates.get("law_coverage") or {}).get("unsafe")),
         ("probe rows", r"\b(\d+) descriptor-state rows\b", f["probe_rows"]),
         ("probe rows in a pasted line", r'"rows":\s*(\d+),\s*"same"', f["probe_rows"]),
         ("rounds in a pasted converge line", r'"rounds":\s*(\d+)', gates.get("converge", {}).get("rounds")),
@@ -679,6 +696,22 @@ def audit(files, f, gates, verbose):
                 findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
                                  "finding": "round %d: the table says %d findings, docs/reviews/%s lists %d"
                                             % (r, f["round_findings"][r], path, rows)})
+            # A round whose own report calls itself non-author must be LABELLED non-author in the table:
+            # converge.sh needs a non-author round for T2, so relabelling one either way changes what the
+            # tier computes (round 15's L16 relabelled round 14 as an author round and nothing objected).
+            head = read("docs/reviews/" + path).split("\n", 3)[:3]
+            says_na = any(re.search(r"\bnon-author\b", h, re.I) for h in head)
+            m = re.search(r"(?m)^\| %d \| (.*?) \| \d+ \| \d+ \| (?:yes|no) \|" % r, read("docs/PORT_STATE.md"))
+            # BOTH ends of the lens must say so. The first version checked only the terminal marker, and
+            # round 15's L16 rewrote the lens to begin "author:" while leaving "(non-author)" at its end --
+            # a row that contradicts itself, which that version passed. In this table rounds 1-5 begin
+            # "author:" with no marker and every non-author round begins "non-author" and ends with one.
+            lens = m.group(1) if m else ""
+            if says_na and m and not (lens.lstrip().lower().startswith("non-author")
+                                      and lens.rstrip().endswith("(non-author)")):
+                findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
+                                 "finding": "round %d: docs/reviews/%s calls itself non-author, but its table row "
+                                            "does not both begin 'non-author' and end '(non-author)'" % (r, path)})
     if verbose:
         for k in sorted(f):
             if k not in ("law_names", "case_names", "clause_ids", "beads", "disc_ids", "ne_ids", "exp_ids", "oq_ids"):

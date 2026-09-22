@@ -13,7 +13,7 @@ rows, folding, expansion and repeated keys (about a third of the laws, about 3 m
 usage: python3 scripts/hand-mutants.py [--all-laws] [M01 M05 ...]
 exit: 0 every mutant KILLED, 1 otherwise. Last stdout line: JSON summary. Temp copies are kept (path printed).
 
-The set holds 25 mutants and the ids run M01..M12 and M14..M26: `M13` is a numbering slip that was never
+The set holds 34 mutants and the ids run M01..M12 and M14..M35: `M13` is a numbering slip that was never
 defined (`git log -S M13 -- scripts/hand-mutants.py` is empty), NOT a mutant that was removed for being
 INVALID. Count the set with `len(MUTANTS)`, never by reading the highest id.
 """
@@ -64,6 +64,10 @@ MUTANTS = [
  # 381-law proof; the `:` and LF arms of `bad_char` were already killed by golden laws.
  ("M32", "text.bend", "U32.is_eq(c, 12288)", "U32.is_eq(c, 12289)", "U+3000 IDEOGRAPHIC SPACE stops being White_Space"),
  ("M33", "text.bend", "U32.is_eq(c, 160)", "U32.is_eq(c, 161)", "U+00A0 NO-BREAK SPACE stops being White_Space"),
+ # Round 15 (R15-10): two laws this file's own notes called "proved but not SHOWN to bite" each turned out
+ # to be the ONLY law that kills one of the reviewer's mutants. These make that bite permanent.
+ ("M34", "f64.bend", "    case Pos{p}:\n      Nat.is_le(p, 16n)", "    case Pos{p}:\n      Nat.is_le(p, 17n)", "the JSON writers stay plain at k = 17 (only json_exponent_at_k17 catches it)"),
+ ("M35", "text.bend", "Bool.or(Bool.and(U32.is_ge(c, 9), U32.is_le(c, 13)), Bool.or(U32.is_eq(c, 32)", "Bool.or(Bool.and(U32.is_ge(c, 9), U32.is_le(c, 14)), Bool.or(U32.is_eq(c, 32)", "White_Space gains U+000E (only is_ws_documented_non_members catches it)"),
 ]
 
 def reduced(laws_text, proof_text):

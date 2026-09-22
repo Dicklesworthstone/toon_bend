@@ -194,6 +194,15 @@ enc("encnum_mixed_digits", numobj(["7e22", "7e23", "3e25", "9e28", "5e-23", "7e-
 
 # ---------------------------------------------------------------- strings, JSON -> TOON
 enc("encstr_quoting", json.dumps({"empty": "", "lead": " a", "trail": "a ", "both": " a ", "t": "true", "f": "false", "n": "null", "num": "123", "exp": "1e5", "neg": "-5", "dash": "-", "dashword": "-a", "lz": "007", "colon": "a:b", "comma": "a,b", "pipe": "a|b", "tab": "a\tb", "quote": 'say "hi"', "bs": "a\\b", "nl": "a\nb", "cr": "a\rb", "brk": "[x]", "brc": "{x}", "hash": "#x", "plain": "hello world", "T": "True", "N": "NULL", "dotnum": ".5", "plusnum": "+5", "hex": "0x10"}) + "\n")
+# S4.12-S4.16 one forcing character ALONE. In encstr_quoting above, "[x]" and "{x}" each hold two forcing
+# characters, so '[' masks ']' and '{' masks '}': a port that stopped quoting on ']', '{' or '}' passed every
+# case (round 15, R15-2). Each value below has exactly one forcing character.
+enc("encstr_only_close_bracket_forces_quotes", json.dumps({"a": "x]y"}) + "\n")
+enc("encstr_only_open_brace_forces_quotes", json.dumps({"a": "x{y"}) + "\n")
+enc("encstr_only_close_brace_forces_quotes", json.dumps({"a": "x}y"}) + "\n")
+# S4.8 U+1234 is NOT White_Space, so a value that starts with it is written bare. The whole-table law pins the
+# 25 members and samples 27 non-members; a port that added a point it does not sample passed every gate (R15-2).
+enc("encstr_non_whitespace_u1234_bare", json.dumps({"a": "ሴx"}, ensure_ascii=False) + "\n")
 enc("encstr_quoting_pipe", json.dumps({"comma": "a,b", "pipe": "a|b", "tab": "a\tb", "arr": ["a,b", "c|d", "e"]}) + "\n", ["--delimiter", "|"])
 enc("encstr_quoting_tab", json.dumps({"comma": "a,b", "pipe": "a|b", "tab": "a\tb", "arr": ["a,b", "c|d", "e"]}) + "\n", ["--delimiter", "\t"])
 enc("encstr_unicode", json.dumps({"cafe": "café", "emoji": "😀", "jp": "日本語", "rtl": "مرحبا", "zwj": "a\u200db", "comb": "e\u0301", "nbsp_lead": "\u00a0x", "emsp_trail": "x\u2003", "ls": "a\u2028b", "bom": "\ufeffx", "nel": "\u0085x"}, ensure_ascii=False) + "\n", note="trim() is Unicode-aware")
@@ -269,6 +278,11 @@ case("jsonerr_invalid_utf8_stdin", ["--encode"], b'{"a":"\xff\xfe"}\n', "json-er
 case("jsonerr_invalid_utf8_file", [afile("bad-utf8.json", b'{"a":"\xc3\x28"}\n')], None, "json-error")
 case("toonerr_invalid_utf8_stdin", ["--decode"], b"a: \xff\n", "toon-error", ext="toon")
 case("jsonerr_overlong_utf8", ["--encode"], b'"\xc0\xaf"\n', "json-error", ext="json")
+# S2.2 overlong forms ABOVE the lead-byte floor. The case above is a 2-byte overlong (lead C0), which the lead
+# byte alone rejects; a 3-byte (E0 90 80) or 4-byte (F0 88 80 80) overlong needs the per-length MINIMUM, and a
+# port that lowered it accepted both while every gate stayed green (round 15, R15-2: mutants N16, N18).
+case("jsonerr_overlong_utf8_3byte", ["--encode"], b'["\xe0\x90\x80"]\n', "json-error", ext="json")
+case("jsonerr_overlong_utf8_4byte", ["--encode"], b'["\xf0\x88\x80\x80"]\n', "json-error", ext="json")
 case("jsonerr_truncated_utf8", ["--encode"], b'{"a":"\xe2\x82"}', "json-error", ext="json")
 
 # ---------------------------------------------------------------- TOON decode errors and edges

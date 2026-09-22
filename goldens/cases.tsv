@@ -132,6 +132,10 @@ encnum_pow10_slow_path	["--encode"]	cases/inputs/hand/encnum_pow10_slow_path.jso
 encnum_pow10_each	["--encode"]	cases/inputs/hand/encnum_pow10_each.json	enc-number	OQ-002
 encnum_mixed_digits	["--encode"]	cases/inputs/hand/encnum_mixed_digits.json	enc-number	OQ-002
 encstr_quoting	["--encode"]	cases/inputs/hand/encstr_quoting.json	enc-string	
+encstr_only_close_bracket_forces_quotes	["--encode"]	cases/inputs/hand/encstr_only_close_bracket_forces_quotes.json	enc-string	
+encstr_only_open_brace_forces_quotes	["--encode"]	cases/inputs/hand/encstr_only_open_brace_forces_quotes.json	enc-string	
+encstr_only_close_brace_forces_quotes	["--encode"]	cases/inputs/hand/encstr_only_close_brace_forces_quotes.json	enc-string	
+encstr_non_whitespace_u1234_bare	["--encode"]	cases/inputs/hand/encstr_non_whitespace_u1234_bare.json	enc-string	
 encstr_quoting_pipe	["--encode", "--delimiter", "|"]	cases/inputs/hand/encstr_quoting_pipe.json	enc-string	
 encstr_quoting_tab	["--encode", "--delimiter", "\t"]	cases/inputs/hand/encstr_quoting_tab.json	enc-string	
 encstr_unicode	["--encode"]	cases/inputs/hand/encstr_unicode.json	enc-string	trim() is Unicode-aware
@@ -239,6 +243,8 @@ jsonerr_invalid_utf8_stdin	["--encode"]	cases/inputs/hand/jsonerr_invalid_utf8_s
 jsonerr_invalid_utf8_file	["cases/inputs/hand/files/bad-utf8.json"]	-	json-error	
 toonerr_invalid_utf8_stdin	["--decode"]	cases/inputs/hand/toonerr_invalid_utf8_stdin.toon	toon-error	
 jsonerr_overlong_utf8	["--encode"]	cases/inputs/hand/jsonerr_overlong_utf8.json	json-error	
+jsonerr_overlong_utf8_3byte	["--encode"]	cases/inputs/hand/jsonerr_overlong_utf8_3byte.json	json-error	
+jsonerr_overlong_utf8_4byte	["--encode"]	cases/inputs/hand/jsonerr_overlong_utf8_4byte.json	json-error	
 jsonerr_truncated_utf8	["--encode"]	cases/inputs/hand/jsonerr_truncated_utf8.json	json-error	
 toonerr_blank_in_list	["--decode"]	cases/inputs/hand/toonerr_blank_in_list.toon	toon-error	
 toonerr_blank_in_tabular	["--decode"]	cases/inputs/hand/toonerr_blank_in_tabular.toon	toon-error	

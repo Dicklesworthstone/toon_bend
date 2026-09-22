@@ -1,0 +1,167 @@
+{
+ "about": "toon_bend-zgb: decode of one key repeated n times whose object grows (grow), the same two levels down (depth2), and a repeated key far from the chain head (far). Medians of 3 runs, shared host under load; growth WITHIN an arm is the claim, not the ratio between arms; the sha covers stdout, stderr and the exit code.",
+ "rows": [
+  {
+   "shape": "grow",
+   "keys": 500,
+   "bytes": 7280,
+   "original": 0.004,
+   "original_sha": "5ef51c511459",
+   "port_before": 0.044,
+   "port_before_sha": "5ef51c511459",
+   "port_after": 0.013,
+   "port_after_sha": "5ef51c511459"
+  },
+  {
+   "shape": "grow",
+   "keys": 1000,
+   "bytes": 14780,
+   "original": 0.014,
+   "original_sha": "1e18e6fe2701",
+   "port_before": 0.179,
+   "port_before_sha": "1e18e6fe2701",
+   "port_after": 0.019,
+   "port_after_sha": "1e18e6fe2701"
+  },
+  {
+   "shape": "grow",
+   "keys": 2000,
+   "bytes": 31780,
+   "original": 0.016,
+   "original_sha": "98e66f7e9b2e",
+   "port_before": 0.607,
+   "port_before_sha": "98e66f7e9b2e",
+   "port_after": 0.033,
+   "port_after_sha": "98e66f7e9b2e"
+  },
+  {
+   "shape": "grow",
+   "keys": 4000,
+   "bytes": 65780,
+   "original": 0.049,
+   "original_sha": "bd3be2508731",
+   "port_before": 2.559,
+   "port_before_sha": "bd3be2508731",
+   "port_after": 0.108,
+   "port_after_sha": "bd3be2508731"
+  },
+  {
+   "shape": "grow",
+   "keys": 8000,
+   "bytes": 133780,
+   "original": 0.17,
+   "original_sha": "7acb5c7828c0",
+   "port_before": null,
+   "port_after": 0.173,
+   "port_after_sha": "7acb5c7828c0"
+  },
+  {
+   "shape": "depth2",
+   "keys": 500,
+   "bytes": 10780,
+   "original": 0.005,
+   "original_sha": "140040025404",
+   "port_before": 0.044,
+   "port_before_sha": "140040025404",
+   "port_after": 0.012,
+   "port_after_sha": "140040025404"
+  },
+  {
+   "shape": "depth2",
+   "keys": 1000,
+   "bytes": 21780,
+   "original": 0.009,
+   "original_sha": "401dbe8e162f",
+   "port_before": 0.174,
+   "port_before_sha": "401dbe8e162f",
+   "port_after": 0.017,
+   "port_after_sha": "401dbe8e162f"
+  },
+  {
+   "shape": "depth2",
+   "keys": 2000,
+   "bytes": 45780,
+   "original": 0.012,
+   "original_sha": "ecb9a2dc6e1a",
+   "port_before": 0.558,
+   "port_before_sha": "ecb9a2dc6e1a",
+   "port_after": 0.048,
+   "port_after_sha": "ecb9a2dc6e1a"
+  },
+  {
+   "shape": "depth2",
+   "keys": 4000,
+   "bytes": 93780,
+   "original": 0.053,
+   "original_sha": "cfc5edf9c328",
+   "port_before": 2.3,
+   "port_before_sha": "cfc5edf9c328",
+   "port_after": 0.087,
+   "port_after_sha": "cfc5edf9c328"
+  },
+  {
+   "shape": "depth2",
+   "keys": 8000,
+   "bytes": 189780,
+   "original": 0.185,
+   "original_sha": "334d4b417ff6",
+   "port_before": null,
+   "port_after": 0.173,
+   "port_after_sha": "334d4b417ff6"
+  },
+  {
+   "shape": "far",
+   "keys": 500,
+   "bytes": 16560,
+   "original": 0.005,
+   "original_sha": "e1822d3ed5eb",
+   "port_before": 0.114,
+   "port_before_sha": "e1822d3ed5eb",
+   "port_after": 0.018,
+   "port_after_sha": "e1822d3ed5eb"
+  },
+  {
+   "shape": "far",
+   "keys": 1000,
+   "bytes": 33560,
+   "original": 0.013,
+   "original_sha": "2d0912c24089",
+   "port_before": 0.406,
+   "port_before_sha": "2d0912c24089",
+   "port_after": 0.035,
+   "port_after_sha": "2d0912c24089"
+  },
+  {
+   "shape": "far",
+   "keys": 2000,
+   "bytes": 71560,
+   "original": 0.026,
+   "original_sha": "87e0aed413d0",
+   "port_before": 1.87,
+   "port_before_sha": "87e0aed413d0",
+   "port_after": 0.068,
+   "port_after_sha": "87e0aed413d0"
+  },
+  {
+   "shape": "far",
+   "keys": 4000,
+   "bytes": 147560,
+   "original": 0.11,
+   "original_sha": "574090933391",
+   "port_before": 8.674,
+   "port_before_sha": "574090933391",
+   "port_after": 0.167,
+   "port_after_sha": "574090933391"
+  },
+  {
+   "shape": "far",
+   "keys": 8000,
+   "bytes": 299560,
+   "original": 0.387,
+   "original_sha": "5ed8edd1d0bb",
+   "port_before": null,
+   "port_after": 0.414,
+   "port_after_sha": "5ed8edd1d0bb"
+  }
+ ]
+}

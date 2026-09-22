@@ -1697,3 +1697,35 @@ def Laws.fold_off_never_folds(k, v, budget, hs, set, hp, pre, lean, sibs):
 # S4.64 twin.on(True, _) is False
 def Laws.fctx_lean_closed_by_switch(fo):
   {==}
+
+# S3.26 closed: both merges compute to the same entries and failure
+def Laws.hot_dups_nested():
+  {==}
+
+# S3.26 closed
+def Laws.hot_dups_deep():
+  {==}
+
+# S3.26 closed
+def Laws.hot_dups_strict_conflict():
+  {==}
+
+# S2.130 closed
+def Laws.hdr_precheck_miss():
+  {==}
+
+# S2.130 closed
+def Laws.hdr_precheck_hit():
+  {==}
+
+# S2.130 closed
+def Laws.hdr_precheck_colon_first():
+  {==}
+
+# S2.131 closed
+def Laws.hdr_precheck_unclosed():
+  {==}
+
+# S3.26 closed
+def Laws.hot_dups_lenient_overwrite():
+  {==}

@@ -354,3 +354,69 @@ calls) through `spin_263`/`spin_84`/`spin_86` (the join); 14.3% on `vscode_lock`
 Orientation (interleaved ABBA, 8 rounds, load 10): 4785.5 → 3858.4 ms, 1.240× by median (19% below), cv 1.6% / 4.4%; 1.329× by
 minimum, 1.269× by CPU. The gate's figure is met inside the cv bound by this harness; the repository's cv-gated tool with an A/A arm
 has not run (NE-011).
+
+## EXP-009 — the header parser looks for '[' before it cuts the line
+
+| field | value |
+|---|---|
+| experiment_id | EXP-009 |
+| program / def | `port/decode.bend` / `hdr.a.first` (the unquoted branch of `header`, S2.130) |
+| created (UTC) | 2026-09-22 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'precheck\|header\|has_char\|cut' perf/NEGATIVE-EVIDENCE.md` → no entry (the hits are NE-004's unrelated text and NE-010's "call census" note) |
+| status | BUILT 2026-09-22, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-013): orientation 1.157× by the least favourable estimator, above the 5% gate, but the lever arm's cv (8.8%) is above the capture's bound. Carded before the lever (bead `toon_bend-z3z`) |
+| precommitted | true |
+
+### Hypothesis
+Every decoded line is offered to `header`, whose unquoted branch runs `T.cut(content, 91)`: a loop that copies the text before the
+first `[` in reverse and reverses it again. On a line with no `[` (almost every line of an ordinary document) the copy is built, found
+to have no bracket, and dropped, one allocation and one drop per character. A `T.has_char(content, 91)` test first (a loop that
+allocates nothing) answers `HNot` for those lines without the copy, and the median wall of `--decode` on `gsoc_2018.toon` at
+1 thread falls by at least 5%.
+
+### Evidence before the lever
+gprof of the zgb tree (built from `455ece6` plus the zgb change, `clang -O3 -g -pg`), `--decode` of the e2e corpus's
+`gsoc_2018.toon`: `WL_FID_DECODE_HEADER` 16.1% inclusive over 18960 calls; the flat profile is `term_drop` 34.6%, `rfc_wrap` 15.5%,
+`span_fade` 14.6% (orientation: a call-graph profile, not a capture).
+
+### Lever (one)
+`hdr.a.first`'s unquoted branch becomes `hdr.a.plain.pre(T.has_char(content, 91), content)`: `False` answers `HNot{}`, `True` runs
+the old `hdr.a.plain(T.cut(content, 91))`. Not a twin behind the switch: the two branches compute the same verdict (with no `[`,
+`T.cut` misses and `hdr.a.plain` answers `HNot`), bound by closed laws on the miss, the hit and the quoted-key paths, and by the
+corpus on every lane.
+
+### Precommitted gate
+≥ 5% below the zgb binary on `gsoc_2018.toon` (sha256 in `perf/e2e/corpus.json`; gitignored, fetched by
+`python3 perf/e2e/bench.py fetch`) (`--decode`, `--threads 1`), cv ≤ 5% on both arms; 1071/1071 on c-1t; the proof green.
+
+## EXP-010 — trim_end returns a text that ends in a non-White_Space character as it is
+
+| field | value |
+|---|---|
+| experiment_id | EXP-010 |
+| program / def | `port/text.bend` / `trim_end` (under `T.trim`, called by the decoder's key-value split, primitive tokens and header inline text, S2.106) |
+| created (UTC) | 2026-09-22 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'trim\|reverse' perf/NEGATIVE-EVIDENCE.md` → no entry |
+| status | REVERTED 2026-09-22, NEUTRAL at this load (`perf/NEGATIVE-EVIDENCE.md` NE-014): the reversals fell from 154994 to 61458 calls, but the wall did not move beyond the noise (1.007× / 1.006×, cv 8-21%) |
+| precommitted | true |
+
+### Hypothesis
+`trim_end(s)` is `String.reverse(trim_start(String.reverse(s)))`: two full copies of the text, each taken apart later, even when
+nothing trails. A value whose last character is not White_Space (almost every key and value) is its own trim; finding the last
+character is a walk that allocates nothing. Returning `s` in that case lowers the median wall of `--decode` on `gsoc_2018.toon` at
+1 thread by at least 5% against the EXP-009 binary.
+
+### Evidence before the lever
+gprof of the EXP-009 tree, `--decode` of `gsoc_2018.toon`: `spin_7` (`String.reverse`) 21.0% inclusive over 154994 calls, of
+which `WL_FID_DECODE_KV` 50560 and `WL_FID_DECODE_PRIM` 30336 (two per `T.trim`); `term_drop` 42.3% flat (orientation).
+
+### Lever (one)
+`trim_end.pick(ends_ws(s), s)`: `False` returns `s`; `True` runs the old reversal. Not a twin behind the switch: both branches
+compute the same text (a reversed text whose head is not White_Space is left alone by `trim_start`, and reversing twice is the
+identity), bound by closed laws on no trailing space, trailing ASCII spaces, a trailing U+3000, an all-space text and the empty text,
+and by the corpus on every lane.
+
+### Precommitted gate
+≥ 5% below the EXP-009 binary on `gsoc_2018.toon` (`--decode`, `--threads 1`), cv ≤ 5% on both arms; 1071/1071 on c-1t; the proof
+green.

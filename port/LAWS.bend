@@ -1806,3 +1806,37 @@ law fold_off_never_folds:
 law fctx_lean_closed_by_switch:
   for fo: Bool
   {E.fctx.lean(fo, True{}) == False{} : Bool}
+
+# S3.26 (toon_bend-zgb) the hot map merges like dups, the spec's merge over entry chains: a nested object
+# merges, a new key is appended, the later quoted flag is kept (entries and failure both)
+law hot_dups_nested:
+  {(D.hr.entries(D.hot.dups(J.JECons{"a", True{}, J.JObj{J.JECons{"k2", False{}, J.JBool{True{}}, J.JNil{}}}, J.JECons{"c", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JECons{"k1", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{})), D.hr.err(D.hot.dups(J.JECons{"a", True{}, J.JObj{J.JECons{"k2", False{}, J.JBool{True{}}, J.JNil{}}}, J.JECons{"c", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JECons{"k1", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{}))) == (D.mr.entries(D.dups(J.JECons{"a", True{}, J.JObj{J.JECons{"k2", False{}, J.JBool{True{}}, J.JNil{}}}, J.JECons{"c", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JECons{"k1", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{})), D.mr.err(D.dups(J.JECons{"a", True{}, J.JObj{J.JECons{"k2", False{}, J.JBool{True{}}, J.JNil{}}}, J.JECons{"c", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JECons{"k1", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{}))) : J.Json & Maybe<&2, String>}
+
+# S3.26 (toon_bend-zgb) two levels down: the inner object is made hot and merged in place
+law hot_dups_deep:
+  {(D.hr.entries(D.hot.dups(J.JECons{"a", False{}, J.JObj{J.JECons{"b", False{}, J.JObj{J.JECons{"k2", False{}, J.JNull{}, J.JNil{}}}, J.JNil{}}}, J.JNil{}}, J.JECons{"a", False{}, J.JObj{J.JECons{"b", False{}, J.JObj{J.JECons{"k1", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"z", False{}, J.JNull{}, J.JNil{}}}}, J.JNil{}}, True{})), D.hr.err(D.hot.dups(J.JECons{"a", False{}, J.JObj{J.JECons{"b", False{}, J.JObj{J.JECons{"k2", False{}, J.JNull{}, J.JNil{}}}, J.JNil{}}}, J.JNil{}}, J.JECons{"a", False{}, J.JObj{J.JECons{"b", False{}, J.JObj{J.JECons{"k1", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"z", False{}, J.JNull{}, J.JNil{}}}}, J.JNil{}}, True{}))) == (D.mr.entries(D.dups(J.JECons{"a", False{}, J.JObj{J.JECons{"b", False{}, J.JObj{J.JECons{"k2", False{}, J.JNull{}, J.JNil{}}}, J.JNil{}}}, J.JNil{}}, J.JECons{"a", False{}, J.JObj{J.JECons{"b", False{}, J.JObj{J.JECons{"k1", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"z", False{}, J.JNull{}, J.JNil{}}}}, J.JNil{}}, True{})), D.mr.err(D.dups(J.JECons{"a", False{}, J.JObj{J.JECons{"b", False{}, J.JObj{J.JECons{"k2", False{}, J.JNull{}, J.JNil{}}}, J.JNil{}}}, J.JNil{}}, J.JECons{"a", False{}, J.JObj{J.JECons{"b", False{}, J.JObj{J.JECons{"k1", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"z", False{}, J.JNull{}, J.JNil{}}}}, J.JNil{}}, True{}))) : J.Json & Maybe<&2, String>}
+
+# S3.26, S9.151 (toon_bend-zgb) strict mode: an object meets a string, the EARLIER value stays and the
+# first failure is the first conflicting key's, a later conflict does not replace it
+law hot_dups_strict_conflict:
+  {(D.hr.entries(D.hot.dups(J.JECons{"a", False{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{})), D.hr.err(D.hot.dups(J.JECons{"a", False{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{}))) == (D.mr.entries(D.dups(J.JECons{"a", False{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{})), D.mr.err(D.dups(J.JECons{"a", False{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{}))) : J.Json & Maybe<&2, String>}
+
+# S2.130 (EXP-009) no '[': the precheck answers what the cut would (not a header)
+law hdr_precheck_miss:
+  {D.hdr.a.plain.pre(T.has_char("key: value", 91), "key: value") == D.hdr.a.plain(T.cut("key: value", 91)) : D.Hdr}
+
+# S2.130 (EXP-009) a header: the precheck lets the cut run
+law hdr_precheck_hit:
+  {D.hdr.a.plain.pre(T.has_char("items[2]: a,b", 91), "items[2]: a,b") == D.hdr.a.plain(T.cut("items[2]: a,b", 91)) : D.Hdr}
+
+# S2.130 (EXP-009) a '[' after the colon belongs to the value: both answer not a header
+law hdr_precheck_colon_first:
+  {D.hdr.a.plain.pre(T.has_char("a: b[1]", 91), "a: b[1]") == D.hdr.a.plain(T.cut("a: b[1]", 91)) : D.Hdr}
+
+# S2.131 (EXP-009) a '[' never closed: both answer not a header
+law hdr_precheck_unclosed:
+  {D.hdr.a.plain.pre(T.has_char("k[3", 91), "k[3") == D.hdr.a.plain(T.cut("k[3", 91)) : D.Hdr}
+
+# S3.26 (toon_bend-zgb) lenient mode: the later value takes the earlier one's position, no failure
+law hot_dups_lenient_overwrite:
+  {(D.hr.entries(D.hot.dups(J.JECons{"a", True{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JObj{J.JNil{}}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, False{})), D.hr.err(D.hot.dups(J.JECons{"a", True{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JObj{J.JNil{}}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, False{}))) == (D.mr.entries(D.dups(J.JECons{"a", True{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JObj{J.JNil{}}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, False{})), D.mr.err(D.dups(J.JECons{"a", True{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JObj{J.JNil{}}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, False{}))) : J.Json & Maybe<&2, String>}

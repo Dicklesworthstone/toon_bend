@@ -859,13 +859,23 @@ def hdr.a.plain(c: T.Cut) -> Hdr:
     case T.Cut{True{}, +before, after}:
       hdr.a.key(T.has_char(before, 58), before, after)
 
+# S2.130 an unquoted content without '[' is not a header; the cut (a copy of the text before the
+# bracket) is made only when there is one (EXP-009: most lines have none, and the copy of the whole
+# line was built and dropped for each of them)
+def hdr.a.plain.pre(bracket: Bool, content: String) -> Hdr:
+  match bracket:
+    case True{}:
+      hdr.a.plain(T.cut(content, 91))
+    case False{}:
+      HNot{}
+
 # S2.130 quoted or not
-def hdr.a.first(q: Bool, rest: String, content: String) -> Hdr:
+def hdr.a.first(q: Bool, rest: String, +content: String) -> Hdr:
   match q:
     case True{}:
       hdr.a.quoted(quote.close(rest))
     case False{}:
-      hdr.a.plain(T.cut(content, 91))
+      hdr.a.plain.pre(T.has_char(content, 91), content)
 
 # S2.130 the first character after leading White_Space decides how the bracket is found
 def hdr.a(t: String, content: String) -> Hdr:
@@ -886,8 +896,158 @@ def header(+content: String) -> Hdr:
 # (its checks run, its value goes to the enclosing construct). Measure: (lines, bound), where bound is an
 # upper bound of the number of open constructs: a consumed line opens at most three.
 
+# S3.26 the value map of an object that met a repeated key (bead toon_bend-zgb: merging a later
+# occurrence into the STORED entry chain cost that chain's length, so one key repeated n times whose
+# object grows was quadratic). An AA tree over the keys, ordered by T.str_cmp (keys that collide in
+# T.key_hash cost nothing extra). A node holds the key's quoted flag and either a plain value, or,
+# when `hot`, an object still taking merges: its own map `sub` and its keys newest first in `ord`
+# (JECons with JNull values: the chain gives the positions, the map the values and flags). Order
+# never comes from the tree.
+type HM is Data:
+  HNil{}
+  HNode{lv: Nat, l: HM, key: String, q: Bool, val: J.Json, hot: Bool, sub: HM, ord: J.Json, r: HM}
+
+# S3.26 skew, decided: a left child on its parent's level becomes the parent
+def hm.skew.pick(same: Bool, lv: Nat, llv: Nat, a: HM, lk: String, lq: Bool, lval: J.Json, lhot: Bool, lsub: HM, lord: J.Json, b: HM, x: String, xq: Bool, xv: J.Json, xhot: Bool, xsub: HM, xord: J.Json, r: HM) -> HM:
+  match same:
+    case True{}:
+      HNode{llv, a, lk, lq, lval, lhot, lsub, lord, HNode{lv, b, x, xq, xv, xhot, xsub, xord, r}}
+    case False{}:
+      HNode{lv, HNode{llv, a, lk, lq, lval, lhot, lsub, lord, b}, x, xq, xv, xhot, xsub, xord, r}
+
+# S3.26 skew: remove a left horizontal link by a right rotation
+def hm.skew(t: HM) -> HM:
+  match t:
+    case HNode{+lv, HNode{+llv, a, lk, lq, lval, lhot, lsub, lord, b}, x, xq, xv, xhot, xsub, xord, r}:
+      hm.skew.pick(Nat.is_eq(llv, lv), lv, llv, a, lk, lq, lval, lhot, lsub, lord, b, x, xq, xv, xhot, xsub, xord, r)
+    case other:
+      other
+
+# S3.26 the level of a tree's root (0 for the empty tree)
+def hm.level(t: HM) -> Nat:
+  match t:
+    case HNil{}:
+      0n
+    case HNode{lv, l, x, xq, xv, xhot, xsub, xord, r}:
+      lv
+
+# S3.26 split, decided: the middle of three nodes on one level is lifted a level
+def hm.split.pick(same: Bool, lv: Nat, a: HM, x: String, xq: Bool, xv: J.Json, xhot: Bool, xsub: HM, xord: J.Json, rlv: Nat, b: HM, rk: String, rq: Bool, rval: J.Json, rhot: Bool, rsub: HM, rord: J.Json, rr: HM) -> HM:
+  match same:
+    case True{}:
+      HNode{1n+rlv, HNode{lv, a, x, xq, xv, xhot, xsub, xord, b}, rk, rq, rval, rhot, rsub, rord, rr}
+    case False{}:
+      HNode{lv, a, x, xq, xv, xhot, xsub, xord, HNode{rlv, b, rk, rq, rval, rhot, rsub, rord, rr}}
+
+# S3.26 split: remove two right horizontal links in a row by a left rotation
+def hm.split(t: HM) -> HM:
+  match t:
+    case HNode{+lv, a, x, xq, xv, xhot, xsub, xord, HNode{rlv, b, rk, rq, rval, rhot, rsub, rord, +rr}}:
+      hm.split.pick(Nat.is_eq(hm.level(rr), lv), lv, a, x, xq, xv, xhot, xsub, xord, rlv, b, rk, rq, rval, rhot, rsub, rord, rr)
+    case other:
+      other
+
+# S3.26 a key against the key at the root (the verdict is not read on the empty tree)
+def hm.root(t: HM, k: String) -> T.Ord:
+  match t:
+    case HNil{}:
+      T.OEq{}
+    case HNode{lv, l, x, xq, xv, xhot, xsub, xord, r}:
+      T.str_cmp(k, x)
+
+# S3.26 set a key: c is the key against this root (the caller of each step looks at the child's
+# root, so the descent is one structural recursion); a key already there takes the new flag and value
+def hm.put.go(t: HM, +k: String, q: Bool, v: J.Json, hot: Bool, sub: HM, ord: J.Json, c: T.Ord) -> HM:
+  match t c:
+    case HNil{} _:
+      HNode{1n, HNil{}, k, q, v, hot, sub, ord, HNil{}}
+    case HNode{lv, +l, x, xq, xv, xhot, xsub, xord, r} T.OLt{}:
+      hm.split(hm.skew(HNode{lv, hm.put.go(l, k, q, v, hot, sub, ord, hm.root(l, k)), x, xq, xv, xhot, xsub, xord, r}))
+    case HNode{lv, l, x, xq, xv, xhot, xsub, xord, +r} T.OGt{}:
+      hm.split(hm.skew(HNode{lv, l, x, xq, xv, xhot, xsub, xord, hm.put.go(r, k, q, v, hot, sub, ord, hm.root(r, k))}))
+    case HNode{lv, l, x, xq, xv, xhot, xsub, xord, r} T.OEq{}:
+      HNode{lv, l, x, q, v, hot, sub, ord, r}
+
+# S3.26 set a key to a flag and a plain value, or to a hot object (its map and its key order)
+def hm.put(+t: HM, +k: String, q: Bool, v: J.Json, hot: Bool, sub: HM, ord: J.Json) -> HM:
+  hm.put.go(t, k, q, v, hot, sub, ord, hm.root(t, k))
+
+# S3.26 what a tree holds under a key
+type HGR is Data:
+  HGRNone{}
+  HGRSome{q: Bool, val: J.Json, hot: Bool, sub: HM, ord: J.Json}
+
+# S3.26 what a tree holds under a key: c is the key against this root
+def hm.get.go(t: HM, +k: String, c: T.Ord) -> HGR:
+  match t c:
+    case HNil{} _:
+      HGRNone{}
+    case HNode{lv, +l, x, xq, xv, xhot, xsub, xord, r} T.OLt{}:
+      hm.get.go(l, k, hm.root(l, k))
+    case HNode{lv, l, x, xq, xv, xhot, xsub, xord, +r} T.OGt{}:
+      hm.get.go(r, k, hm.root(r, k))
+    case HNode{lv, l, x, xq, xv, xhot, xsub, xord, r} T.OEq{}:
+      HGRSome{xq, xv, xhot, xsub, xord}
+
+# S3.26 what a tree holds under a key
+def hm.get(+t: HM, +k: String) -> HGR:
+  hm.get.go(t, k, hm.root(t, k))
+
+# S3.26 the plain entries of a chain put into a tree (its keys are unique)
+def hm.of(c: J.Json, acc: HM) -> HM:
+  match c:
+    case J.JECons{+k, q, v, t}:
+      hm.of(t, hm.put(acc, k, q, v, False{}, HNil{}, J.JNil{}))
+    case other:
+      acc
+
+# S3.26 the keys of an entry chain (in order) newest first, with JNull values: a hot object's order
+def hm.ord(c: J.Json, acc: J.Json) -> J.Json:
+  match c:
+    case J.JECons{k, q, v, t}:
+      hm.ord(t, J.JECons{k, q, J.JNull{}, acc})
+    case other:
+      acc
+
+# S3.26 one entry of a closing object: the chain gives the key its FIRST position, the map gives the
+# value and the quoted flag the key ends with (a repeated key updated the map, never the chain)
+def obj.pair(m: Maybe<&2, J.Json>, k: String, q: Bool, v: J.Json, acc: J.Json) -> J.Json:
+  match m:
+    case Some{J.JECons{k2, q2, v2, t2}}:
+      J.JECons{k, q2, v2, acc}
+    case other:
+      J.JECons{k, q, v, acc}
+
+# S3.26 the entries of a closing object, in first-occurrence order (the chain is newest first, so
+# walking it and prepending gives document order)
+def obj.entries(c: J.Json, +km: J.KM, acc: J.Json) -> J.Json:
+  match c:
+    case J.JECons{+k, q, v, t}:
+      obj.entries(t, km, obj.pair(J.km.get(km, k), k, q, v, acc))
+    case other:
+      acc
+
+# S3.26 the final value of a node: a plain value, or a hot object built from its order and the final
+# values of its map
+def hm.fin(hot: Bool, val: J.Json, ord: J.Json, +m: J.KM) -> J.Json:
+  match hot:
+    case True{}:
+      J.JObj{obj.entries(ord, m, J.JNil{})}
+    case False{}:
+      val
+
+# S3.26 the final entries of a tree, each hot object built bottom-up, as a key map (one structural
+# recursion over the left subtree, the node's own map and the right subtree)
+def hm.mat(h: HM, acc: J.KM) -> J.KM:
+  match h:
+    case HNil{}:
+      acc
+    case HNode{lv, l, +k, q, val, hot, sub, ord, r}:
+      hm.mat(r, hm.mat(l, J.km.put(acc, k, J.JECons{k, q, hm.fin(hot, val, ord, hm.mat(sub, J.km.empty())), J.JNil{}})))
+
 # S4.204–S4.225 an open construct.
-# FObj: an object: entries so far (newest first) and the set of their keys; the base depth b (a line
+# FObj: an object: entries so far (newest first), the set of their keys, and HNil until a key repeats,
+#   then the map of their values (from then on the chain holds JNull values and gives positions only); the base depth b (a line
 #   less deep belongs to an enclosing construct) and the depth d of its fields (fixed by the first
 #   field; d = b in strict mode, S4.206); whether it is a list-item object (then a list-item line is
 #   not a field, S4.225); and the key (with its quoted flag) under which the construct opened above it
@@ -897,7 +1057,7 @@ def header(+content: String) -> Hdr:
 #   share a name (then each row resolves its repeated keys, S3.26).
 # FList: a list body: items so far, N, items read, item depth t, the blank-line candidate.
 type Frame is Data:
-  FObj{rev: J.Json, kt: T.KT, km: J.KM, b: Nat, d: Nat, item: Bool, key: String, q: Bool}
+  FObj{rev: J.Json, kt: T.KT, hm: HM, b: Nat, d: Nat, item: Bool, key: String, q: Bool}
   FTab{rev: J.Json, n: Nat, cnt: Nat, r: Nat, fields: List<&2, Field>, nf: Nat, delim: U32, cand: Nat, dupf: Bool}
   FList{rev: J.Json, n: Nat, cnt: Nat, t: Nat, cand: Nat}
 
@@ -1098,53 +1258,152 @@ def dups.go(src: J.Json, look: Maybe<&2, J.Json>, +tgt: J.Json, +strict: Bool, e
 def dups(+src: J.Json, +tgt: J.Json, strict: Bool) -> MR:
   dups.go(src, dups.look(src, tgt), tgt, strict, None{})
 
-# S3.26 the quoted flag and the value a repeated key ends with, and the failure if the pair does not
-# merge: two objects merge recursively; any other pair is a failure in strict mode (the EARLIER value
-# stays) and the later value in lenient mode. The later occurrence's quoted flag is kept.
-type MP is Data:
-  MP{q: Bool, val: J.Json, err: Maybe<&2, String>}
+# S3.26 what a later occurrence meets under its key in a tree: nothing (a new key), an object to merge
+# into (both values are objects; a plain stored object is made hot here, once), or a value that does not
+# merge (then nothing stored is needed: strict mode keeps it, lenient mode overwrites it)
+type HG is Data:
+  HGNone{}
+  HGObj{sub: HM, ord: J.Json}
+  HGVal{}
 
-# S3.26 the outcome of a nested object merge as a pair
-def mp.of(q: Bool, m: MR) -> MP:
-  match m:
-    case MR{entries, err}:
-      MP{q, J.JObj{entries}, err}
+# S3.26 whether a value is an object
+def hot.is_obj(v: J.Json) -> Bool:
+  match v:
+    case J.JObj{e}:
+      True{}
+    case other:
+      False{}
 
-# S3.26 merge the later occurrence of a key into the value stored under it
-def dup.merge(+key: String, q0: Bool, v0: J.Json, q: Bool, v: J.Json, +strict: Bool) -> MP:
-  match v0 v strict:
-    case J.JObj{+te} J.JObj{+se} _:
-      mp.of(q, dups(se, te, strict))
-    case ov nv True{}:
-      MP{q0, ov, Some{dup.msg(key)}}
-    case ov nv False{}:
-      MP{q, nv, None{}}
+# S3.26 the verdict for a later value that is an object against what is stored
+def hot.verdict.obj(r: HGR) -> HG:
+  match r:
+    case HGRNone{}:
+      HGNone{}
+    case HGRSome{q, val, True{}, sub, ord}:
+      HGObj{sub, ord}
+    case HGRSome{q, J.JObj{+te}, False{}, sub, ord}:
+      HGObj{hm.of(te, HNil{}), hm.ord(te, J.JNil{})}
+    case other:
+      HGVal{}
+
+# S3.26 the verdict for a later value that is not an object against what is stored
+def hot.verdict.val(r: HGR) -> HG:
+  match r:
+    case HGRNone{}:
+      HGNone{}
+    case other:
+      HGVal{}
+
+# S3.26 the verdict for a later value (src_obj: whether it is an object) against what is stored
+def hot.verdict(src_obj: Bool, r: HGR) -> HG:
+  match src_obj:
+    case True{}:
+      hot.verdict.obj(r)
+    case False{}:
+      hot.verdict.val(r)
+
+# S3.26 the verdict for the head entry of a source chain
+def hot.look(src: J.Json, +m: HM) -> HG:
+  match src:
+    case J.JECons{+k, q, v, t}:
+      hot.verdict(hot.is_obj(v), hm.get(m, k))
+    case other:
+      HGNone{}
+
+# S3.26 a merge's outcome: the target's map, its key order, and the first failure
+type HR is Data:
+  HR{map: HM, ord: J.Json, err: Maybe<&2, String>}
+
+# S3.26 the map of an outcome
+def hr.map(r: HR) -> HM:
+  match r:
+    case HR{m, o, e}:
+      m
+
+# S3.26 the key order of an outcome
+def hr.ord(r: HR) -> J.Json:
+  match r:
+    case HR{m, o, e}:
+      o
+
+# S3.26 the failure of an outcome
+def hr.err(r: HR) -> Maybe<&2, String>:
+  match r:
+    case HR{m, o, e}:
+      e
+
+# S3.26 the entries of an outcome in first-occurrence order (what the laws compare with dups)
+def hr.entries(r: HR) -> J.Json:
+  match r:
+    case HR{m, o, e}:
+      obj.entries(o, hm.mat(m, J.km.empty()), J.JNil{})
+
+# S3.26 store the entries of `src` (in order) into a hot object (its map m and key order ord); `look`
+# is hot.look of the head of src. A new key is appended. A key already present: two objects merge
+# recursively (ONE def: the nested merge is on a part of src, and costs the size of that part, never
+# the size of the target); any other pair is a failure in strict mode (the earlier value stays) and the
+# later value in the earlier one's position in lenient mode. The later entry's quoted flag is kept.
+def hot.merge(src: J.Json, look: HG, +m: HM, +ord: J.Json, +strict: Bool, err: Maybe<&2, String>) -> HR:
+  match src look strict:
+    case J.JECons{+k, +q, +v, +t} HGNone{} _:
+      +m2 = hm.put(m, k, q, v, False{}, HNil{}, J.JNil{})
+      hot.merge(t, hot.look(t, m2), m2, J.JECons{k, q, J.JNull{}, ord}, strict, err)
+    case J.JECons{+k, +q, J.JObj{+se}, +t} HGObj{+s0, +o0} _:
+      +r = hot.merge(se, hot.look(se, s0), s0, o0, strict, err)
+      +m2 = hm.put(m, k, q, J.JNull{}, True{}, hr.map(r), hr.ord(r))
+      hot.merge(t, hot.look(t, m2), m2, ord, strict, hr.err(r))
+    case J.JECons{+k, q, v, +t} HGVal{} True{}:
+      hot.merge(t, hot.look(t, m), m, ord, strict, dup.keep(err, Some{dup.msg(k)}))
+    case J.JECons{+k, +q, +v, +t} HGVal{} False{}:
+      +m2 = hm.put(m, k, q, v, False{}, HNil{}, J.JNil{})
+      hot.merge(t, hot.look(t, m2), m2, ord, strict, err)
+    case other _ _:
+      HR{m, ord, err}
+
+# S3.26 merge an entry chain into an object's entries through the hot map (the frame's path, as one
+# def the laws can state against dups, the spec's merge over entry chains)
+def hot.dups(+src: J.Json, +te: J.Json, strict: Bool) -> HR:
+  hot.merge(src, hot.look(src, hm.of(te, HNil{})), hm.of(te, HNil{}), hm.ord(te, J.JNil{}), strict, None{})
+
+# S3.26 the frame's map at its first repeated key: the chain's entries, all plain (before that, the
+# chain alone holds the values and no map is kept)
+def hm.frame(h: HM, rev: J.Json) -> HM:
+  match h:
+    case HNil{}:
+      hm.of(rev, HNil{})
+    case other:
+      other
 
 # S3.26 the frame after a repeated key: the CHAIN keeps the key's first position and is not touched,
-# the MAP takes the merged pair (round 16, bead toon_bend-qgu: walking the chain per repeated key made
-# the merge quadratic -- 2000 keys repeated once took 2.66 s against the original's 0.01 s)
-def attach.put(m: MP, +key: String, kt: T.KT, km: J.KM, rev: J.Json, b: Nat, d: Nat, item: Bool, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
-  match m:
-    case MP{q2, v2, err}:
-      decide(FObj{rev, kt, J.km.put(km, key, J.JECons{key, q2, v2, J.JNil{}}), b, d, item, SNil{}, False{}} <> more, pk, g.dup(g, err))
+# the MAP takes the merged value (rounds 16-17, beads toon_bend-qgu and toon_bend-zgb: walking a chain
+# per repeated key made the merge quadratic at the outer and at the nested level)
+def attach.dup(r: HR, rev: J.Json, kt: T.KT, b: Nat, d: Nat, item: Bool, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
+  match r:
+    case HR{m, o, err}:
+      decide(FObj{rev, kt, m, b, d, item, SNil{}, False{}} <> more, pk, g.dup(g, err))
 
-# S3.26 the pair stored under a repeated key (the key set said it is there)
-def attach.dup(old: Maybe<&2, J.Json>, +key: String, q: Bool, v: J.Json, kt: T.KT, km: J.KM, rev: J.Json, b: Nat, d: Nat, item: Bool, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
-  match old:
-    case Some{J.JECons{k0, q0, v0, t0}}:
-      attach.put(dup.merge(key, q0, v0, q, v, g.strict(g)), key, kt, km, rev, b, d, item, more, pk, g)
+# S3.26 merge the later occurrence (the one-entry chain src) into the frame's map h1
+def attach.src(+src: J.Json, +h1: HM, rev: J.Json, kt: T.KT, b: Nat, d: Nat, item: Bool, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
+  attach.dup(hot.merge(src, hot.look(src, h1), h1, J.JNil{}, g.strict(g), None{}), rev, kt, b, d, item, more, pk, g)
+
+# S3.22 a new key: stored in the chain and the key set, and in the map once there is one (the chain
+# then holds a JNull: the value lives in the map alone)
+def attach.new(h: HM, +v: J.Json, rev: J.Json, kt: T.KT, b: Nat, d: Nat, item: Bool, +key: String, +q: Bool, more: List<&2, Frame>, pk: Peek, g: G) -> Step:
+  match h:
+    case HNil{}:
+      decide(FObj{J.JECons{key, q, v, rev}, T.kt.put(kt, key), HNil{}, b, d, item, SNil{}, False{}} <> more, pk, g)
     case other:
-      decide(FObj{rev, kt, km, b, d, item, SNil{}, False{}} <> more, pk, g)
+      decide(FObj{J.JECons{key, q, J.JNull{}, rev}, T.kt.put(kt, key), hm.put(other, key, q, v, False{}, HNil{}, J.JNil{}), b, d, item, SNil{}, False{}} <> more, pk, g)
 
-# S3.22, S3.26 a finished value under the pending key of an object: a new key is stored in the chain,
-# in the key set and in the map; a key stored before is merged (S3.26) in the MAP alone, and G
-# remembers the first failure
-def attach.obj(seen: Bool, +v: J.Json, rev: J.Json, +kt: T.KT, +km: J.KM, b: Nat, d: Nat, item: Bool, +key: String, +q: Bool, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
+# S3.22, S3.26 a finished value under the pending key of an object: a new key is stored (attach.new);
+# a key stored before is merged (S3.26) in the MAP alone, as the one-entry chain of the later
+# occurrence, and G remembers the first failure
+def attach.obj(seen: Bool, +v: J.Json, +rev: J.Json, +kt: T.KT, +h0: HM, b: Nat, d: Nat, item: Bool, +key: String, +q: Bool, more: List<&2, Frame>, pk: Peek, +g: G) -> Step:
   match seen:
     case False{}:
-      decide(FObj{J.JECons{key, q, v, rev}, T.kt.put(kt, key), J.km.put(km, key, J.JECons{key, q, v, J.JNil{}}), b, d, item, SNil{}, False{}} <> more, pk, g)
+      attach.new(h0, v, rev, kt, b, d, item, key, q, more, pk, g)
     case True{}:
-      attach.dup(J.km.get(km, key), key, q, v, kt, km, rev, b, d, item, more, pk, g)
+      attach.src(J.JECons{key, q, v, J.JNil{}}, hm.frame(h0, rev), rev, kt, b, d, item, more, pk, g)
 
 # S3.22 a finished value goes to the construct that awaits it: under the pending key of an object, as
 # the next item of a list, or, with nothing open, it is the root value and the pass ends
@@ -1249,23 +1508,14 @@ def close.fin(msg: Maybe<&2, String>, v: J.Json, frames: List<&2, Frame>, pk: Pe
     case None{}:
       attach(v, frames, pk, g)
 
-# S3.26 one entry of a closing object: the chain gives the key its FIRST position, the map gives the
-# value and the quoted flag the key ends with (a repeated key updated the map, never the chain)
-def obj.pair(m: Maybe<&2, J.Json>, k: String, q: Bool, v: J.Json, acc: J.Json) -> J.Json:
-  match m:
-    case Some{J.JECons{k2, q2, v2, t2}}:
-      J.JECons{k, q2, v2, acc}
+# S3.26 the entries of a closing object in first-occurrence order: with no repeated key the chain
+# (newest first) reversed; otherwise the chain gives the positions and the map's final values fill them
+def obj.close(h: HM, rev: J.Json) -> J.Json:
+  match h:
+    case HNil{}:
+      J.rev_entries(rev, J.JNil{})
     case other:
-      J.JECons{k, q, v, acc}
-
-# S3.26 the entries of a closing object, in first-occurrence order (the chain is newest first, so
-# walking it and prepending gives document order)
-def obj.entries(c: J.Json, +km: J.KM, acc: J.Json) -> J.Json:
-  match c:
-    case J.JECons{+k, q, v, t}:
-      obj.entries(t, km, obj.pair(J.km.get(km, k), k, q, v, acc))
-    case other:
-      acc
+      obj.entries(rev, hm.mat(other, J.km.empty()), J.JNil{})
 
 # S4.207 close the innermost construct: an object simply ends (its keys are unique, S3.26); a body
 # runs its checks first
@@ -1273,8 +1523,8 @@ def pop(frames: List<&2, Frame>, +pk: Peek, g: G) -> Step:
   match frames g:
     case Nil{} g0:
       SErr{"internal: nothing to close"}
-    case Con{FObj{rev, kt, +km, b, d, item, key, q}, more} g0:
-      attach(J.JObj{obj.entries(rev, km, J.JNil{})}, more, pk, g0)
+    case Con{FObj{rev, kt, h, b, d, item, key, q}, more} g0:
+      attach(J.JObj{obj.close(h, rev)}, more, pk, g0)
     case Con{FTab{rev, +n, +cnt, r, fields, nf, delim, first, dupf}, more} G{+strict, +blanks, +last, spec, dup}:
       close.fin(close.msg(strict, Nat.is_ne(cnt, n), blank.in(first, last), surplus.tab(pk, r, delim), True{}, n, cnt), J.JArr{cnt, J.rev_items(rev, J.JNil{})}, more, pk, G{strict, blanks, last, spec, dup})
     case Con{FList{rev, +n, +cnt, t, first}, more} G{+strict, +blanks, +last, spec, dup}:
@@ -1398,7 +1648,7 @@ def eat.kv.jump(jump: Bool, +dd: Nat, +base: Nat, num: Nat, frames: List<&2, Fra
     case True{}:
       SErr{"Validation error at line " ++ Nat.show(num) ++ ": Indentation depth jump: expected depth " ++ Nat.show(1n+base) ++ ", but found " ++ Nat.show(dd)}
     case False{}:
-      decide(FObj{J.JNil{}, T.kt.empty(), J.km.empty(), 1n+base, dd, False{}, SNil{}, False{}} <> frames, pk, g)
+      decide(FObj{J.JNil{}, T.kt.empty(), HNil{}, 1n+base, dd, False{}, SNil{}, False{}} <> frames, pk, g)
 
 # S4.205 (b) an empty value is a nested object when the next line is deeper than the base, else the
 # empty object
@@ -1427,7 +1677,7 @@ def eat.kv.val(empty: Bool, base: Nat, pk: Peek, val: String, +frames: List<&2, 
       eat.kv.obj(nest.over(frames, 1n), base, pk, frames, g)
 
 # S4.205 (b) the key token; the object that receives the field remembers the key while the value is read
-def eat.kv.plain(k: KV, pk: Peek, rev: J.Json, kt: T.KT, km: J.KM, b: Nat, d: Nat, base: Nat, item: Bool, more: List<&2, Frame>, g: G) -> Step:
+def eat.kv.plain(k: KV, pk: Peek, rev: J.Json, kt: T.KT, km: HM, b: Nat, d: Nat, base: Nat, item: Bool, more: List<&2, Frame>, g: G) -> Step:
   match k:
     case KVErr{msg}:
       SErr{msg}
@@ -1437,7 +1687,7 @@ def eat.kv.plain(k: KV, pk: Peek, rev: J.Json, kt: T.KT, km: J.KM, b: Nat, d: Na
 # S4.205 a key-value content at base depth `base` (its own depth, S4.206), given the header parse of
 # the content: header failures surface first; (a) a header WITH a key is a keyed array; (b) anything
 # else is read as key and value. rev, kt, b, d, item describe the object that receives the field.
-def eat.kv(h: Hdr, content: String, pk: Peek, rev: J.Json, kt: T.KT, km: J.KM, b: Nat, d: Nat, base: Nat, item: Bool, more: List<&2, Frame>, g: G) -> Step:
+def eat.kv(h: Hdr, content: String, pk: Peek, rev: J.Json, kt: T.KT, km: HM, b: Nat, d: Nat, base: Nat, item: Bool, more: List<&2, Frame>, g: G) -> Step:
   match h:
     case HErr{msg}:
       SErr{msg}
@@ -1516,7 +1766,7 @@ def item.kv(over: Bool, h: Hdr, r: String, +t: Nat, lst: Frame, more: List<&2, F
     case True{}:
       SErr{nest.msg(g.last(g))}
     case False{}:
-      eat.kv(h, r, pk, J.JNil{}, T.kt.empty(), J.km.empty(), 1n+t, 1n+t, 1n+t, True{}, lst <> more, g)
+      eat.kv(h, r, pk, J.JNil{}, T.kt.empty(), HNil{}, 1n+t, 1n+t, 1n+t, True{}, lst <> more, g)
 
 # S4.220–S4.226 one list item with rest R, given R's header parse (failures surface, whatever R looks
 # like), whether R starts with '[' after leading White_Space, and whether R has a ':' outside quotes.
@@ -1533,7 +1783,7 @@ def item.route(blank: Bool, h: Hdr, br: Bool, colon: Bool, r: String, +lst: Fram
     case False{} HOk{hk, key, quoted, n, delim, has_seg, +fields, +inline_text} True{} True{}:
       array(Bool.not(String.is_empty(inline_text)), Bool.not(List.is_empty(&2, Field, fields)), n, delim, fields, inline_text, t, lst <> more, pk, g)
     case False{} HOk{True{}, key, quoted, n, delim, True{}, +fields, +inline_text} _ _:
-      array(Bool.not(String.is_empty(inline_text)), Bool.not(List.is_empty(&2, Field, fields)), n, delim, fields, inline_text, 1n+t, FObj{J.JNil{}, T.kt.empty(), J.km.empty(), 1n+t, 1n+t, True{}, key, quoted} <> lst <> more, pk, g)
+      array(Bool.not(String.is_empty(inline_text)), Bool.not(List.is_empty(&2, Field, fields)), n, delim, fields, inline_text, 1n+t, FObj{J.JNil{}, T.kt.empty(), HNil{}, 1n+t, 1n+t, True{}, key, quoted} <> lst <> more, pk, g)
     case False{} h0 _ True{}:
       item.kv(nest.over(lst <> more, 1n), h0, r, t, lst, more, pk, g)
     case False{} h0 _ False{}:
@@ -1613,7 +1863,7 @@ def root.object(single: Bool, is_kv: Bool, line: Line, +rest: List<&2, Line>, +s
     case True{} False{} Line{num, depth, content}:
       root.prim(prim(content, spec))
     case _ _ Line{+num, depth, +content}:
-      run(rest, 8n, eat.kv(header(content), content, peek(rest), J.JNil{}, T.kt.empty(), J.km.empty(), 0n, 0n, 0n, False{}, Nil{}, G{strict, blank.drop(blanks, blank.lt(blanks, num), num), num, spec, None{}}), strict)
+      run(rest, 8n, eat.kv(header(content), content, peek(rest), J.JNil{}, T.kt.empty(), HNil{}, 0n, 0n, 0n, False{}, Nil{}, G{strict, blank.drop(blanks, blank.lt(blanks, num), num), num, spec, None{}}), strict)
 
 # S4.202 the root-array test, third part: the first line parses as a header (failures surface): the
 # array is decoded at base depth 0 whatever the line's own depth. A content that is not a header falls

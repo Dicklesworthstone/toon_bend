@@ -96,6 +96,8 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"golden_(fx_dec_path_expansion_|toonedge_expand_)", ["safe path expansion", "JSON writer B"]),
  (r"golden_(toonerr_(after_closing_quote|bad_escape|cap_in_quoted_value|header_|huge_length|inline_bad_quote|length_|missing_close_bracket|mixed_delims|nested_headers|trailing_backslash|unicode_escape|unterminated_)|toonedge_(header_|item_quote|list_item_two_spaces|length_|fields_)|fx_dec_primitives_|fx_dec_objects_(04|17)|fx_dec_whitespace_|fx_dec_delimiters_)", ["tokens, string literals"]),
  (r"(decode_error_ends_pass|decode_root_ends_pass|decode_trailing_line_is_error|decode_dup_reported_at_end)$",["structural decoding"]),
+ (r"hot_dups_", ["structural decoding"]),
+ (r"hdr_precheck_", ["tokens, string literals"]),
  (r"golden_(decstr_|toonerr_|toonedge_|fx_dec_)", ["structural decoding"]),
  (r"(encode_flag_wins|decode_flag_wins|stdin_defaults_to_encode)$", ["mode detection"]),
  (r"golden_flag_(stdin_dash|double_dash)", ["mode detection", "argv: option spellings"]),

@@ -269,6 +269,27 @@ Outcome taxonomy (closed set):
 - Tally: W0/L0/N0 (negative finding, nothing built)
 - Agent: Claude (session ef481f9c, 2026-09-22)
 
+### NE-013 — the header parser looks for '[' before it cuts the line (EXP-009, bead toon_bend-z3z)   [2026-09-22 | PROVISIONAL]
+- Program / def: `port/decode.bend` / `hdr.a.plain.pre`, `hdr.a.first`. Not behind the switch: both branches compute the same verdict (with no `[` the cut misses and `hdr.a.plain` answers `HNot`)
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, SHARED HOST AT LOAD 11 (other agents' builds, one of them 14 GB); base = the zgb binary sha256 `dbf3edf2f9a4c9c2…` (the NE-011 tree plus the toon_bend-zgb carrier), lever binary `a63151ed793e6164…`, `--threads 1`
+- Binding (the weaker kind): four closed laws, one per path of the unquoted branch (`hdr_precheck_miss`, `_hit`, `_colon_first` (a `[` after the colon belongs to the value), `_unclosed`), `All terms check.` in a scratch book of the eight new laws; no quantified law (it needs a lemma that `T.has_char(s, 91)` false makes `T.cut(s, 91)` miss, by induction over both loops' accumulators; not attempted)
+- Correctness evidence: `conform.sh` 1071/1071 on c-1t; `scripts/diff-fuzz.py` seed 11: mutate, docs, expand 1500 inputs each and scale 20, 0 differences
+- Orientation (interleaved ABBA, 6 rounds, load 11): `gsoc_2018 --decode` 1290.4 → 1106.5 ms, 1.166× by median, 1.233× by minimum, 1.157× by CPU, cv 4.7% / 8.8%: the lever arm's cv is above the gate, so this is not a capture
+- Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
+- **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
+- Tally: W0/L0/N1 (provisional)
+- Agent: Claude (session ef481f9c, 2026-09-22)
+
+### NE-014 — trim_end returns a text that ends in a non-White_Space character as it is (EXP-010)   [2026-09-22 | NEUTRAL, reverted]
+- Program / def: `port/text.bend` / `trim_end` (an `ends_ws` walk to the last character, then the old reversal only when it is White_Space)
+- Provenance: as NE-013; base = the EXP-009 binary `a63151ed793e6164…`, `--threads 1`, load 10-13
+- Mechanism confirmed: gprof of the lever tree on `gsoc_2018 --decode`: `String.reverse` 154994 → 61458 calls, 21.0% → 9.7% inclusive
+- Wall (interleaved ABBA, 12 rounds): `gsoc_2018 --decode` 1105.2 → 1097.5 ms, 1.007× by median, 1.016× by minimum, 1.057× by CPU, cv 8.3% / 8.8%; `twitter --decode` 209.8 → 208.6 ms, 1.006× / 0.985× / 1.009×, cv 11.6% / 20.6%. A 6-round run had shown 1.039× / 0.991× / 1.063×. The precommitted 5% is not met by any estimator but CPU, whose margin is inside the noise
+- Why it did not pay (orientation): the reversals are short (keys and short values); the drops that dominate the flat profile (`term_drop`, `span_fade`) sit under the JSON writer (`spin_365`, 20%) and are unchanged
+- **Do-not-retry unless:** a quiet host (load below 1) gives a cv ≤ 5% capture tool run, OR an input whose values are long texts (the gain scales with value length) is the target
+- Tally: W0/L0/N1 (neutral)
+- Agent: Claude (session ef481f9c, 2026-09-22)
+
 ---
 
 ## Inherited priors (re-confirm on THIS program's shape; not local evidence)

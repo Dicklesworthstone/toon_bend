@@ -249,6 +249,55 @@ def inconsistent(o):
     return None
 
 
+# Prose summaries of the rounds table. Three copies drifted independently in one session (PORT_STATE's
+# phase line and open-items row, PORT_REPORT's verdict), each omitting the newest round, and nothing
+# computed them. Two phrasings occur, so two patterns:
+ROUNDS_SPAN = re.compile(r"rounds?,? (\d+) to (\d+),? (?:[a-z ]{0,30})?found ([\d,\s]+(?:and \d+)?)", re.I)
+ROUNDS_BARE = re.compile(r"(\d+(?:, \d+){3,}(?: and \d+)?) findings", re.I)
+
+
+def rounds_prose(text, facts):
+    """(line, reason) for every summary of the rounds table that disagrees with the table.
+
+    The subtle case is the reason this exists: a list can be internally CONSISTENT and still stale.
+    "rounds 6 to 12 found 6, 11, 8, 3, 10, 12 and 13" was exactly right about rounds 6-12 and simply
+    predated round 13, so a list-only comparison passes every one of the three drifted copies. The
+    RANGE is what went stale, so the range is checked against the latest round.
+    """
+    if not facts:
+        return []
+    out, order, rounds, last = [], [facts[r] for r in sorted(facts)], sorted(facts), max(facts)
+    for m in ROUNDS_SPAN.finditer(text):
+        lo, hi = int(m.group(1)), int(m.group(2))
+        got = [int(x) for x in re.findall(r"\d+", m.group(3))]
+        if len(got) < 2:
+            continue  # "rounds 9 to 13 found 0 differences" is prose, not a per-round list
+        want = [facts[r] for r in range(lo, hi + 1) if r in facts]
+        line = text[:m.start()].count("\n") + 1
+        if got != want:
+            out.append((line, "rounds %d to %d lists %s; the table gives %s" % (lo, hi, got, want)))
+        elif hi < last:
+            out.append((line, "rounds %d to %d summarises the rounds table but stops at %d; the table "
+                              "now has %d rounds (round %d found %d)" % (lo, hi, hi, last, last, facts[last])))
+    for m in ROUNDS_BARE.finditer(text):
+        got = [int(x) for x in re.findall(r"\d+", m.group(1))]
+        line = text[:m.start()].count("\n") + 1
+        if got == order[-len(got):]:
+            continue
+        for end in range(len(order) - 1, len(got) - 1, -1):
+            if got == order[end - len(got):end]:
+                out.append((line, "a list of %d findings %s matches rounds %d to %d, which are not the "
+                                  "latest; the table now ends at round %d (found %d)"
+                                  % (len(got), got, rounds[end - len(got)], rounds[end - 1], last, facts[last])))
+                break
+    seen, uniq = set(), []
+    for x in out:  # one stale sentence can trip both patterns: report each line once
+        if x[0] not in seen:
+            seen.add(x[0])
+            uniq.append(x)
+    return uniq
+
+
 def audit(files, f, gates, verbose):
     findings, absent = [], []
     exempt = 0
@@ -288,6 +337,10 @@ def audit(files, f, gates, verbose):
         except OSError:
             absent.append(path)  # a partial copy of the port (the harness self-test makes those): not a finding
             continue
+        if path not in ARCHIVE:
+            lines = text.splitlines()
+            for n, why in rounds_prose(text, f.get("round_findings") or {}):
+                hit(path, n, why, lines[n - 1] if 0 < n <= len(lines) else "")
         for n, line in enumerate(text.splitlines(), 1):
             historical = bool(HISTORY.search(line))
             # A pasted gate line is internally consistent by construction, so one that contradicts

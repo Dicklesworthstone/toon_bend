@@ -1,0 +1,31 @@
+# gprof inclusive time (call graph primary lines), toon_bend fb974a4 port built as emitted C with clang -O3 -g -pg,
+# run once per cell at host load ~11-20 (orientation for RANKING only; -pg adds mcount overhead to small functions).
+# %time = self+children share of sampled time; calls; name (WL_FID_<DEF> = a port def; spin_N = a native loop, per build).
+
+  54.7%  calls   335602547  span_fade
+  42.6%  calls    32364728  WL_FID_BIGNAT_CMP
+  33.5%  calls   363160413  term_drop
+   8.7%  calls    10402342  WL_FID_BIGNAT_SUB
+   7.2%  calls   213348829  rfc_wrap
+   5.4%  calls   101138106  spin_215
+   3.7%  calls       22601  heap_alloc_miss
+   3.4%  calls     4213120  WL_FID_BIGNAT_ADD
+   3.3%  calls     4793264  spin_7
+   3.3%  calls      800001  WL_FID_JSON_W
+   3.2%  calls    26336640  WL_FID_F64_DG_DIGIT
+   2.6%  calls    41609368  WL_FID_BIGNAT_SUB_K652
+   2.2%  calls      600000  WL_FID_DECODE_PRIM
+   2.2%  calls      200000  WL_FID_DECODE_EAT
+   2.2%  calls      200001  spin_1
+   2.1%  calls           -  _init
+   1.9%  calls    23942400  WL_FID_F64_DG_SUB_IF
+   1.8%  calls      600000  WL_FID_F64_LITERAL
+   1.6%  calls     3371570  WL_FID_BIGNAT_SHL_BITS
+   1.6%  calls           1  WL_FID_CLI_CONVERT
+   1.5%  calls    23942400  WL_FID_F64_DG_DIGIT_K228
+   1.5%  calls    26110999  WL_FID_BIGNAT_MUL_SMALL_K1109
+   1.3%  calls   124384639  WL_FID_BIGNAT_CMP_K1348
+   1.2%  calls      592046  WL_FID_F64_SHORTEST_FAST_K915
+   1.2%  calls     1845785  spin_34
+   1.1%  calls          11  io_exec
+   1.1%  calls           4  io_cstr

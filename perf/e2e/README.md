@@ -1,14 +1,14 @@
 # perf/e2e — the port against the original on real JSON
 
 An end-to-end benchmark suite: the `toon` COMMAND (process start, reading the file, conversion, writing the output) of the
-Bend port against `toon_rust`, on 20 real public JSON documents from 64 KB to 9.9 MB, in 7 scenarios, with every output
-compared byte for byte before anything is timed.
+Bend port against `toon_rust`, on 28 real public JSON documents from 64 KB to 13 MB (plus 4 prefix slices of one of them, for a
+scaling series), in 7 scenarios, with every output compared byte for byte before anything is timed.
 
 ```bash
-python3 perf/e2e/bench.py fetch                                  # 20 documents, pinned by upstream commit + sha256
+python3 perf/e2e/bench.py fetch                                  # 28 documents + 4 derived slices, pinned by commit + sha256
 python3 perf/e2e/bench.py prepare --reference ./oracle/toon      # the TOON inputs of the decode scenarios
 python3 perf/e2e/bench.py run --arm rust_z=rust:./oracle/toon \
-    --arm rust_o3=rust:<opt-level=3 build> --arm bend=bend:<dir>/toon          # ~40 min for the full matrix
+    --arm rust_o3=rust:<opt-level=3 build> --arm bend=bend:<dir>/toon          # ~75 min for the full matrix (205 cells)
 python3 perf/e2e/bench.py report perf/e2e/results/<run>          # re-render report.md
 ```
 
@@ -22,10 +22,13 @@ python3 perf/e2e/bench.py report perf/e2e/results/<run>          # re-render rep
 | S (< 0.25 MB) | github_events, apache_builds, numbers, instruments | API payloads, a flat array of 10001 doubles, deep small objects |
 | M (0.5–1.4 MB) | random, update_center, twitterescaped, twitter, mesh, jobs, football, earthquakes, movies | UTF-8 (CJK) and `\u` escapes, wide objects, GeoJSON, uniform tables with nulls and small decimals |
 | L (1.7–3.3 MB) | citm_catalog, flights_20k, canada, marine_ik, gsoc_2018 | integer-keyed maps, one big table, 111080 high-precision doubles, 245k mixed numbers, long prose |
-| XL (8.6–9.9 MB) | semanticscholar, flights_200k | abstracts and author lists, a 200000-row numeric table |
+| XL (8.6–13 MB) | semanticscholar, flights_200k, openapi_github | abstracts and author lists, a 200000-row numeric table, GitHub's REST OpenAPI description (deep schemas, long prose: the classic LLM tool-context document) |
+| added 2026-09-22 (corpus v2) | unemployment (S), flights_2k/5k/10k (S/M), npm_cli_lock (M), us_10m (M), vscode_lock (M), openapi_github (XL) | BLS rows with ISO timestamps; the flights table at four sizes; two real `package-lock.json` (wide maps keyed by paths, integrity hashes); TopoJSON (arrays of integer pairs) |
+| series | flights 2k/5k/10k/20k (vega's own files); semsch_625/1250/2500/5000 (prefix slices of semanticscholar, re-serialized, pinned) | growth with size on one schema: the report's Scaling section |
 
-Sources: `simdjson/simdjson-data` @ `4197c42` (the standard JSON-parser benchmark files) and `vega/vega-datasets` @ `a96a3d7`
-(real tabular datasets). None is generated. The documents and their TOON twins live in `perf/e2e/corpus/` (gitignored).
+Sources: `simdjson/simdjson-data` @ `4197c42` (the standard JSON-parser benchmark files), `vega/vega-datasets` @ `a96a3d7`
+(real tabular datasets), `github/rest-api-description` @ `642960c`, `microsoft/vscode` @ `fcbe40c` and `npm/cli` @ `7b50811`
+(their lockfiles). None is generated; a derived slice is refused when its source holds a non-integer number. The documents and their TOON twins live in `perf/e2e/corpus/` (gitignored).
 
 Scenarios: `encode`, `encode_stdin`, `encode_fold` (`--key-folding safe`), `encode_tab` (`--delimiter` TAB), `encode_stats`,
 `decode`, `decode_expand` (`--decode --expand-paths safe` of the folded TOON), plus `version` (start-up only).
@@ -50,6 +53,7 @@ Two full runs of 140 cells each, in `results/`:
 |---|---|---|---|---|
 | `2026-09-22-full` | `toon_rust` `f955c67` at `opt-level=z` (the then-pinned oracle) and at `opt-level=3`; the port at `866aa8a` | 140/140 | **39** | 1–4 |
 | `2026-09-22-repinned` | `toon_rust` `7c1d6e4` (the C-10 fix) at `z` and `3`; the port at `a8efed0` | 140/140, all exit 0 | 1 | 6–7 (other agents' gates) |
+| `2026-09-22-694d73b` | `toon_rust` `694d73b` (the fix-every-bug re-pin) at `z` (682872 bytes) and `3` (884048 bytes, 1071/1071 goldens); the port at `fb974a4` (1071/1071 on c-1t); corpus v2, 205 cells | 205/205, all exit 0 | **0** | 8.5 → 20 (other agents' gates and this session's own research agents) |
 
 The C-10 fix touches neither path's speed: across the 138 cells that both runs converted, the port's ratio moved by a median factor
 of 1.003 (90% of cells within ±10%). So the MEASURED cells of the first run are the evidence below, and the second run confirms their
@@ -93,6 +97,47 @@ profile, and `opt-level=3` finishes the same work in 0.45–0.92 of its time.
 
 (The full list of 39, with every other scenario, is in `results/2026-09-22-full/report.md`; its two semanticscholar decode rows
 are ERROR PATH cells of the old binaries and are not listed here.)
+
+### Third run: the current pins (`2026-09-22-694d73b`; orientation only, every cell NOISY)
+
+The load rose from 8.5 to 20 on 8 cores during the run, and no cell met the 5% cv gate, on wall time or on the child's CPU time
+(cv 7–20%). So nothing below is a MEASURED ratio. It is orientation for the shape, reported with the estimator least favourable to the
+port: contention adds roughly constant time and so inflates the shorter arm proportionally more, and the ratio of medians is pulled
+toward 1. Here the median ratio divided by the minimum ratio had p10 0.80, p50 0.876 and p90 1.01 per cell; the median flatters the port
+by about 12%.
+
+| scenario (cells) | port / rust `z`, by minimum | port / rust `3`, by minimum | port / rust `z`, by median |
+|---|---|---|---|
+| encode (32) | 12.1× | 17.1× | 10.7× |
+| encode_stdin / fold / tab (28 each) | 12.1× / 12.2× / 12.4× | 17.8× / 17.1× / 17.6× | 11.0× / 10.7× / 10.8× |
+| encode_stats (28) | 8.5× | 15.8× | 7.5× |
+| decode (32) | 8.2× | 13.7× | 7.0× |
+| decode_expand (28) | 9.2× | 15.6× | 8.2× |
+| all 204 document cells (geomean) | 10.5× | 16.3× | 9.2× |
+
+Per document (port / rust `3` by minimum, geomean over its scenarios): TopoJSON 5.8×, github_events 7.7×, the flights table 8.0–9.3×
+(32.7× at 200k rows, a third of them doubles), lockfiles 13.6–16.3×, OpenAPI 13.7×, semanticscholar 14.1×, twitter 17.0×, gsoc 21.3×,
+jobs 27.8×, marine_ik 30.4×, mesh 58.8×, canada 86.0×, numbers 88.0×. `opt-level=3` of the original took 0.64 of the pinned `z`
+build's time (geomean, all three estimators agree on this one), so a ratio against `z` flatters the port by about 1.6×.
+
+**Scaling is linear on both sides.** The flights series (2k → 20k rows) fits time ∝ n^b with b = 1.03–1.07 for the port and
+0.96–1.10 for the original in every scenario; the semanticscholar slices (625 → 5000 records) give b = 0.92–0.96 against 0.83–0.97.
+The ratio does not grow with the input on these schemas (orientation: the points are NOISY).
+
+**Memory:** peak RSS per input byte, geomean per scenario: the port 59–60 B/B on encode, 100 on decode, 112 on decode_expand; the
+original 14–25. The small decode inputs reach 169–209 B/B, where the runtime's base heap dominates.
+
+**Profiles** (gprof on the emitted C, `results/2026-09-22-694d73b/profiles/`, inclusive time; ranking only, the `-pg` run is
+instrumented): `BN.cmp` 42–45% on canada encode and on the flights_200k decode (about 205 compares per number); on the OpenAPI encode
+`fctx.child` building the dotted fold path with `T.cat` for every field although folding is off (18.5%, `WL_FID_ENCODE_CTX_FIELD` +
+`spin_263`/`spin_84`/`spin_86`); on prose-heavy decodes `T.cut` copying every line that holds no `[` (28% of gsoc, 19% of the OpenAPI
+decode_expand; `spin_148` = `head_is` + `cut.go`). `spin_N` numbers are per build: map them through the emitted C.
+
+**What the corpus found beyond speed.** (1) `--key-folding safe` then `--expand-paths safe` changes 3 of the 28 documents with exit 0:
+a literal key holding a dot (`"lazy.js"` in a package-lock, a gist file name `"hello.rb"` in the OpenAPI description) is written
+unquoted and then split. The reference TS implementation does exactly the same, so this is the format's property at spec v3.0 (spec
+v4 dropped both options), not a bug of either program. (2) Outside the corpus, round 16's repro of a quadratic repeated-key merge was
+re-checked here: 8000 repeated keys take 17.2 s in the port against 0.24 s in the original (bead `toon_bend-qgu`).
 
 ### What the numbers say
 

@@ -1,0 +1,95 @@
+{
+  "utc": "2026-09-22T18:05:54Z",
+  "host": "hetzner1",
+  "kernel": "7.0.0-30-generic",
+  "cpu": "AMD EPYC-Milan Processor",
+  "cores": 8,
+  "governor": null,
+  "mem_total_kib": 32082076,
+  "loadavg_start": [
+    8.5302734375,
+    8.849609375,
+    7.17333984375
+  ],
+  "python": "3.14.4",
+  "git_head": "ddc14d1020e6afd6ac7a9d2c519602f59667e41f",
+  "git_dirty_port": false,
+  "arms": [
+    {
+      "name": "rust_z",
+      "kind": "rust",
+      "path": "/data/projects/toon_bend/oracle/toon",
+      "sha256": "821287eaf1a6d320ee1ef7604e74e3cefaa42b69445c96abb9dd310782d04030",
+      "bytes": 682872
+    },
+    {
+      "name": "rust_o3",
+      "kind": "rust",
+      "path": "/data/tmp/claude-1000/-data-projects-toon-bend/ef481f9c-aeec-4cf8-b9b3-564460bd5afe/scratchpad/arms/o3/toon",
+      "sha256": "4873c7211da1870a5b53a0514e8579380d7ce9223ff2de81d1c911976ebb99d4",
+      "bytes": 884048
+    },
+    {
+      "name": "bend",
+      "kind": "bend",
+      "path": "/data/tmp/claude-1000/-data-projects-toon-bend/ef481f9c-aeec-4cf8-b9b3-564460bd5afe/scratchpad/arms/bend/toon",
+      "sha256": "7fb737c372a594fbfdd7100fae1c64d351ee9f8e8807ebce743ca60a9122461b",
+      "bytes": 909704
+    }
+  ],
+  "scenarios": [
+    "encode",
+    "encode_stdin",
+    "encode_fold",
+    "encode_tab",
+    "encode_stats",
+    "decode",
+    "decode_expand",
+    "version"
+  ],
+  "files": [
+    "github_events",
+    "apache_builds",
+    "numbers",
+    "flights_2k",
+    "unemployment",
+    "instruments",
+    "npm_cli_lock",
+    "flights_5k",
+    "random",
+    "update_center",
+    "twitterescaped",
+    "twitter",
+    "us_10m",
+    "mesh",
+    "vscode_lock",
+    "flights_10k",
+    "jobs",
+    "football",
+    "earthquakes",
+    "movies",
+    "citm_catalog",
+    "flights_20k",
+    "canada",
+    "marine_ik",
+    "gsoc_2018",
+    "semanticscholar",
+    "flights_200k",
+    "openapi_github",
+    "semsch_625",
+    "semsch_1250",
+    "semsch_2500",
+    "semsch_5000"
+  ],
+  "budget_s": 30.0,
+  "min_runs": 5,
+  "max_runs": 30,
+  "max_cv_pct": 5.0,
+  "seed": 1,
+  "loadavg_end": [
+    17.86376953125,
+    20.263671875,
+    18.5751953125
+  ],
+  "finished_utc": "2026-09-22T19:20:46Z"
+}

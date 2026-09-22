@@ -7,7 +7,7 @@
 
 | field | value |
 |---|---|
-| phase | 4 parity gate (NOT converged: EIGHT non-author rounds in a row were not clean: 6, 11, 8, 3, 10, 12, 13 and 9 findings (rounds 10, 11, 12 and 13 audited the documents and a fresh clone; rounds 9 to 13 found 0 differences in conversion content); every DISC is ACCEPTED or RESOLVED since the owner's delegation) and 5 performance (three number levers PROVISIONAL, the key carriers ledgered, and a fourth lever REFUSED and reverted: EXP-005, NE-007, 2026-09-21); the reference port is complete and green on every lane |
+| phase | 4 parity gate (NOT converged: NINE non-author rounds in a row were not clean: 6, 11, 8, 3, 10, 12, 13, 9 and 15 findings (rounds 10 to 14 audited the documents and a fresh clone; rounds 9 to 14 found 0 unregistered differences in conversion content); every DISC is ACCEPTED or RESOLVED since the owner's delegation) and 5 performance (three number levers PROVISIONAL, the key carriers ledgered, and a fourth lever REFUSED and reverted: EXP-005, NE-007, 2026-09-21); the reference port is complete and green on every lane |
 | tier | T2 |
 | bend | `bend 2.0.16` (checkout `15ae0c8`, run as `bun /tmp/bend/bend2/main.ts`); drift vs the previous pin: none, same pin since Phase 0 (VERSION-DRIFT) |
 | last updated | 2026-09-21 by Claude (Claude Code session, author of phases −1 to 5; rounds 6 to 13 are non-author subagents; their reports are in `docs/reviews/`) |
@@ -58,7 +58,7 @@ The repository owner delegated every open decision to the author: "You decide on
 
 | id | what | blocks | owner |
 |---|---|---|---|
-| rounds | T2 needs the last two rounds clean; rounds 6 to 13 found 6, 11, 8, 3, 10, 12, 13 and 9 (2 HIGH in round 7 on stdin; 1 HIGH in round 10 on unbuildable cited commits; none in rounds 11, 12 and 13). Since round 9 the findings are about descriptor states, the launcher and the documents, not about conversion bytes. `converge.sh` reads clean tail 0, so rounds 14 AND 15 must both be clean | `converge.sh` | a fresh non-author subagent per round, after the previous round's repairs (round 14 is bead `toon_bend-807`) |
+| rounds | T2 needs the last two rounds clean; rounds 6 to 14 found 6, 11, 8, 3, 10, 12, 13, 9 and 15 (2 HIGH in round 7 on stdin; 1 HIGH in round 10 on unbuildable cited commits; none in rounds 11 to 14). Since round 9 the findings are about descriptor states, the launcher, the documents, the gates and law coverage, not about conversion bytes. `converge.sh` reads clean tail 0, so rounds 15 AND 16 must both be clean | `converge.sh` | a fresh non-author subagent per round, after the previous round's repairs (round 14 is bead `toon_bend-807`) |
 | NE-001..007 | four PROVISIONAL entries (the three number levers, of which only EXP-003 is shown to meet its gate alone; the key carriers), one MEASURED_LOSS (NE-006) and two NO_EVIDENCE: NE-004 (the folding ratio, refused three times) and NE-007 (EXP-005, refused once, source reverted 2026-09-21) | any WIN claim for them | author, on a quiet host; the owner for the binding question (bead `toon_bend-clf`) |
 | incumbent | five of eight captures against the original are still REFUSED_CV (the original needs under 6 ms for them) | a speed sentence for those inputs | author, on a quiet host with inputs ten times larger (bead `toon_bend-udw`) |
 | pin drift | `pin-check.sh` is RED since 2026-09-21: the sibling checkout `/dp/toon_rust` behind `legacy/Toon` moved off pin `f955c67` onto the dependabot merge `6422239`. The ORACLE BINARY is untouched and sha256-verified against PIN.toml, so no golden, lane, floor or parity line is affected | a GREEN `pin-check`, and any future rebuild of the oracle from source | the repository owner (returning another project's checkout to a commit is not this port's to do); bead `toon_bend-4k5` |
@@ -102,7 +102,7 @@ Convergence (computed by `scripts/converge.sh docs/PORT_STATE.md`): T1 ≥ 3
 rounds and ≥ 1 clean at the end; T2 ≥ 5 and ≥ 2 consecutive clean at the end and ≥ 1 non-author round; T3
 ≥ 10 with the last two rounds clean; a clean round has < 3 new genuine
 findings and no unresolved finding from that round; a dirty or reopened
-round resets the clean streak. Every OQ is resolved or excluded; no OPEN DISC. Current: NOT_CONVERGED (the last six rounds are not clean; no DISC and no OQ is open).
+round resets the clean streak. Every OQ is resolved or excluded; no OPEN DISC. Current: NOT_CONVERGED (the last NINE rounds, 6 to 14, are not clean; no DISC and no OQ is open).
 
 ## Next action (one line, executable)
 

@@ -506,8 +506,11 @@ def write_report(out):
     L.append('### The same ratios by three estimators\n')
     L.append('On a loaded host the median carries the noise of every sample. Two estimators are less sensitive to it: the '
              'MINIMUM over the interleaved samples (contention only ever adds time) and the median CPU time (user + sys of '
-             'the child itself, which excludes waiting for a core but not cache or SMT interference). Where the three agree, '
-             'the ratio does not depend on the noise. None of them replaces the cv gate: a NOISY cell stays orientation.\n')
+             'the child itself, which excludes waiting for a core but not cache or SMT interference). Contention adds roughly '
+             'constant time, so it inflates the shorter arm proportionally more and pulls the ratio of medians toward 1: '
+             'the median flatters the slower program (by ~12% on the 2026-09-22 run at load 8-14). A claim uses the '
+             'estimator least favourable to the port and names it; the spread between the three is the noise band. None '
+             'of them replaces the cv gate: a NOISY cell stays orientation.\n')
     L.append('| scenario | ' + ' | '.join(f'{o}/{ref} median | min | CPU' for o in others) + ' |')
     L.append('|---|' + '---|' * (3 * len(others)))
     for scen in dict.fromkeys(c['scenario'] for c in cells):

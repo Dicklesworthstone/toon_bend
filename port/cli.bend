@@ -96,6 +96,7 @@ type Tok is Data:
   TShort{c: U32}
   TOut{has_val: Bool, val: String}
   TPlain{word: String, esc: Bool}
+  TNeg{word: String, first: U32}
 
 # S1.8 remove one leading '='
 def tok.out.eq(eq: Bool, c: U32, more: String) -> String:
@@ -130,15 +131,51 @@ def tok.long(c: T.Cut) -> Tok:
     case T.Cut{found, name, val}:
       TLong{name, found, val}
 
+# S1.156 the class of the first character of a text: 0 an ASCII digit, 1 '.', 2 'e' or 'E', 3 any
+# other character, 4 none
+def num.cls(s: String) -> Nat:
+  match s:
+    case SNil{}:
+      4n
+    case SCon{Chr{+c}, rest}:
+      Bool.pick(Nat, Bool.and(U32.is_ge(c, 48), U32.is_le(c, 57)), 0n, Bool.pick(Nat, U32.is_eq(c, 46), 1n, Bool.pick(Nat, Bool.or(U32.is_eq(c, 101), U32.is_eq(c, 69)), 2n, 3n)))
+
+# S1.156 whether the text after a leading '-' is a number: ASCII digits, at most one '.' that is not
+# the first character and comes before any exponent letter, at most one 'e' or 'E' that is not the
+# first character and not the last. k is the class of the head of s; `at` whether a character was
+# read; `dot`, `exp` whether a '.' or an exponent letter was read; `last_e` whether the character
+# read last was the exponent letter.
+def num.go(s: String, k: Nat, at: Bool, dot: Bool, +exp: Bool, last_e: Bool) -> Bool:
+  match s k:
+    case SNil{} _:
+      Bool.not(last_e)
+    case SCon{h, +rest} 0n:
+      num.go(rest, num.cls(rest), True{}, dot, exp, False{})
+    case SCon{h, +rest} 1n:
+      Bool.and(Bool.and(at, Bool.not(Bool.or(dot, exp))), num.go(rest, num.cls(rest), True{}, True{}, exp, False{}))
+    case SCon{h, +rest} 2n:
+      Bool.and(Bool.and(at, Bool.not(exp)), num.go(rest, num.cls(rest), True{}, dot, True{}, True{}))
+    case SCon{h, rest} _:
+      False{}
+
+# S1.156 a word '-' + number is kept whole (an option that allows negative numbers takes it as its
+# value, S1.157); any other '-' word is a short cluster (S1.8)
+def tok.neg(num: Bool, +c: U32, +m: String, acc: List<&2, Tok>) -> List<&2, Tok>:
+  match num:
+    case True{}:
+      TNeg{SCon{Chr{45}, SCon{Chr{c}, m}}, c} <> acc
+    case False{}:
+      tok.cluster(SCon{Chr{c}, m}, U32.is_eq(c, 111), acc)
+
 # S1.5 (a), (b) after `--`: nothing more is the escape; otherwise a long-option word. (c) a short cluster
-def tok.dash2(dash: Bool, +c: U32, more: String, acc: List<&2, Tok>) -> List<&2, Tok>:
+def tok.dash2(dash: Bool, +c: U32, +more: String, acc: List<&2, Tok>) -> List<&2, Tok>:
   match dash more:
     case True{} SNil{}:
       TEsc{} <> acc
     case True{} SCon{h, t}:
       tok.long(T.cut(SCon{h, t}, 61)) <> acc
     case False{} m:
-      tok.cluster(SCon{Chr{c}, m}, U32.is_eq(c, 111), acc)
+      tok.neg(num.go(SCon{Chr{c}, m}, num.cls(SCon{Chr{c}, m}), False{}, False{}, False{}, False{}), c, m, acc)
 
 # S1.5 the class of a word that begins with '-': (a) exactly `--`; (b) `--` and more; (c) '-' and a
 # second character that is not '-'; (d) the one-character word `-` is plain
@@ -479,7 +516,7 @@ def e86(val: String, +id: Nat, c: List<&2, Nat>) -> String:
 
 # S1.60 the help text, block V1
 def help_text() -> String:
-  "TOON reference implementation in Rust (JSON <-> TOON)\n\nUsage: toon [OPTIONS] [INPUT]\n\nArguments:\n  [INPUT]  Input file path (omit or use \"-\" to read from stdin)\n\nOptions:\n  -o, --output <FILE>                Output file path (stdout if omitted)\n  -e, --encode                       Encode JSON to TOON (auto-detected by default)\n  -d, --decode                       Decode TOON to JSON (auto-detected by default)\n      --delimiter <DELIMITER>        Delimiter for arrays: comma (,), tab (\\t), or pipe (|) [default: ,]\n      --indent <INDENT>              Indentation size (spaces) [default: 2]\n      --no-strict                    Disable strict mode for decoding (allows lenient parsing)\n      --key-folding <KEY_FOLDING>    Key folding mode: off or safe [default: off] [possible values: off, safe]\n      --flatten-depth <N>            Maximum folded segment count when key folding is enabled\n      --expand-paths <EXPAND_PATHS>  Path expansion mode: off or safe (decode only) [default: off] [possible values: off, safe]\n      --stats                        Show token statistics (encode only)\n  -h, --help                         Print help\n  -V, --version                      Print version\n\nEXAMPLES:\n    toon input.json                  # Encode JSON to TOON (stdout)\n    toon input.toon                  # Decode TOON to JSON (stdout)\n    toon input.json -o output.toon   # Encode to file\n    cat data.json | toon --encode    # Encode from stdin\n    cat data.toon | toon --decode    # Decode from stdin\n    toon input.json --stats          # Show token statistics\n"
+  "TOON reference implementation in Rust (JSON <-> TOON)\n\nUsage: toon [OPTIONS] [INPUT]\n\nArguments:\n  [INPUT]  Input file path (omit or use \"-\" to read from stdin)\n\nOptions:\n  -o, --output <FILE>                Output file path (omit or use \"-\" to write to stdout)\n  -e, --encode                       Encode JSON to TOON (auto-detected by default)\n  -d, --decode                       Decode TOON to JSON (auto-detected by default)\n      --delimiter <DELIMITER>        Delimiter for arrays: comma (`,` or `comma`), tab (`\\t` or `tab`), or pipe (`|` or `pipe`) [default: ,]\n      --indent <INDENT>              Indentation size in spaces, 0 to 16 (encode: TOON output, at least 1; decode: TOON input and JSON output, where 0 prints compact JSON) [default: 2]\n      --no-strict                    Disable strict mode for decoding (allows lenient parsing)\n      --key-folding <KEY_FOLDING>    Key folding mode: off or safe [default: off] [possible values: off, safe]\n      --flatten-depth <N>            Maximum folded segment count when key folding is enabled\n      --expand-paths <EXPAND_PATHS>  Path expansion mode: off or safe (decode only) [default: off] [possible values: off, safe]\n      --stats                        Show token estimates for the JSON and TOON forms (stderr)\n  -h, --help                         Print help\n  -V, --version                      Print version\n\nEXAMPLES:\n    toon input.json                  # Encode JSON to TOON (stdout)\n    toon input.toon                  # Decode TOON to JSON (stdout)\n    toon input.json -o output.toon   # Encode to file\n    cat data.json | toon --encode    # Encode from stdin\n    cat data.toon | toon --decode    # Decode from stdin\n    toon input.json --stats          # Show token statistics\n"
 
 # S1.62 the version line
 def version_text() -> String:
@@ -648,9 +685,13 @@ def budget.value(short: Bool, c: String) -> Nat:
     case False{}:
       1000n
 
+# S1.32 canonical digits fit the 64-bit unsigned word up to 18446744073709551615
+def u64.fits(+d: String) -> Bool:
+  Bool.or(Nat.is_lt(T.str_len(d, 0n), 20n), Bool.and(Nat.is_eq(T.str_len(d, 0n), 20n), String.is_le(d, "18446744073709551615")))
+
 # S1.32 the range verdict over the canonical digits
 def budget.check.c(kind: Nat, +c: String, w: String, v: Vals) -> VR:
-  budget.set(budget.reason(kind, Bool.not(D.len.fits(c))), w, Nat.min(budget.value(Nat.is_le(T.str_len(c, 0n), 3n), c), 1000n), v)
+  budget.set(budget.reason(kind, Bool.not(u64.fits(c))), w, Nat.min(budget.value(Nat.is_le(T.str_len(c, 0n), 3n), c), 1000n), v)
 
 # S1.32 the verdicts of a flatten-depth word: every value up to 18446744073709551615 is accepted
 def budget.check(iw: IW, w: String, v: Vals) -> VR:
@@ -882,6 +923,26 @@ def on.plain(p: Pend, esc: Bool, seen: Bool, w: String, c: List<&2, Nat>, v: Val
     case p0 _ False{}:
       input.after(resolve(c, p0, v), w)
 
+# S1.157 --indent (5) and --flatten-depth (8) allow negative numbers: while one of them waits for
+# its value, a '-' + number word is that value
+def neg.ok(p: Pend) -> Bool:
+  match p:
+    case POpt{5n, False{}, w}:
+      True{}
+    case POpt{8n, False{}, w}:
+      True{}
+    case _:
+      False{}
+
+# S1.157 the value of the waiting option (a plain word, S1.9); otherwise the cluster, whose first
+# character is a digit and therefore the unknown-character error S1.77
+def on.neg(ok: Bool, +ch: U32, w: String, +c: List<&2, Nat>, p: Pend, v: Vals) -> PS:
+  match ok:
+    case True{}:
+      on.plain(p, False{}, has(c, 0n), w, c, v)
+    case False{}:
+      on.short(short.id(ch), ch, c, p, v)
+
 # S1.15 one token
 def on.tok(st: PS, t: Tok) -> PS:
   match st t:
@@ -899,6 +960,8 @@ def on.tok(st: PS, t: Tok) -> PS:
       wait.after(resolve(c, p, v), 1n)
     case PGo{+c, p, v} TPlain{w, esc}:
       on.plain(p, esc, has(c, 0n), w, c, v)
+    case PGo{+c, +p, v} TNeg{w, +ch}:
+      on.neg(neg.ok(p), ch, w, c, p, v)
 
 # S1.4 the tokens left to right; the first report ends the scan (a loop over the tokens)
 def scan(ts: List<&2, Tok>, st: PS) -> PS:
@@ -930,15 +993,14 @@ def lower.rev(s: String, acc: String) -> String:
       lower.rev(rest, SCon{Chr{Bool.pick(U32, Bool.and(U32.is_ge(c, 65), U32.is_le(c, 90)), (c + 32 : U32), c)}, acc})
 
 # S4.301 the extension, from the REVERSED final path component cut at its first '.' (the last dot of
-# the component): no dot, or nothing before that dot, means no extension. The argument `ext_rev` is
-# the text after the last dot, reversed; lowering it reversed onto the empty text restores its order.
+# the component): the text after that dot, even when nothing precedes it (a file named `.toon` has
+# the extension `toon`); no dot means no extension. The argument `ext_rev` is the text after the last
+# dot, reversed; lowering it reversed onto the empty text restores its order.
 def ext.of(c: T.Cut) -> String:
   match c:
     case T.Cut{False{}, ext_rev, stem_rev}:
       SNil{}
-    case T.Cut{True{}, ext_rev, SNil{}}:
-      SNil{}
-    case T.Cut{True{}, ext_rev, SCon{h, t}}:
+    case T.Cut{True{}, ext_rev, stem_rev}:
       lower.rev(ext_rev, SNil{})
 
 # S4.301 the final path component, reversed (the text after the last '/')
@@ -964,11 +1026,11 @@ def mode.decode(enc: Bool, dec: Bool, has_in: Bool, +e: String) -> Bool:
     case False{} False{} False{}:
       False{}
 
-# S1.11 INPUT absent, or exactly `-`, means stdin; S1.12 the output word is always a path
+# S1.11 INPUT absent, or exactly `-`, means stdin; S1.12 the output word `-` means stdout, like no -o
 def opts(+c: List<&2, Nat>, v: Vals) -> Opts:
   match v:
-    case Vals{+input, output, delim, indent, fold, budget, expand}:
-      Opts{Bool.and(has(c, 0n), Bool.not(T.str_eq(input, "-"))), input, has(c, 1n), output, mode.decode(has(c, 2n), has(c, 3n), Bool.and(has(c, 0n), Bool.not(T.str_eq(input, "-"))), ext(input)), delim, indent, Bool.not(has(c, 6n)), fold, budget, expand, has(c, 10n)}
+    case Vals{+input, +output, delim, indent, fold, budget, expand}:
+      Opts{Bool.and(has(c, 0n), Bool.not(T.str_eq(input, "-"))), input, Bool.and(has(c, 1n), Bool.not(T.str_eq(output, "-"))), output, mode.decode(has(c, 2n), has(c, 3n), Bool.and(has(c, 0n), Bool.not(T.str_eq(input, "-"))), ext(input)), delim, indent, Bool.not(has(c, 6n)), fold, budget, expand, has(c, 10n)}
 
 # S1.18 which of encode (2) and decode (3) is earlier in C
 def conflict.first(c: List<&2, Nat>) -> Nat:
@@ -1048,22 +1110,33 @@ def est.fin(st: ES) -> Nat:
 def est(s: String) -> Nat:
   est.fin(est.go(s, ES{0n, 0n, False{}}))
 
-# S4.315 p = (D / J) * 100 as two binary64 operations; S4.316 printed with one fractional digit
-def percent(d: Nat, j: Nat) -> String:
-  F.fixed1(F.mul(F.div(F.from_nat(d), F.from_nat(j)), F.from_nat(100n)))
+# S4.316 a count of tenths as `<units>.<tenth>`
+def percent.show(+tenths: Nat) -> String:
+  Nat.show(Nat.div(tenths, 10n)) ++ "." ++ Nat.show(Nat.mod(tenths, 10n))
 
-# S5.108 the Saved line appears only when D > 0; `tokens` is never singular
-def stats.saved(saves: Bool, +j: Nat, +t: Nat) -> String:
-  match saves:
-    case False{}:
-      SNil{}
-    case True{}:
-      "\nSaved ~" ++ Nat.show(Nat.sub(j, t)) ++ " tokens (-" ++ percent(Nat.sub(j, t), j) ++ "%)"
+# S4.315 p = D / J * 100 with one fractional digit, rounded half up on the EXACT quotient: in tenths,
+# floor((2000 D + J) / 2J). J >= 1 (every estimate is at least 1, S4.310).
+def percent(d: Nat, +j: Nat) -> String:
+  percent.show(Nat.div(Nat.add(Nat.mul(d, 2000n), j), Nat.mul(j, 2n)))
+
+# S5.108 the noun after a count: singular for exactly one
+def noun(+n: Nat) -> String:
+  Bool.pick(String, Nat.is_eq(n, 1n), "token", "tokens")
+
+# S5.108 the third line: TOON smaller (Saved, D = J - T), TOON larger (D = T - J), or equal
+def stats.third(less: Bool, more: Bool, +j: Nat, +t: Nat) -> String:
+  match less more:
+    case True{} _:
+      T.cat(["\nSaved ~", Nat.show(Nat.sub(j, t)), " ", noun(Nat.sub(j, t)), " (-", percent(Nat.sub(j, t), j), "%)"])
+    case False{} True{}:
+      T.cat(["\nTOON is larger by ~", Nat.show(Nat.sub(t, j)), " ", noun(Nat.sub(t, j)), " (+", percent(Nat.sub(t, j), j), "%)"])
+    case False{} False{}:
+      "\nNo token difference (0.0%)"
 
 # S5.108 the statistics lines WITHOUT their final LF (the shell's stderr write appends it): an empty
-# line, the estimates line, and the Saved line when D = J - T > 0 (S4.314: D saturates at 0)
+# line, the estimates line, and the line S5.108 chooses by comparing T with J
 def stats.text(+j: Nat, +t: Nat) -> String:
-  "\nToken estimates: ~" ++ Nat.show(j) ++ " (JSON) → ~" ++ Nat.show(t) ++ " (TOON)" ++ stats.saved(Nat.is_gt(j, t), j, t)
+  "\nToken estimates: ~" ++ Nat.show(j) ++ " (JSON) → ~" ++ Nat.show(t) ++ " (TOON)" ++ stats.third(Nat.is_lt(t, j), Nat.is_gt(t, j), j, t)
 
 # ---------------------------------------------------------------- S8.7, S8.8 the conversion
 
@@ -1102,18 +1175,59 @@ def enc.ok(stats: Bool, +out: String, text: String) -> CR:
 def enc.read(p: J.Parsed, o: E.Opts, stats: Bool, text: String) -> CR:
   match p:
     case J.PErr{msg, line, col}:
-      CErr{"JSON error: Failed to parse JSON: " ++ msg ++ " at line " ++ Nat.show(line) ++ " column " ++ Nat.show(col)}
+      CErr{"Failed to parse JSON: " ++ msg ++ " at line " ++ Nat.show(line) ++ " column " ++ Nat.show(col)}
     case J.POk{v}:
       enc.ok(stats, toon.text(E.encode(v, o)), text)
 
-# S9.3 a TOON failure is the decoder's message verbatim; S5.101 otherwise the JSON text and one LF.
-# The writer's escape table follows the consumer (S3.24): writer B after path expansion.
-def dec.done(r: D.DR, indent: Nat, expand: Bool, spec: Bool) -> CR:
+# S4.318 decode with --stats: J measures the JSON output, T the TOON input as read (S4.313)
+def dec.ok(stats: Bool, +out: String, text: String) -> CR:
+  match stats:
+    case False{}:
+      COk{out, SNil{}}
+    case True{}:
+      COk{out, stats.text(est(out), est(text))}
+
+# S9.3 every TOON failure is the decoder's message after the prefix `Failed to decode TOON: `;
+# S5.101 otherwise the JSON text and one LF, from the one JSON writer (S3.24)
+def dec.done(r: D.DR, indent: Nat, spec: Bool, stats: Bool, text: String) -> CR:
   match r:
     case D.DErr{msg}:
-      CErr{msg}
+      CErr{"Failed to decode TOON: " ++ msg}
     case D.DOk{v}:
-      COk{J.write_ln(v, indent, expand, spec), SNil{}}
+      dec.ok(stats, J.write_ln(v, indent, spec), text)
+
+# S8.7 a leading U+FEFF (the UTF-8 byte order mark EF BB BF) is dropped from the input: it is an
+# encoding signature, never data
+def bom.bytes.drop(mark: Bool, a: U32, b: U32, c: U32, rest: List<&2, U32>) -> List<&2, U32>:
+  match mark:
+    case True{}:
+      rest
+    case False{}:
+      Con{a, Con{b, Con{c, rest}}}
+
+# S8.7 the first three bytes, dropped when they are the mark
+def bom.bytes(bytes: List<&2, U32>) -> List<&2, U32>:
+  match bytes:
+    case Con{+a, Con{+b, Con{+c, rest}}}:
+      bom.bytes.drop(Bool.and(U32.is_eq(a, 239), Bool.and(U32.is_eq(b, 187), U32.is_eq(c, 191))), a, b, c, rest)
+    case other:
+      other
+
+# S8.7 the first character of the decoded text, kept unless it is the mark
+def bom.text.drop(mark: Bool, c: U32, rest: String) -> String:
+  match mark:
+    case True{}:
+      rest
+    case False{}:
+      SCon{Chr{c}, rest}
+
+# S8.7 the same for the decoded text
+def bom.text(s: String) -> String:
+  match s:
+    case SCon{Chr{+c}, rest}:
+      bom.text.drop(U32.is_eq(c, 65279), c, rest)
+    case other:
+      other
 
 # S4.200 (5) path expansion only with --expand-paths safe
 def dec.run(expand: Bool, text: String, strict: Bool, indent: Nat, spec: Bool) -> D.DR:
@@ -1122,6 +1236,10 @@ def dec.run(expand: Bool, text: String, strict: Bool, indent: Nat, spec: Bool) -
       D.decode_expanded(text, strict, indent, spec)
     case False{}:
       D.decode(text, strict, indent, spec)
+
+# S8.8 decode the text (after the byte order mark was dropped)
+def dec.text(+text: String, expand: Bool, strict: Bool, +indent: Nat, +spec: Bool, stats: Bool) -> CR:
+  dec.done(dec.run(expand, text, strict, indent, spec), indent, spec, stats, text)
 
 # S9.7, S9.8 the UTF-8 failure names stdin or the path as typed
 def utf8.msg(has_in: Bool, input: String) -> String:
@@ -1138,9 +1256,9 @@ def convert.text(m: Maybe<&2, String>, o: Opts, bytes: List<&2, U32>, +spec: Boo
     case None{} Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
       CErr{utf8.msg(has_in, input)}
     case Some{rev} Opts{has_in, input, has_out, output, False{}, delim, indent, strict, fold, budget, expand, stats}:
-      enc.read(J.read(bytes, spec), E.Opts{indent, delim, fold, budget, spec}, stats, String.reverse(rev))
-    case Some{rev} Opts{has_in, input, has_out, output, True{}, delim, +indent, strict, fold, budget, +expand, stats}:
-      dec.done(dec.run(expand, String.reverse(rev), strict, indent, spec), indent, expand, spec)
+      enc.read(J.read(bom.bytes(bytes), spec), E.Opts{indent, delim, fold, budget, spec}, stats, bom.text(String.reverse(rev)))
+    case Some{rev} Opts{has_in, input, has_out, output, True{}, delim, +indent, strict, fold, budget, expand, stats}:
+      dec.text(bom.text(String.reverse(rev)), expand, strict, indent, spec, stats)
 
 # S8.7, S8.8 input bytes to output text. spec is the numeric kill-switch (TOON_SPEC=1, read once by the
 # shell): with it every number takes its spec twin; the bytes are the same either way.
@@ -1173,11 +1291,12 @@ def o.output(o: Opts) -> String:
     case Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
       output
 
-# S4.318 statistics exist only in encode mode with --stats
-def o.stats(o: Opts) -> Bool:
+# S4.319 encoding needs at least one space per level: with 0 every depth shares one column and the
+# output no longer denotes the input. Checked before the input is read.
+def o.indent_error(o: Opts) -> Bool:
   match o:
     case Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
-      Bool.and(stats, Bool.not(decode))
+      Bool.and(Bool.not(decode), Nat.is_eq(indent, 0n))
 
 # S1.11 whether INPUT is a path (else stdin)
 def o.has_in(o: Opts) -> Bool:
@@ -1207,13 +1326,25 @@ def run.cr(r: CR) -> Out:
     case COk{out, stats}:
       Out{0n, out, stats}
 
+# S1.158 the refusal of indent 0 when encoding
+def indent.msg() -> String:
+  "Indentation size must be at least 1 when encoding TOON"
+
+# S4.319 the indent is checked before the input is looked at
+def run.opts(bad: Bool, o: Opts, bytes: List<&2, U32>) -> Out:
+  match bad:
+    case True{}:
+      Out{1n, SNil{}, indent.msg()}
+    case False{}:
+      run.cr(convert(o, bytes, False{}))
+
 # S1.135 an argv error, help or version never looks at the input
 def run.parsed(p: Parsed, bytes: List<&2, U32>) -> Out:
   match p:
     case PExit{code, out, err}:
       Out{code, out, err}
-    case PRun{o}:
-      run.cr(convert(o, bytes, False{}))
+    case PRun{+o}:
+      run.opts(o.indent_error(o), o, bytes)
 
 # S5.112 argv and input bytes to the program's observable result (without the success line of -o)
 def run_pure(argv: List<&2, String>, bytes: List<&2, U32>) -> Out:

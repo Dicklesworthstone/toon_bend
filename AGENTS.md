@@ -108,7 +108,7 @@ We do not care about backwards compatibility **of the port's own internals**—w
 - Never create wrapper functions for deprecated APIs
 - Just fix the code directly
 
-**The one thing we are rigidly compatible with is the original's observable behavior.** Bug-compatibility is the default: stdout, stderr and the exit code match the pinned `toon` binary byte for byte, including its oddities (decoded integers print as `1.0`; JSON number input is not correctly rounded; the two JSON writers escape control characters differently). A deliberate divergence exists only as a `DISC-` entry in `docs/DISCREPANCIES.md` with a class, a kill-switch, the affected cases, a measured impact and the owner's approval. No silent fixes.
+**The one thing we are rigidly compatible with is the original's observable behavior.** stdout, stderr and the exit code match the pinned `toon` binary byte for byte. **Bugs are never reproduced: they are FIXED** (the owner's order, 2026-09-22: "ANy bugs you find in EITHER toon_rust (my project) or toon_bend MUST be properly FIXED"). A bug found in the original is fixed in `toon_rust` first (judged by the TOON specification and the reference implementation, never by the old goldens), then the port is re-pinned (`docs/PIN.toml`, PLAN §2), the goldens re-captured with `--repin "<reason>"`, and the port changed to match on every lane. A bug found in the port alone is fixed in the port. A deliberate divergence from the pinned original exists only as a `DISC-` entry in `docs/DISCREPANCIES.md` with a class, a kill-switch, the affected cases, a measured impact and the owner's approval. No silent fixes, and no silent bugs.
 
 ---
 
@@ -164,9 +164,9 @@ Properties that hold for every input are **laws** in `port/LAWS.bend`, proved in
 | `fx_enc_*`, `fx_dec_*` | the 349 vendored TOON spec fixtures (inputs and options only; their `expected` fields are the upstream TypeScript reference's and are **not** goldens) |
 | `usage_*`, `flag_*`, `auto_*` | clap's usage surface, option spellings, mode auto-detection, `-o`, stdin |
 | `stats_*` | `--stats` token estimates and the percent line |
-| `encnum_*`, `decnum_*`, `decfmt_*` | number text in both directions: serde_json's float path, Rust `Display`, correctly rounded token parsing, zmij's JSON float text |
+| `encnum_*`, `decnum_*`, `decfmt_*` | number text in both directions: correctly rounded reading (JSON and TOON), shortest digits with ties to even (TOON), JavaScript's number text (JSON) |
 | `encstr_*`, `enc_*`, `decstr_*` | quoting, escapes, Unicode whitespace, keys, shapes, key folding |
-| `jsonerr_*`, `jsonout_*` | serde_json's error messages with byte columns; the two JSON writers |
+| `jsonerr_*`, `jsonout_*` | serde_json's error messages with byte columns; the JSON writer |
 | `toonerr_*`, `toonlenient_*`, `toonedge_*` | decode errors, `--no-strict`, indent sizes |
 | `large_*`, `determinism_*`, `happy_*` | performance inputs doubling as conformance, floor probes, README examples |
 
@@ -204,8 +204,8 @@ JSON bytes → strict UTF-8 → JSON reader (pushdown machine, serde_json-compat
            → annotate (array strategy, key folding) → emit → TOON lines
 TOON bytes → strict UTF-8 → lines → scanner → decoder (pushdown machine over lines) → Json value
            (values attached in the event order of S3.20–S3.22; repeated keys and quoted-key flags kept)
-           → JSON writer, escape table A                          (plain --decode)
-           → path expansion → JSON writer, escape table B         (--expand-paths safe)
+           → JSON writer                                          (plain --decode)
+           → path expansion → the same JSON writer                (--expand-paths safe)
 
 Numbers: text ⇄ exact software binary64 (sign, exponent, 53-bit significand over big naturals).
 Shell:   args, stdin/files as bytes, stdout/stderr, exit codes. It calls one core function and prints.
@@ -231,7 +231,7 @@ toon_bend/
 │   ├── text.bend                  # strict UTF-8, Unicode White_Space / Cc tables, trim, tail-recursive list and string tools
 │   ├── bignat.bend                # big naturals over 16-bit limbs in U32
 │   ├── f64.bend                   # software binary64: u64→f64, ×/÷ by powers of ten, correctly rounded decimal→f64, shortest digits, both printers
-│   ├── json.bend                  # the Json value type, the JSON reader, the two JSON writers
+│   ├── json.bend                  # the Json value type, the JSON reader, the JSON writer
 │   ├── encode.bend                # TOON encoder: quoting, headers, array strategy, list items, key folding
 │   ├── decode.bend                # TOON decoder: scanner, header parser, event machine, value builder, path expansion
 │   ├── LAWS.bend                  # the laws (human-owned: add, never weaken or delete)
@@ -243,7 +243,7 @@ toon_bend/
 │   ├── PROPOSED_ARCHITECTURE.md   # core/shell split, module map, loop measures, order carriers, seam
 │   ├── NUMERIC_PLAN.md            # one row per numeric quantity; the encoding contract
 │   ├── FEATURE_PARITY.md          # the parity board (present / partial / missing / excluded)
-│   ├── DISCREPANCIES.md           # every divergence (DISC) and the bug-compat candidates
+│   ├── DISCREPANCIES.md           # every divergence (DISC) and the record of the bugs fixed upstream
 │   ├── OPEN_QUESTIONS.md          # spec gaps, each resolved by RUNNING the original
 │   ├── PIN.toml                   # the pins as data (scripts/pin-check.sh)
 │   └── spec-parts/                # the extractors' part files behind the spec
@@ -270,7 +270,7 @@ toon_bend/
 | `docs/EXISTING_Toon_STRUCTURE.md` | the spec every def, law, board row and DISC cites by clause number |
 | `port/main.bend` | the only file with `IO` in its types; a chain of small shell defs |
 | `port/json.bend` | `Json` (one self-recursive type), reader with serde_json's messages and byte columns, both writers |
-| `port/f64.bend` | the number substrate; where serde_json's non-round-trip float path is reproduced step by step |
+| `port/f64.bend` | the number substrate: correctly rounded decimal → binary64, shortest digits, the TOON and JSON printers |
 | `port/encode.bend` | value → TOON lines: annotate (strategy, folding), then emit |
 | `port/decode.bend` | TOON lines → events → value; strict validation; safe path expansion |
 | `port/LAWS.bend` / `port/PROOF.bend` | what is proved, and the gate |
@@ -340,7 +340,7 @@ toon_bend/
 - **Dispatch on small class codes** — never `match` on `U32` literals (bend #867: a bit tree per arm set) nor on byte values as `Nat` literals (one successor per unit in the checker); classify once (`byte.cls`), match on codes below 16
 - **Bytes in, lines out** — input is read as bytes and decoded strictly (the original rejects invalid UTF-8); JSON error columns are byte columns; output is written line by line
 - **Software binary64** — Bend has no f64, and the goldens show three distinct number algorithms that must be matched bit for bit
-- **Bug-compatible by default** — oddities are reproduced and listed for the owner, not fixed
+- **Bugs are fixed, never reproduced** — in `toon_rust` first, then re-pinned, re-captured and ported
 - **No Base templates in the proved core** — keeps the verdict exactly `All terms check.`
 - **No GPU lane** — text with data-dependent structure; no bang is placed, so `gpu` is MISSING with that reason
 

@@ -1,11 +1,11 @@
 {
   "items": [
     {
-      "id": 1.0,
+      "id": 1,
       "name": "First"
     },
     {
-      "id": 2.0,
+      "id": 2,
       "name": "Second",
       "extra": true
     }

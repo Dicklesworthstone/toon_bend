@@ -1,1 +1,1 @@
-JSON error: Failed to parse JSON: control character (\u0000-\u001F) found while parsing a string at line 1 column 3
+Failed to parse JSON: control character (\u0000-\u001F) found while parsing a string at line 1 column 3

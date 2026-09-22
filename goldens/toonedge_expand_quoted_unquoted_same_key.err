@@ -1,1 +1,1 @@
-Path expansion conflict at key "a.b": cannot merge primitive with primitive
+Failed to decode TOON: Duplicate sibling key "a.b"

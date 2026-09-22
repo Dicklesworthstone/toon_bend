@@ -11,10 +11,10 @@ schema = "p2b.pin.v1"
 name = "Toon"
 path = "legacy/Toon"                  # gitignored; an oracle to run, never a template to read
 vcs = "git"
-commit = "7c1d6e439feab93bf816e99180e7261ec118dacb"   # re-pinned 2026-09-22 from f955c67 (C-10 fixed upstream; PLAN §2)
+commit = "694d73b8ffb160e211ea672cab805099270e1ef1"   # re-pinned 2026-09-22 from 7c1d6e4 (every known bug fixed upstream, the owner's order; PLAN §2)
 version_cmd = "./oracle/toon --version"
 version_expect = "toon 0.2.4"
-run_cmd = ["./oracle/toon"]  # exactly MANIFEST.txt original_argv; oracle/toon sha256 745508359fb8ec31f261d6dff55b4b7f76afcda2e0fefe9905d638c24fcf328d
+run_cmd = ["./oracle/toon"]  # exactly MANIFEST.txt original_argv; oracle/toon sha256 821287eaf1a6d320ee1ef7604e74e3cefaa42b69445c96abb9dd310782d04030
 # A shell-quoted string is also accepted, e.g. 'python3 "legacy/tool name.py"'.
 # No shell is invoked for run_cmd. The legacy `original:` display is lossy.
 build_cmd = "cd legacy/Toon && cargo build --release && cp -p \"$CARGO_TARGET_DIR/release/toon\" ../../oracle/toon"

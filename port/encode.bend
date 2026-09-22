@@ -756,8 +756,8 @@ def emit(j: J.Json, cx: Ctx, +opt: Opts, acc: List<&2, String>) -> List<&2, Stri
       emit(entries, CFields{dc, fc, keys.kt(fc.on(fc), entries)}, opt, line.key(key, d, hy, opt) <> acc)
     case J.JObj{+entries} CObjRoot{+fc}:
       emit(entries, CFields{0n, fc, keys.kt(fc.on(fc), entries)}, opt, acc)
-    case J.JObj{J.JECons{k, q, +v, +rest}} CObjItem{+d}:
-      emit(rest, CFields{1n+d, fctx.item(opt), keys.kt(opt.fold(opt), rest)}, opt, emit(v, ctx.first(k, v, d, opt), opt, acc))
+    case J.JObj{J.JECons{+k, q, +v, +rest}} CObjItem{+d}:
+      emit(rest, CFields{1n+d, fctx.item(opt), T.kt.put(keys.kt(opt.fold(opt), rest), k)}, opt, emit(v, ctx.first(k, v, d, opt), opt, acc))
     case J.JObj{J.JECons{k, q, v, t}} CDesc{0n, leaf}:
       emit(v, leaf, opt, acc)
     case J.JObj{J.JECons{k, q, v, t}} CDesc{1n+p, leaf}:

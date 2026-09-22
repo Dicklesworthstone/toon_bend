@@ -6,16 +6,16 @@ Arguments:
   [INPUT]  Input file path (omit or use "-" to read from stdin)
 
 Options:
-  -o, --output <FILE>                Output file path (stdout if omitted)
+  -o, --output <FILE>                Output file path (omit or use "-" to write to stdout)
   -e, --encode                       Encode JSON to TOON (auto-detected by default)
   -d, --decode                       Decode TOON to JSON (auto-detected by default)
-      --delimiter <DELIMITER>        Delimiter for arrays: comma (,), tab (\t), or pipe (|) [default: ,]
-      --indent <INDENT>              Indentation size (spaces) [default: 2]
+      --delimiter <DELIMITER>        Delimiter for arrays: comma (`,` or `comma`), tab (`\t` or `tab`), or pipe (`|` or `pipe`) [default: ,]
+      --indent <INDENT>              Indentation size in spaces, 0 to 16 (encode: TOON output, at least 1; decode: TOON input and JSON output, where 0 prints compact JSON) [default: 2]
       --no-strict                    Disable strict mode for decoding (allows lenient parsing)
       --key-folding <KEY_FOLDING>    Key folding mode: off or safe [default: off] [possible values: off, safe]
       --flatten-depth <N>            Maximum folded segment count when key folding is enabled
       --expand-paths <EXPAND_PATHS>  Path expansion mode: off or safe (decode only) [default: off] [possible values: off, safe]
-      --stats                        Show token statistics (encode only)
+      --stats                        Show token estimates for the JSON and TOON forms (stderr)
   -h, --help                         Print help
   -V, --version                      Print version
 

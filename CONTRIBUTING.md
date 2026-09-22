@@ -55,7 +55,8 @@ or the spec. A new law gets its proof in `port/PROOF.bend`, a citation on its bo
 
 ## 5. Divergences (DISC)
 
-Bug-compatibility is the default. A divergence exists only as an entry of `docs/DISCREPANCIES.md` with its class, spec
+Bugs are fixed, never reproduced: in `toon_rust` first, then the port is re-pinned, re-captured and changed (the owner's
+order of 2026-09-22). A divergence from the pinned original exists only as an entry of `docs/DISCREPANCIES.md` with its class, spec
 clause, the original's behavior, the port's, a kill-switch or mitigation, the affected cases and the measured impact.
 The approver is the repository owner (who, on 2026-09-20, delegated the rulings on every entry of the register to the author; the
 words are quoted in each entry the delegation ruled on. DISC-009 quotes nothing because it needed no ruling: it was RESOLVED by a

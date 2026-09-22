@@ -1,8 +1,8 @@
 {
-  "simple": 1.0,
-  "with space": 2.0,
-  "k-dash": 3.0,
-  "quoted:colon": 4.0,
-  "é": 5.0,
-  "1abc": 6.0
+  "simple": 1,
+  "with space": 2,
+  "k-dash": 3,
+  "quoted:colon": 4,
+  "é": 5,
+  "1abc": 6
 }

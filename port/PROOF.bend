@@ -16,7 +16,7 @@ def Laws.argv_stop_is_sticky(code, out, err, t):
 
 # S9.141 run scrutinizes the lines, then the bound, then the step: by cases on the first two, every
 # arm that meets a failure returns it
-def Laws.decode_error_ends_pass(ls, b, msg):
+def Laws.decode_error_ends_pass(ls, b, msg, strict):
   match ls:
     case Nil{}:
       match b:
@@ -31,7 +31,7 @@ def Laws.decode_error_ends_pass(ls, b, msg):
         case 1n+p:
           {==}
 
-# S4.202 the same cases; every arm that meets the root value returns it
+# S4.202 the same cases; with strict False and no pending failure, run.done returns the root value
 def Laws.decode_root_ends_pass(ls, b, v):
   match ls:
     case Nil{}:
@@ -46,6 +46,30 @@ def Laws.decode_root_ends_pass(ls, b, v):
           {==}
         case 1n+p:
           {==}
+
+# S9.152 the same split on the bound, and on the pending failure; run.done's first arm names the line
+def Laws.decode_trailing_line_is_error(num, depth, content, rest, b, v, dup):
+  match b dup:
+    case 0n None{}:
+      {==}
+    case 0n Some{m}:
+      {==}
+    case 1n+p None{}:
+      {==}
+    case 1n+p Some{m}:
+      {==}
+
+# S3.26 the same split on the bound; run.done's second arm returns the pending failure
+def Laws.decode_dup_reported_at_end(b, v, m, strict):
+  match b strict:
+    case 0n True{}:
+      {==}
+    case 0n False{}:
+      {==}
+    case 1n+p True{}:
+      {==}
+    case 1n+p False{}:
+      {==}
 
 # S2.45 the first arm of step
 def Laws.json_error_is_sticky(msg, el, ec, stack, depth, l, c, root, b, spec):
@@ -73,6 +97,14 @@ def Laws.stdin_defaults_to_encode(e):
 
 # S4.314
 def Laws.no_saved_line_without_savings(j, t):
+  {==}
+
+# S4.315 by evaluation
+def Laws.stats_exact_tie_rounds_up():
+  {==}
+
+# S5.108 by evaluation
+def Laws.stats_larger_toon_reported():
   {==}
 
 # S4.248 expand scrutinizes the value first: by cases on its constructor, every arm meets XVal{0n}
@@ -273,8 +305,20 @@ def Laws.expand_order_first_insertion():
 def Laws.expand_cap_is_256_reject():
   {==}
 
-# S4.248 computed
-def Laws.expand_cap_is_256_accept():
+# S4.231, S9.155 computed
+def Laws.expand_segments_253_hits_nesting_cap():
+  {==}
+
+# S4.231, S9.155 computed
+def Laws.expand_depth_127_accept():
+  {==}
+
+# S4.231, S9.155 computed
+def Laws.expand_depth_128_reject():
+  {==}
+
+# S4.231, S9.155 computed
+def Laws.expand_segments_253_not_ok():
   {==}
 
 # ---------------------------------------------------------------- closed goldens of the whole pure core:
@@ -288,12 +332,12 @@ def Laws.utf8_rejects_surrogate():
 def Laws.utf8_accepts_below_surrogate():
   {==}
 
-# S5.64 writer B's escape table
-def Laws.writer_b_escapes_del():
+# S5.63 the one escape table keeps DEL raw
+def Laws.writer_b_keeps_del_raw():
   {==}
 
-# S5.64 writer B on the C1 block
-def Laws.writer_b_escapes_c1():
+# S5.63 the one escape table keeps the C1 block raw
+def Laws.writer_b_keeps_c1_raw():
   {==}
 
 # S5.63 writer A on the same scalar
@@ -328,8 +372,20 @@ def Laws.is_ws_not_after_ogham():
 def Laws.json_plain_at_k16():
   {==}
 
-# S4.173 exponent at k = 17 (round 14, R14-1)
-def Laws.json_exponent_at_k17():
+# S4.173 plain at k = 21, JavaScript's boundary (the owner's fix order)
+def Laws.json_plain_at_k21():
+  {==}
+
+# S4.173 exponent at k = 22 (replaces json_exponent_at_k17)
+def Laws.json_exponent_at_k22():
+  {==}
+
+# S4.173 plain at k = -5
+def Laws.json_plain_at_kneg5():
+  {==}
+
+# S4.173 exponent at k = -6
+def Laws.json_exponent_at_kneg6():
   {==}
 
 # S4.8 the whole White_Space table, all 25 members (author-side hunt before round 15)

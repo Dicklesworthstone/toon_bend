@@ -158,7 +158,7 @@ not finish in 120 s; 20 rows of 1200 fields 16.6 s. The original needs under 3 s
 `T.KT`: a 16-level bit tree over FNV-1a (32 bit) of the key, with small buckets compared by `T.str_eq`; order stays in the entry chain or
 in an explicit key list, the tree only answers membership and lookup. There is NO slow twin kept beside it and no `TOON_SPEC` arm: the
 carrier is part of the spec twins. Evidence: the goldens on every lane; the closed laws `key_hash_fnv1a`, `kt_member`, `kt_not_member`,
-`expand_order_first_insertion`, `expand_cap_is_256_reject`, `expand_cap_is_256_accept`; `scripts/diff-fuzz.py` lenses `docs`, `expand`
+`expand_order_first_insertion`, `expand_cap_is_256_reject`, `expand_segments_253_not_ok` (renamed on 2026-09-22 when 253 segments started to exceed the nesting limit of 127; its input is unchanged); `scripts/diff-fuzz.py` lenses `docs`, `expand`
 and `scale` against the original.
 
 ### Precommitted gate

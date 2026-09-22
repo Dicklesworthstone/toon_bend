@@ -1,12 +1,12 @@
 [
   "summary",
   {
-    "id": 1.0,
+    "id": 1,
     "name": "Ada"
   },
   [
     {
-      "id": 2.0
+      "id": 2
     },
     {
       "status": "draft"

@@ -123,38 +123,38 @@ def put.stats(stats: String) -> IO(Unit):
     case SCon{c, rest}:
       IO.print_err(SCon{c, rest})
 
-# S9.15, S10.3 a failed write to the -o file is reported with --stats (encode) or when the output is
-# longer than 8192 bytes; otherwise it is silently lost and the run ends as a success
-def wrote(r: Result<&1, &1, U32 & String, Unit>, loud: Bool, +o: C.Opts, stats: String) -> IO(Unit):
-  match r loud:
-    case Fail{(n, text)} True{}:
+# S9.15 every failed write to the -o file is reported, exit 1; after a complete write come the
+# statistics lines and the success line
+def wrote(r: Result<&1, &1, U32 & String, Unit>, +o: C.Opts, stats: String) -> IO(Unit):
+  match r:
+    case Fail{(n, text)}:
       IO.die(Unit, 1, T.cat(["Failed to write to file '", C.o.output(o), "': ", os.text(n, text)]))
-    case _ _:
+    case Done{u}:
       do IO<Unit>:
         put.stats(stats)
         IO.print_err(C.success(o))
 
 # S8.12 the file is closed whatever the write gave
-def write.closed(res: File & Result<&1, &1, U32 & String, Unit>, loud: Bool, o: C.Opts, stats: String) -> IO(Unit):
+def write.closed(res: File & Result<&1, &1, U32 & String, Unit>, o: C.Opts, stats: String) -> IO(Unit):
   match res:
     case (f, r):
       do IO<Unit>:
         File.close(f)
-        wrote(r, loud, o, stats)
+        wrote(r, o, stats)
 
 # S8.12 write the whole text to the created file and close it
-def write.file(f: File, out: String, loud: Bool, o: C.Opts, stats: String) -> IO(Unit):
+def write.file(f: File, out: String, o: C.Opts, stats: String) -> IO(Unit):
   do IO<Unit>:
     res : File & Result<&1, &1, U32 & String, Unit> <- File.write(f, out)
-    write.closed(res, loud, o, stats)
+    write.closed(res, o, stats)
 
 # S8.11 create or truncate the -o path; S9.13 its failure
-def write.opened(r: Result<&1, &1, U32 & String, File>, output: String, out: String, loud: Bool, o: C.Opts, stats: String) -> IO(Unit):
+def write.opened(r: Result<&1, &1, U32 & String, File>, output: String, out: String, o: C.Opts, stats: String) -> IO(Unit):
   match r:
     case Fail{(n, text)}:
       IO.die(Unit, 1, T.cat(["Failed to create file '", output, "': ", os.text(n, text)]))
     case Done{f}:
-      write.file(f, out, loud, o, stats)
+      write.file(f, out, o, stats)
 
 # S5.100–S5.102 the output goes to stdout, or to the -o file (then stdout receives nothing)
 def put.out(has_out: Bool, +out: String, +o: C.Opts, stext: String) -> IO(Unit):
@@ -166,7 +166,7 @@ def put.out(has_out: Bool, +out: String, +o: C.Opts, stext: String) -> IO(Unit):
     case True{}:
       do IO<Unit>:
         r : Result<&1, &1, U32 & String, File> <- File.open(C.o.output(o), "w")
-        write.opened(r, C.o.output(o), out, Bool.or(C.o.stats(o), Nat.is_gt(T.utf8.len(out, 0n), 8192n)), o, stext)
+        write.opened(r, C.o.output(o), out, o, stext)
 
 # S5.111 a runtime failure is its one line on stderr and exit code 1; nothing was written before it
 def converted(r: C.CR, +o: C.Opts) -> IO(Unit):
@@ -194,11 +194,23 @@ def spec.on(r: Result<&1, &1, U32 & String, String>) -> Bool:
       False{}
 
 # S1.135 no input is read before the whole argv was accepted
-def run.opts(+o: C.Opts) -> IO(Unit):
+def run.read(+o: C.Opts) -> IO(Unit):
   do IO<Unit>:
     sw : Result<&1, &1, U32 & String, String> <- IO.get_env("TOON_SPEC")
     rb : RB <- read.input(C.o.has_in(o), C.o.input(o))
     got.input(rb, o, spec.on(sw))
+
+# S4.319 encoding with indent 0 is refused before the input is read
+def run.checked(bad: Bool, o: C.Opts) -> IO(Unit):
+  match bad:
+    case True{}:
+      IO.die(Unit, 1, C.indent.msg())
+    case False{}:
+      run.read(o)
+
+# S4.319 the indent check comes first
+def run.opts(+o: C.Opts) -> IO(Unit):
+  run.checked(C.o.indent_error(o), o)
 
 # S1.20 help and version go to stdout with exit code 0; every argv error to stderr with exit code 2
 def run(p: C.Parsed) -> IO(Unit):

@@ -30,19 +30,41 @@ law argv_stop_is_sticky:
   for t: C.Tok
   {C.on.tok(C.PStop{code, out, err}, t) == C.PStop{code, out, err} : C.PS}
 
-# S9.141, S10.80 the first decode failure ends the pass: the lines that remain are never parsed
+# S9.141 the first decode failure ends the pass: the lines that remain are never parsed
 law decode_error_ends_pass:
   for ls: List<&2, D.Line>
   for b: Nat
   for msg: String
-  {D.run(ls, b, D.SErr{msg}) == D.DErr{msg} : D.DR}
+  for strict: Bool
+  {D.run(ls, b, D.SErr{msg}, strict) == D.DErr{msg} : D.DR}
 
-# S4.202, S4.204, S10.81 once the root value is complete every remaining line is ignored
+# S4.202 in LENIENT mode, once the root value is complete every remaining line is ignored (before the
+# owner's order to fix every bug this law held in strict mode too: S10.81, lines after a root array
+# vanished silently; strict mode now reports them, decode_trailing_line_is_error)
 law decode_root_ends_pass:
   for ls: List<&2, D.Line>
   for b: Nat
   for v: J.Json
-  {D.run(ls, b, D.SDone{v}) == D.DOk{v} : D.DR}
+  {D.run(ls, b, D.SDone{v, None{}}, False{}) == D.DOk{v} : D.DR}
+
+# S4.202, S9.152 in strict mode a line after the complete root value fails, naming that line
+law decode_trailing_line_is_error:
+  for num: Nat
+  for depth: Nat
+  for content: String
+  for rest: List<&2, D.Line>
+  for b: Nat
+  for v: J.Json
+  for dup: Maybe<&2, String>
+  {D.run(Con{D.Line{num, depth, content}, rest}, b, D.SDone{v, dup}, True{}) == D.DErr{"Validation error at line " ++ Nat.show(num) ++ ": Unexpected content after the document root"} : D.DR}
+
+# S3.26 with every line read, a repeated-key failure noted during the pass is the outcome
+law decode_dup_reported_at_end:
+  for b: Nat
+  for v: J.Json
+  for m: String
+  for strict: Bool
+  {D.run(Nil{}, b, D.SDone{v, Some{m}}, strict) == D.DErr{m} : D.DR}
 
 # S2.45 the JSON reader's first error is sticky: later bytes cannot change it
 law json_error_is_sticky:
@@ -96,11 +118,21 @@ law stdin_defaults_to_encode:
   for e: String
   {C.mode.decode(False{}, False{}, False{}, e) == False{} : Bool}
 
-# S4.314, S5.108 no Saved line when the TOON estimate is not smaller
+# S5.108 equal estimates say so (before the owner's order to fix every bug this law stated that no
+# line followed at all, S10.16: a larger TOON form and equal forms were reported by silence)
 law no_saved_line_without_savings:
   for j: Nat
   for t: Nat
-  {C.stats.saved(False{}, j, t) == SNil{} : String}
+  {C.stats.third(False{}, False{}, j, t) == "\nNo token difference (0.0%)" : String}
+
+# S4.315 the percentage is rounded on the exact quotient: 23/80 is exactly 28.75, printed 28.8 (the
+# binary64 computation printed 28.7, S10.17)
+law stats_exact_tie_rounds_up:
+  {C.stats.text(80n, 57n) == "\nToken estimates: ~80 (JSON) → ~57 (TOON)\nSaved ~23 tokens (-28.8%)" : String}
+
+# S5.108 a larger TOON form is reported, with the singular noun for one token
+law stats_larger_toon_reported:
+  {C.stats.text(4n, 5n) == "\nToken estimates: ~4 (JSON) → ~5 (TOON)\nTOON is larger by ~1 token (+25.0%)" : String}
 
 # S4.248 no expansion step runs with the depth counter at 256
 law expansion_cap_on_values:
@@ -137,17 +169,18 @@ law stats_estimate_small:
 law stats_estimate_empty:
   {C.est("") == 1n : Nat}
 
-# S4.316 a tie goes to the even digit: 6.25 prints as 6.2 (OQ-003)
+# S4.316 an exact tie rounds half up: 6.25 prints as 6.3 (before the owner's order to fix every bug,
+# the binary64 formatting printed 6.2, OQ-003)
 law stats_pct_6_25:
-  {C.percent(1n, 16n) == "6.2" : String}
+  {C.percent(1n, 16n) == "6.3" : String}
 
 # S4.316 and 18.75 prints as 18.8
 law stats_pct_18_75:
   {C.percent(3n, 16n) == "18.8" : String}
 
-# S4.315 two binary64 operations, not the exact ratio: 23/80 prints 28.7 (exact 28.75 would print 28.8)
+# S4.315 the exact ratio: 23/80 is 28.75 and prints 28.8 (two binary64 operations printed 28.7, S10.17)
 law stats_pct_double_rounding:
-  {C.percent(23n, 80n) == "28.7" : String}
+  {C.percent(23n, 80n) == "28.8" : String}
 
 # ---------------------------------------------------------------- fast == spec (Phase 5)
 #
@@ -181,19 +214,21 @@ law show_toon_fast_1500:
 
 # S4.170 (EXP-001) and the JSON layout adds .0
 law show_json_fast_1500:
-  {F.show_json_fast(F.from_nat(1500n), False{}) == "1500.0" : String}
+  {F.show_json_fast(F.from_nat(1500n), False{}) == "1500" : String}
 
 # S4.131 (EXP-001) one digit
 law show_toon_fast_one:
   {F.show_toon_fast(F.from_nat(1n), False{}) == "1" : String}
 
-# S4.101 (EXP-002) the short-integer twin of the JSON number reader equals the literal path, bit for bit
+# S4.101 (EXP-002) the short-integer twin of the JSON number reader equals the literal path. Restated on
+# J.num.value when the reader moved to the correctly rounded token path (owner's fix order, 2026-09-22):
+# the non-round-trip serde path the law used to name no longer exists
 law serde_short_42:
-  {F.bits.opt(F.serde_value(False{}, "42", "", F.Pos{0n}, False{})) == F.bits.opt(F.serde_value(False{}, "42", "", F.Pos{0n}, True{})) : String}
+  {J.num.bits(J.num.value(J.Num{1n, False{}, "24", "", False{}, 0n, False{}}, False{})) == J.num.bits(J.num.value(J.Num{1n, False{}, "24", "", False{}, 0n, False{}}, True{})) : String}
 
-# S4.118 (EXP-002) a negative zero keeps the literal path in both settings
+# S4.118 (EXP-002) a negative zero keeps the literal path in both settings (restated as above)
 law serde_short_zero:
-  {F.bits.opt(F.serde_value(True{}, "0", "", F.Pos{0n}, False{})) == F.bits.opt(F.serde_value(True{}, "0", "", F.Pos{0n}, True{})) : String}
+  {J.num.bits(J.num.value(J.Num{1n, True{}, "0", "", False{}, 0n, False{}}, False{})) == J.num.bits(J.num.value(J.Num{1n, True{}, "0", "", False{}, 0n, False{}}, True{})) : String}
 
 # S4.143 (EXP-002) the short-integer twin of the token reader equals the literal path
 law token_short_42:
@@ -223,9 +258,10 @@ law from_dec_p10_37:
 law from_dec_p10_k30:
   {F.bits(F.from_dec_p10(True{}, True{}, [2770, 60191, 43404, 43860], 30n, False{})) == F.bits(F.from_dec(True{}, True{}, [2770, 60191, 43404, 43860], 30n)) : String}
 
-# S4.101, S4.114 (EXP-003) the whole JSON number path on 3.7: fast twins and spec twins give the same bits
+# S4.101, S4.114 (EXP-003) the whole JSON number path on 3.7: fast twins and spec twins give the same value
+# (restated on J.num.value, as serde_short_42)
 law serde_decimal_3_7:
-  {F.bits.opt(F.serde_value(False{}, "3", "7", F.Pos{0n}, False{})) == F.bits.opt(F.serde_value(False{}, "3", "7", F.Pos{0n}, True{})) : String}
+  {J.num.bits(J.num.value(J.Num{1n, False{}, "3", "7", False{}, 0n, False{}}, False{})) == J.num.bits(J.num.value(J.Num{1n, False{}, "3", "7", False{}, 0n, False{}}, True{})) : String}
 
 # S4.143 (EXP-003) the whole token path on 3.7
 law token_decimal_3_7:
@@ -305,9 +341,23 @@ law expand_order_first_insertion:
 law expand_cap_is_256_reject:
   {D.decode_expanded("k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k: x\n", True{}, 2n, False{}) == D.DErr{"Path expansion exceeded maximum depth of 256"} : D.DR}
 
-# S4.248 (toonedge_expand_segments_253) and 253 segments are accepted
-law expand_cap_is_256_accept:
-  {D.dr.ok(D.decode_expanded("k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k: x\n", True{}, 2n, False{})) == True{} : Bool}
+# S4.231, S9.155 (toonedge_expand_segments_253) 253 segments pass the 256 cap but nest past the decoder's
+# limit of 127. Replaces expand_cap_is_256_accept, which said they were accepted (the owner's fix order,
+# 2026-09-22: expansion is held to the same nesting limit as the decoder)
+law expand_segments_253_hits_nesting_cap:
+  {D.decode_expanded("k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k: x\n", True{}, 2n, False{}) == D.DErr{"Nesting depth exceeds 127 levels after path expansion"} : D.DR}
+
+# S4.231, S9.155 127 segments nest exactly to the limit and are accepted ...
+law expand_depth_127_accept:
+  {D.dr.ok(D.decode_expanded("k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k: x\n", True{}, 2n, False{})) == True{} : Bool}
+
+# S4.231, S9.155 ... and 128 are one level too deep
+law expand_depth_128_reject:
+  {D.decode_expanded("k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k: x\n", True{}, 2n, False{}) == D.DErr{"Nesting depth exceeds 127 levels after path expansion"} : D.DR}
+
+# S4.231, S9.155 the former expand_cap_is_256_accept, its input verbatim and its verdict reversed
+law expand_segments_253_not_ok:
+  {D.dr.ok(D.decode_expanded("k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k: x\n", True{}, 2n, False{})) == False{} : Bool}
 
 # S2.2 a UTF-8-encoded surrogate (ED A0 80, the CESU-8 form of U+D800) is NOT valid UTF-8 and the input
 # gate rejects it. Round 13 (R13-9) mutated the surrogate test out of `utf8.cont` and the whole proof still
@@ -320,20 +370,21 @@ law utf8_rejects_surrogate:
 law utf8_accepts_below_surrogate:
   {T.utf8.finish(T.utf8.bytes([237, 159, 191], T.utf8.init())) == Some{SCon{Chr{55295}, SNil{}}} : Maybe<&2, String>}
 
-# S5.64 writer B (the one behind --expand-paths) escapes DEL as \u007f. The accumulator is built in
-# reverse, so the expected string reads backwards. Round 13 (R13-9) mutated this table and the whole proof
-# still checked.
-law writer_b_escapes_del:
-  {J.w.ch(True{}, 127, SNil{}) == "f700u\\" : String}
+# S5.63 the one JSON writer (plain --decode and --expand-paths alike; before the owner's order to fix
+# every bug, --expand-paths used a second table that escaped DEL, C-3) writes DEL raw. Round 13 (R13-9)
+# mutated the escape table and the whole proof still checked.
+# Renamed from writer_b_escapes_del when its verdict was reversed.
+law writer_b_keeps_del_raw:
+  {J.w.chars(SCon{Chr{127}, SNil{}}, SNil{}) == SCon{Chr{127}, SNil{}} : String}
 
-# S5.64 and writer B escapes the C1 block too (U+0085 as \u0085)
-law writer_b_escapes_c1:
-  {J.w.ch(True{}, 133, SNil{}) == "5800u\\" : String}
+# S5.63 and the C1 block raw too (U+0085). Renamed from writer_b_escapes_c1 when its verdict was reversed.
+law writer_b_keeps_c1_raw:
+  {J.w.chars(SCon{Chr{133}, SNil{}}, SNil{}) == SCon{Chr{133}, SNil{}} : String}
 
-# S5.63 writer A (plain --decode) writes the SAME scalar raw: the two tables differ, and a repair that
-# unified them would break the goldens of one of the two writers
+# S5.63 U+0008 and U+000C have the short escapes \b and \f, U+0001 is \u0001 (the accumulator is
+# built in reverse, so the expected strings read backwards)
 law writer_a_keeps_del_raw:
-  {J.w.ch(False{}, 127, SNil{}) == SCon{Chr{127}, SNil{}} : String}
+  {J.w.chars(SCon{Chr{8}, SCon{Chr{12}, SCon{Chr{1}, SNil{}}}}, SNil{}) == "1000u\\f\\b\\" : String}
 
 # S4.12-S4.16 a TAB inside a value forces quotes (and is written as the escape \t). Round 13 (R13-9)
 # mutated TAB out of `bad_char` and the whole proof still checked: only the corpus caught it.
@@ -366,13 +417,26 @@ law is_ws_ogham_space_mark:
 law is_ws_not_after_ogham:
   {T.is_ws(5761) == False{} : Bool}
 
-# S4.173 the JSON writers stay PLAIN up to decimal exponent k = 16 ...
+# S4.173 the JSON writer is PLAIN at decimal exponent k = 16 (the old zmij boundary, still plain) ...
 law json_plain_at_k16:
   {F.json.is_plain(F.Pos{16n}) == True{} : Bool}
 
-# S4.173 ... and switch to an exponent at k = 17
-law json_exponent_at_k17:
-  {F.json.is_plain(F.Pos{17n}) == False{} : Bool}
+# S4.173 ... and up to k = 21, JavaScript's Number::toString boundary. Replaces json_exponent_at_k17
+# (the owner's fix order, 2026-09-22: the JSON writer moved from zmij's 1e16 switch to JavaScript's)
+law json_plain_at_k21:
+  {F.json.is_plain(F.Pos{21n}) == True{} : Bool}
+
+# S4.173 ... and switches to an exponent at k = 22
+law json_exponent_at_k22:
+  {F.json.is_plain(F.Pos{22n}) == False{} : Bool}
+
+# S4.173 below one, plain down to k = -5 (0.000001) ...
+law json_plain_at_kneg5:
+  {F.json.is_plain(F.Neg{5n}) == True{} : Bool}
+
+# S4.173 ... and an exponent from k = -6 (1e-7)
+law json_exponent_at_kneg6:
+  {F.json.is_plain(F.Neg{6n}) == False{} : Bool}
 
 # S4.8 the WHOLE White_Space table, all 25 members. Round 14 pinned one entry (U+1680); an author-side
 # hunt before round 15 then showed U+3000 and U+00A0 each SURVIVED the full 381-law proof, so the table
@@ -400,7 +464,7 @@ law is_ws_documented_non_members:
 
 # S5.112 goldens/usage_none
 law golden_usage_none:
-  {C.run_pure([], T.ascii_bytes("", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 0"} : C.Out}
+  {C.run_pure([], T.ascii_bytes("", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 1 column 0"} : C.Out}
 
 # S5.112 goldens/usage_version
 law golden_usage_version:
@@ -492,7 +556,7 @@ law golden_decstr_root_null:
 
 # S5.112 goldens/decstr_two_primitives
 law golden_decstr_two_primitives:
-  {C.run_pure(["--decode"], T.ascii_bytes("hello\nworld\n", Nil{})) == C.Out{1n, "", "Missing colon after key"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("hello\nworld\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Missing colon after key"} : C.Out}
 
 # S5.112 goldens/jsonout_root_empty_array
 law golden_jsonout_root_empty_array:
@@ -500,183 +564,183 @@ law golden_jsonout_root_empty_array:
 
 # S5.112 goldens/jsonerr_empty
 law golden_jsonerr_empty:
-  {C.run_pure(["--encode"], T.ascii_bytes("", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 0"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 1 column 0"} : C.Out}
 
 # S5.112 goldens/jsonerr_whitespace
 law golden_jsonerr_whitespace:
-  {C.run_pure(["--encode"], T.ascii_bytes("  \n\t\n", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 3 column 0"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("  \n\t\n", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 3 column 0"} : C.Out}
 
 # S5.112 goldens/jsonerr_open_brace
 law golden_jsonerr_open_brace:
-  {C.run_pure(["--encode"], T.ascii_bytes("{", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing an object at line 1 column 1"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("{", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing an object at line 1 column 1"} : C.Out}
 
 # S5.112 goldens/jsonerr_open_bracket
 law golden_jsonerr_open_bracket:
-  {C.run_pure(["--encode"], T.ascii_bytes("[", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a list at line 1 column 1"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a list at line 1 column 1"} : C.Out}
 
 # S5.112 goldens/jsonerr_trailing_comma_arr
 law golden_jsonerr_trailing_comma_arr:
-  {C.run_pure(["--encode"], T.ascii_bytes("[1,]", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: trailing comma at line 1 column 4"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[1,]", Nil{})) == C.Out{1n, "", "Failed to parse JSON: trailing comma at line 1 column 4"} : C.Out}
 
 # S5.112 goldens/jsonerr_missing_value
 law golden_jsonerr_missing_value:
-  {C.run_pure(["--encode"], T.ascii_bytes("{\"invalid\": }", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected value at line 1 column 13"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"invalid\": }", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 13"} : C.Out}
 
 # S5.112 goldens/jsonerr_single_quotes
 law golden_jsonerr_single_quotes:
-  {C.run_pure(["--encode"], T.ascii_bytes("'a'", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("'a'", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
 
 # S5.112 goldens/jsonerr_bad_true
 law golden_jsonerr_bad_true:
-  {C.run_pure(["--encode"], T.ascii_bytes("tru", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 3"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("tru", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 1 column 3"} : C.Out}
 
 # S5.112 goldens/jsonerr_bad_null
 law golden_jsonerr_bad_null:
-  {C.run_pure(["--encode"], T.ascii_bytes("nul", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 3"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("nul", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 1 column 3"} : C.Out}
 
 # S5.112 goldens/jsonerr_bad_ident
 law golden_jsonerr_bad_ident:
-  {C.run_pure(["--encode"], T.ascii_bytes("nope", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected ident at line 1 column 2"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("nope", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected ident at line 1 column 2"} : C.Out}
 
 # S5.112 goldens/jsonerr_dot_end
 law golden_jsonerr_dot_end:
-  {C.run_pure(["--encode"], T.ascii_bytes("1.", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 2"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("1.", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 1 column 2"} : C.Out}
 
 # S5.112 goldens/jsonerr_dot_start
 law golden_jsonerr_dot_start:
-  {C.run_pure(["--encode"], T.ascii_bytes(".5", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes(".5", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
 
 # S5.112 goldens/jsonerr_lone_minus
 law golden_jsonerr_lone_minus:
-  {C.run_pure(["--encode"], T.ascii_bytes("-", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 1"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("-", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 1 column 1"} : C.Out}
 
 # S5.112 goldens/jsonerr_exp_end
 law golden_jsonerr_exp_end:
-  {C.run_pure(["--encode"], T.ascii_bytes("1e", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 2"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("1e", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 1 column 2"} : C.Out}
 
 # S5.112 goldens/jsonerr_plus
 law golden_jsonerr_plus:
-  {C.run_pure(["--encode"], T.ascii_bytes("+1", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("+1", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
 
 # S5.112 goldens/jsonerr_unterminated_string
 law golden_jsonerr_unterminated_string:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"abc", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a string at line 1 column 4"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"abc", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a string at line 1 column 4"} : C.Out}
 
 # S5.112 goldens/jsonerr_bad_escape
 law golden_jsonerr_bad_escape:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\x\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid escape at line 1 column 3"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\x\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid escape at line 1 column 3"} : C.Out}
 
 # S5.112 goldens/jsonerr_short_hex
 law golden_jsonerr_short_hex:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\u12\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a string at line 1 column 6"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\u12\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a string at line 1 column 6"} : C.Out}
 
 # S5.112 goldens/jsonerr_bad_hex
 law golden_jsonerr_bad_hex:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\u12zz\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid escape at line 1 column 7"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\u12zz\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid escape at line 1 column 7"} : C.Out}
 
 # S5.112 goldens/jsonerr_lone_high_surrogate
 law golden_jsonerr_lone_high_surrogate:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: unexpected end of hex escape at line 1 column 8"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: unexpected end of hex escape at line 1 column 8"} : C.Out}
 
 # S5.112 goldens/jsonerr_high_then_bmp
 law golden_jsonerr_high_then_bmp:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\\u0041\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: lone leading surrogate in hex escape at line 1 column 13"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\\u0041\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: lone leading surrogate in hex escape at line 1 column 13"} : C.Out}
 
 # S5.112 goldens/jsonerr_lone_low_surrogate
 law golden_jsonerr_lone_low_surrogate:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\udc00\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: lone leading surrogate in hex escape at line 1 column 7"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\udc00\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: lone leading surrogate in hex escape at line 1 column 7"} : C.Out}
 
 # S5.112 goldens/jsonerr_raw_newline_in_string
 law golden_jsonerr_raw_newline_in_string:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"a\nb\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: control character (\\u0000-\\u001F) found while parsing a string at line 2 column 0"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"a\nb\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: control character (\\u0000-\\u001F) found while parsing a string at line 2 column 0"} : C.Out}
 
 # S5.112 goldens/jsonerr_raw_tab_in_string
 law golden_jsonerr_raw_tab_in_string:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"a\tb\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: control character (\\u0000-\\u001F) found while parsing a string at line 1 column 3"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"a\tb\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: control character (\\u0000-\\u001F) found while parsing a string at line 1 column 3"} : C.Out}
 
 # S5.112 goldens/jsonerr_trailing_after_obj
 law golden_jsonerr_trailing_after_obj:
-  {C.run_pure(["--encode"], T.ascii_bytes("{} x", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: trailing characters at line 1 column 4"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("{} x", Nil{})) == C.Out{1n, "", "Failed to parse JSON: trailing characters at line 1 column 4"} : C.Out}
 
 # S5.112 goldens/jsonerr_nan
 law golden_jsonerr_nan:
-  {C.run_pure(["--encode"], T.ascii_bytes("NaN", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("NaN", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
 
 # S5.112 goldens/jsonerr_infinity
 law golden_jsonerr_infinity:
-  {C.run_pure(["--encode"], T.ascii_bytes("Infinity", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("Infinity", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
 
 # S5.112 goldens/jsonerr_eof_after_key
 law golden_jsonerr_eof_after_key:
-  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing an object at line 1 column 4"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing an object at line 1 column 4"} : C.Out}
 
 # S5.112 goldens/jsonerr_eof_after_colon
 law golden_jsonerr_eof_after_colon:
-  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 5"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 1 column 5"} : C.Out}
 
 # S5.112 goldens/jsonerr_minus_word
 law golden_jsonerr_minus_word:
-  {C.run_pure(["--encode"], T.ascii_bytes("-x", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid number at line 1 column 2"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("-x", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid number at line 1 column 2"} : C.Out}
 
 # S5.112 goldens/jsonerr_upper_true
 law golden_jsonerr_upper_true:
-  {C.run_pure(["--encode"], T.ascii_bytes("TRUE", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("TRUE", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
 
 # S5.112 goldens/toonerr_blank_in_list
 law golden_toonerr_blank_in_list:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[2]:\n  - a\n\n  - b", Nil{})) == C.Out{1n, "", "Line 3: Blank lines inside list array are not allowed in strict mode"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[2]:\n  - a\n\n  - b", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Line 3: Blank lines inside list array are not allowed in strict mode"} : C.Out}
 
 # S5.112 goldens/toonerr_extra_list_items
 law golden_toonerr_extra_list_items:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[1]:\n  - a\n  - b", Nil{})) == C.Out{1n, "", "Expected 1 list array items, but found more"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[1]:\n  - a\n  - b", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 1 list array items, but found more"} : C.Out}
 
 # S5.112 goldens/toonerr_too_few_list_items
 law golden_toonerr_too_few_list_items:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[3]:\n  - a", Nil{})) == C.Out{1n, "", "Expected 3 list array items, but got 1"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[3]:\n  - a", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 3 list array items, but got 1"} : C.Out}
 
 # S5.112 goldens/toonerr_too_few_inline
 law golden_toonerr_too_few_inline:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[3]: a,b", Nil{})) == C.Out{1n, "", "Expected 3 inline array items, but got 2"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[3]: a,b", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 3 inline array items, but got 2"} : C.Out}
 
 # S5.112 goldens/toonerr_too_many_inline
 law golden_toonerr_too_many_inline:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[1]: a,b", Nil{})) == C.Out{1n, "", "Expected 1 inline array items, but got 2"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[1]: a,b", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 1 inline array items, but got 2"} : C.Out}
 
 # S5.112 goldens/toonerr_huge_length
 law golden_toonerr_huge_length:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[9999999999]:", Nil{})) == C.Out{1n, "", "Declared array length 9999999999 exceeds maximum allowed (100000000)"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[9999999999]:", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Declared array length 9999999999 exceeds maximum allowed (100000000)"} : C.Out}
 
 # S5.112 goldens/toonerr_unterminated_value
 law golden_toonerr_unterminated_value:
-  {C.run_pure(["--decode"], T.ascii_bytes("name: \"unterminated", Nil{})) == C.Out{1n, "", "Unterminated string: missing closing quote"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("name: \"unterminated", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unterminated string: missing closing quote"} : C.Out}
 
 # S5.112 goldens/toonerr_unterminated_key
 law golden_toonerr_unterminated_key:
-  {C.run_pure(["--decode"], T.ascii_bytes("\"unterminated key: value", Nil{})) == C.Out{1n, "", "Unterminated string: missing closing quote"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("\"unterminated key: value", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unterminated string: missing closing quote"} : C.Out}
 
 # S5.112 goldens/toonerr_bad_escape
 law golden_toonerr_bad_escape:
-  {C.run_pure(["--decode"], T.ascii_bytes("name: \"bad \\x escape\"", Nil{})) == C.Out{1n, "", "Invalid escape sequence: \\x"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("name: \"bad \\x escape\"", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Invalid escape sequence: \\x"} : C.Out}
 
 # S5.112 goldens/toonerr_unicode_escape
 law golden_toonerr_unicode_escape:
-  {C.run_pure(["--decode"], T.ascii_bytes("name: \"\\u0041\"", Nil{})) == C.Out{1n, "", "Invalid escape sequence: \\u"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("name: \"\\u0041\"", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Invalid escape sequence: \\u"} : C.Out}
 
 # S5.112 goldens/toonerr_trailing_backslash
 law golden_toonerr_trailing_backslash:
-  {C.run_pure(["--decode"], T.ascii_bytes("name: \"abc\\", Nil{})) == C.Out{1n, "", "Unterminated string: missing closing quote"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("name: \"abc\\", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unterminated string: missing closing quote"} : C.Out}
 
 # S5.112 goldens/toonerr_after_closing_quote
 law golden_toonerr_after_closing_quote:
-  {C.run_pure(["--decode"], T.ascii_bytes("name: \"abc\" def", Nil{})) == C.Out{1n, "", "Unexpected characters after closing quote"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("name: \"abc\" def", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unexpected characters after closing quote"} : C.Out}
 
 # S5.112 goldens/toonerr_tab_indent
 law golden_toonerr_tab_indent:
-  {C.run_pure(["--decode"], T.ascii_bytes("\tname: value", Nil{})) == C.Out{1n, "", "Validation error at line 1: Tabs are not allowed in indentation in strict mode"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("\tname: value", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 1: Tabs are not allowed in indentation in strict mode"} : C.Out}
 
 # S5.112 goldens/toonerr_tab_indent_list
 law golden_toonerr_tab_indent_list:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[1]:\n\t- a", Nil{})) == C.Out{1n, "", "Validation error at line 2: Tabs are not allowed in indentation in strict mode"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[1]:\n\t- a", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 2: Tabs are not allowed in indentation in strict mode"} : C.Out}
 
 # S5.112 goldens/toonerr_missing_close_bracket
 law golden_toonerr_missing_close_bracket:
@@ -684,15 +748,15 @@ law golden_toonerr_missing_close_bracket:
 
 # S5.112 goldens/toonerr_missing_colon_nested
 law golden_toonerr_missing_colon_nested:
-  {C.run_pure(["--decode"], T.ascii_bytes("o:\n  bare\n", Nil{})) == C.Out{1n, "", "Missing colon after key"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("o:\n  bare\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Missing colon after key"} : C.Out}
 
 # S5.112 goldens/toonerr_inline_bad_quote
 law golden_toonerr_inline_bad_quote:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[2]: \"a,b", Nil{})) == C.Out{1n, "", "Unterminated string: missing closing quote"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[2]: \"a,b", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unterminated string: missing closing quote"} : C.Out}
 
 # S5.112 goldens/toonerr_list_item_no_space
 law golden_toonerr_list_item_no_space:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[1]:\n  -a", Nil{})) == C.Out{1n, "", "Expected 1 list array items, but got 0"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[1]:\n  -a", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 1 list array items, but got 0"} : C.Out}
 
 # S5.112 goldens/toonerr_colon_only
 law golden_toonerr_colon_only:
@@ -700,11 +764,11 @@ law golden_toonerr_colon_only:
 
 # S5.112 goldens/toonerr_zero_length_with_items
 law golden_toonerr_zero_length_with_items:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[0]:\n  - a\n", Nil{})) == C.Out{1n, "", "Expected 0 list array items, but found more"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[0]:\n  - a\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 0 list array items, but found more"} : C.Out}
 
 # S5.112 goldens/toonerr_zero_inline_with_values
 law golden_toonerr_zero_inline_with_values:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[0]: a\n", Nil{})) == C.Out{1n, "", "Expected 0 inline array items, but got 1"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[0]: a\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 0 inline array items, but got 1"} : C.Out}
 
 # S5.112 goldens/toonerr_header_spaces
 law golden_toonerr_header_spaces:
@@ -744,7 +808,7 @@ law golden_toonerr_hyphen_value:
 
 # S5.112 goldens/toonerr_list_at_root_no_header
 law golden_toonerr_list_at_root_no_header:
-  {C.run_pure(["--decode"], T.ascii_bytes("- a\n- b\n", Nil{})) == C.Out{1n, "", "Missing colon after key"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("- a\n- b\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Missing colon after key"} : C.Out}
 
 # S5.112 goldens/toonlenient_blank_in_list
 law golden_toonlenient_blank_in_list:
@@ -752,7 +816,7 @@ law golden_toonlenient_blank_in_list:
 
 # S5.112 goldens/toonlenient_extra_list_items
 law golden_toonlenient_extra_list_items:
-  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("items[1]:\n  - a\n  - b", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    \"a\"\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("items[1]:\n  - a\n  - b", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    \"a\",\n    \"b\"\n  ]\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonlenient_too_few_list_items
 law golden_toonlenient_too_few_list_items:
@@ -772,11 +836,11 @@ law golden_toonlenient_tab_indent:
 
 # S5.112 goldens/toonlenient_tab_indent_list
 law golden_toonlenient_tab_indent_list:
-  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("items[1]:\n\t- a", Nil{})) == C.Out{1n, "", "Missing colon after key"} : C.Out}
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("items[1]:\n\t- a", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Missing colon after key"} : C.Out}
 
 # S5.112 goldens/toonlenient_zero_length_with_items
 law golden_toonlenient_zero_length_with_items:
-  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("items[0]:\n  - a\n", Nil{})) == C.Out{0n, "{\n  \"items\": []\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("items[0]:\n  - a\n", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    \"a\"\n  ]\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonlenient_zero_inline_with_values
 law golden_toonlenient_zero_inline_with_values:
@@ -784,15 +848,15 @@ law golden_toonlenient_zero_inline_with_values:
 
 # S5.112 goldens/toonlenient_bad_escape
 law golden_toonlenient_bad_escape:
-  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("name: \"bad \\x escape\"", Nil{})) == C.Out{1n, "", "Invalid escape sequence: \\x"} : C.Out}
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("name: \"bad \\x escape\"", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Invalid escape sequence: \\x"} : C.Out}
 
 # S5.112 goldens/toonlenient_unterminated_value
 law golden_toonlenient_unterminated_value:
-  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("name: \"unterminated", Nil{})) == C.Out{1n, "", "Unterminated string: missing closing quote"} : C.Out}
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("name: \"unterminated", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unterminated string: missing closing quote"} : C.Out}
 
 # S5.112 goldens/toonlenient_huge_length
 law golden_toonlenient_huge_length:
-  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("items[9999999999]:", Nil{})) == C.Out{1n, "", "Declared array length 9999999999 exceeds maximum allowed (100000000)"} : C.Out}
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("items[9999999999]:", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Declared array length 9999999999 exceeds maximum allowed (100000000)"} : C.Out}
 
 # S5.112 goldens/usage_version_first_wins
 law golden_usage_version_first_wins:
@@ -848,11 +912,11 @@ law golden_usage_cluster_equals:
 
 # S5.112 goldens/usage_negative_number_word
 law golden_usage_negative_number_word:
-  {C.run_pure(["--indent", "-1"], T.ascii_bytes("", Nil{})) == C.Out{2n, "", "error: unexpected argument '-1' found\n\n  tip: to pass '-1' as a value, use '-- -1'\n\nUsage: toon [OPTIONS] [INPUT]\n\nFor more information, try '--help'."} : C.Out}
+  {C.run_pure(["--indent", "-1"], T.ascii_bytes("", Nil{})) == C.Out{2n, "", "error: invalid value '-1' for '--indent <INDENT>': -1 is not in 0..=16\n\nFor more information, try '--help'."} : C.Out}
 
 # S5.112 goldens/usage_negative_cluster_first_char
 law golden_usage_negative_cluster_first_char:
-  {C.run_pure(["--indent", "-129"], T.ascii_bytes("", Nil{})) == C.Out{2n, "", "error: unexpected argument '-1' found\n\n  tip: to pass '-1' as a value, use '-- -1'\n\nUsage: toon [OPTIONS] [INPUT]\n\nFor more information, try '--help'."} : C.Out}
+  {C.run_pure(["--indent", "-129"], T.ascii_bytes("", Nil{})) == C.Out{2n, "", "error: invalid value '-129' for '--indent <INDENT>': -129 is not in 0..=16\n\nFor more information, try '--help'."} : C.Out}
 
 # S5.112 goldens/usage_unknown_short_uppercase
 law golden_usage_unknown_short_uppercase:
@@ -868,115 +932,115 @@ law golden_usage_indent_i64_underflow:
 
 # S5.112 goldens/jsonerr_eof_after_comma_arr
 law golden_jsonerr_eof_after_comma_arr:
-  {C.run_pure(["--encode"], T.ascii_bytes("[1,", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 3"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[1,", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 1 column 3"} : C.Out}
 
 # S5.112 goldens/jsonerr_exp_sign_end
 law golden_jsonerr_exp_sign_end:
-  {C.run_pure(["--encode"], T.ascii_bytes("1e+", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a value at line 1 column 3"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("1e+", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a value at line 1 column 3"} : C.Out}
 
 # S5.112 goldens/jsonerr_eof_after_backslash
 law golden_jsonerr_eof_after_backslash:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"abc\\", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a string at line 1 column 5"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"abc\\", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a string at line 1 column 5"} : C.Out}
 
 # S5.112 goldens/jsonerr_eof_after_high_surrogate
 law golden_jsonerr_eof_after_high_surrogate:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a string at line 1 column 7"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a string at line 1 column 7"} : C.Out}
 
 # S5.112 goldens/jsonerr_eof_after_high_surrogate_backslash
 law golden_jsonerr_eof_after_high_surrogate_backslash:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\\", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: EOF while parsing a string at line 1 column 8"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\\", Nil{})) == C.Out{1n, "", "Failed to parse JSON: EOF while parsing a string at line 1 column 8"} : C.Out}
 
 # S5.112 goldens/jsonerr_ident_newline
 law golden_jsonerr_ident_newline:
-  {C.run_pure(["--encode"], T.ascii_bytes("tru\n", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected ident at line 2 column 0"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("tru\n", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected ident at line 2 column 0"} : C.Out}
 
 # S5.112 goldens/jsonerr_ident_then_more
 law golden_jsonerr_ident_then_more:
-  {C.run_pure(["--encode"], T.ascii_bytes("nulll", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: trailing characters at line 1 column 5"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("nulll", Nil{})) == C.Out{1n, "", "Failed to parse JSON: trailing characters at line 1 column 5"} : C.Out}
 
 # S5.112 goldens/jsonerr_short_hex_newline
 law golden_jsonerr_short_hex_newline:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\u12\"\n", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid escape at line 2 column 0"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\u12\"\n", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid escape at line 2 column 0"} : C.Out}
 
 # S5.112 goldens/jsonerr_escape_newline
 law golden_jsonerr_escape_newline:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\\n\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid escape at line 2 column 0"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\\n\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid escape at line 2 column 0"} : C.Out}
 
 # S5.112 goldens/jsonerr_escape_upper_u
 law golden_jsonerr_escape_upper_u:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\U0041\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid escape at line 1 column 3"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\U0041\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid escape at line 1 column 3"} : C.Out}
 
 # S5.112 goldens/jsonerr_dot_nondigit
 law golden_jsonerr_dot_nondigit:
-  {C.run_pure(["--encode"], T.ascii_bytes("[1.]", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid number at line 1 column 4"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[1.]", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid number at line 1 column 4"} : C.Out}
 
 # S5.112 goldens/jsonerr_dot_newline
 law golden_jsonerr_dot_newline:
-  {C.run_pure(["--encode"], T.ascii_bytes("1.\n", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid number at line 2 column 0"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("1.\n", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid number at line 2 column 0"} : C.Out}
 
 # S5.112 goldens/jsonerr_exp_nondigit
 law golden_jsonerr_exp_nondigit:
-  {C.run_pure(["--encode"], T.ascii_bytes("[1e]", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid number at line 1 column 4"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[1e]", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid number at line 1 column 4"} : C.Out}
 
 # S5.112 goldens/jsonerr_exp_double_sign
 law golden_jsonerr_exp_double_sign:
-  {C.run_pure(["--encode"], T.ascii_bytes("1e+-1", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid number at line 1 column 4"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("1e+-1", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid number at line 1 column 4"} : C.Out}
 
 # S5.112 goldens/jsonerr_minus_infinity
 law golden_jsonerr_minus_infinity:
-  {C.run_pure(["--encode"], T.ascii_bytes("-Infinity", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid number at line 1 column 2"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("-Infinity", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid number at line 1 column 2"} : C.Out}
 
 # S5.112 goldens/jsonerr_number_then_letter
 law golden_jsonerr_number_then_letter:
-  {C.run_pure(["--encode"], T.ascii_bytes("[1x]", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected `,` or `]` at line 1 column 3"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[1x]", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected `,` or `]` at line 1 column 3"} : C.Out}
 
 # S5.112 goldens/jsonerr_hex_number
 law golden_jsonerr_hex_number:
-  {C.run_pure(["--encode"], T.ascii_bytes("0x10", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: trailing characters at line 1 column 2"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("0x10", Nil{})) == C.Out{1n, "", "Failed to parse JSON: trailing characters at line 1 column 2"} : C.Out}
 
 # S5.112 goldens/jsonerr_raw_cr_in_string
 law golden_jsonerr_raw_cr_in_string:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"a\rb\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: control character (\\u0000-\\u001F) found while parsing a string at line 1 column 3"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"a\rb\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: control character (\\u0000-\\u001F) found while parsing a string at line 1 column 3"} : C.Out}
 
 # S5.112 goldens/jsonerr_obj_leading_comma
 law golden_jsonerr_obj_leading_comma:
-  {C.run_pure(["--encode"], T.ascii_bytes("{,}", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: key must be a string at line 1 column 2"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("{,}", Nil{})) == C.Out{1n, "", "Failed to parse JSON: key must be a string at line 1 column 2"} : C.Out}
 
 # S5.112 goldens/jsonerr_arr_leading_comma
 law golden_jsonerr_arr_leading_comma:
-  {C.run_pure(["--encode"], T.ascii_bytes("[,]", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected value at line 1 column 2"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[,]", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 2"} : C.Out}
 
 # S5.112 goldens/jsonerr_arr_comma_then_brace
 law golden_jsonerr_arr_comma_then_brace:
-  {C.run_pure(["--encode"], T.ascii_bytes("[1,}", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected value at line 1 column 4"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[1,}", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 4"} : C.Out}
 
 # S5.112 goldens/jsonerr_high_then_escape
 law golden_jsonerr_high_then_escape:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\\n\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: unexpected end of hex escape at line 1 column 9"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\\n\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: unexpected end of hex escape at line 1 column 9"} : C.Out}
 
 # S5.112 goldens/jsonerr_high_then_newline
 law golden_jsonerr_high_then_newline:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\n\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: unexpected end of hex escape at line 2 column 0"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\n\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: unexpected end of hex escape at line 2 column 0"} : C.Out}
 
 # S5.112 goldens/jsonerr_high_then_bad_hex
 law golden_jsonerr_high_then_bad_hex:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\\uzzzz\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: invalid escape at line 1 column 13"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\\uzzzz\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: invalid escape at line 1 column 13"} : C.Out}
 
 # S5.112 goldens/jsonerr_high_then_high
 law golden_jsonerr_high_then_high:
-  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\\ud800\"", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: lone leading surrogate in hex escape at line 1 column 13"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("\"\\ud800\\ud800\"", Nil{})) == C.Out{1n, "", "Failed to parse JSON: lone leading surrogate in hex escape at line 1 column 13"} : C.Out}
 
 # S5.112 goldens/jsonerr_trailing_comma_newline
 law golden_jsonerr_trailing_comma_newline:
-  {C.run_pure(["--encode"], T.ascii_bytes("[1,\n]", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: trailing comma at line 2 column 1"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[1,\n]", Nil{})) == C.Out{1n, "", "Failed to parse JSON: trailing comma at line 2 column 1"} : C.Out}
 
 # S5.112 goldens/jsonerr_trailing_close
 law golden_jsonerr_trailing_close:
-  {C.run_pure(["--encode"], T.ascii_bytes("[]]", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: trailing characters at line 1 column 3"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[]]", Nil{})) == C.Out{1n, "", "Failed to parse JSON: trailing characters at line 1 column 3"} : C.Out}
 
 # S5.112 goldens/jsonerr_cr_not_newline
 law golden_jsonerr_cr_not_newline:
-  {C.run_pure(["--encode"], T.ascii_bytes("[1,\r\r oops]", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: expected value at line 1 column 7"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("[1,\r\r oops]", Nil{})) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 7"} : C.Out}
 
 # S5.112 goldens/jsonout_empty_in_array
 law golden_jsonout_empty_in_array:
@@ -984,7 +1048,7 @@ law golden_jsonout_empty_in_array:
 
 # S5.112 goldens/toonedge_crlf_bare_dash
 law golden_toonedge_crlf_bare_dash:
-  {C.run_pure(["--decode"], T.ascii_bytes("x[1]:\r\n  -\r\n", Nil{})) == C.Out{1n, "", "Expected 1 list array items, but got 0"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("x[1]:\r\n  -\r\n", Nil{})) == C.Out{0n, "{\n  \"x\": [\n    {}\n  ]\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonedge_header_key_with_colon
 law golden_toonedge_header_key_with_colon:
@@ -1000,11 +1064,11 @@ law golden_toonerr_cap_in_quoted_value:
 
 # S5.112 goldens/toonerr_length_u64_max_list
 law golden_toonerr_length_u64_max_list:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[18446744073709551615]:\n", Nil{})) == C.Out{1n, "", "Declared array length 18446744073709551615 exceeds maximum allowed (100000000)"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[18446744073709551615]:\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Declared array length 18446744073709551615 exceeds maximum allowed (100000000)"} : C.Out}
 
 # S5.112 goldens/toonedge_root_vs_item_keyvalue
 law golden_toonedge_root_vs_item_keyvalue:
-  {C.run_pure(["--decode"], T.ascii_bytes("a\"b: c\n", Nil{})) == C.Out{0n, "{\n  \"a\\\"b\": \"c\"\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("a\"b: c\n", Nil{})) == C.Out{0n, "\"a\\\"b: c\"\n", ""} : C.Out}
 
 # S5.112 goldens/toonedge_item_quote_hides_colon
 law golden_toonedge_item_quote_hides_colon:
@@ -1012,19 +1076,19 @@ law golden_toonedge_item_quote_hides_colon:
 
 # S5.112 goldens/toonedge_list_item_two_spaces_quoted_key
 law golden_toonedge_list_item_two_spaces_quoted_key:
-  {C.run_pure(["--decode"], T.ascii_bytes("l[1]:\n  -  \"a\": b\n", Nil{})) == C.Out{0n, "{\n  \"l\": [\n    {\n      \"\\\"a\\\"\": \"b\"\n    }\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("l[1]:\n  -  \"a\": b\n", Nil{})) == C.Out{0n, "{\n  \"l\": [\n    {\n      \"a\": \"b\"\n    }\n  ]\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonerr_count_beats_blank
 law golden_toonerr_count_beats_blank:
-  {C.run_pure(["--decode"], T.ascii_bytes("l[3]:\n  - a\n\n  - b\n", Nil{})) == C.Out{1n, "", "Expected 3 list array items, but got 2"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("l[3]:\n  - a\n\n  - b\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 3 list array items, but got 2"} : C.Out}
 
 # S5.112 goldens/toonerr_extra_bare_dash_undetected
 law golden_toonerr_extra_bare_dash_undetected:
-  {C.run_pure(["--decode"], T.ascii_bytes("l[1]:\n  - a\n  -\n", Nil{})) == C.Out{0n, "{\n  \"l\": [\n    \"a\"\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("l[1]:\n  - a\n  -\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 1 list array items, but found more"} : C.Out}
 
 # S5.112 goldens/toonerr_list_first_field_list_shallow
 law golden_toonerr_list_first_field_list_shallow:
-  {C.run_pure(["--decode"], T.ascii_bytes("l[1]:\n  - k[2]:\n    - a\n    - b\n", Nil{})) == C.Out{1n, "", "Expected 2 list array items, but got 0"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("l[1]:\n  - k[2]:\n    - a\n    - b\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 2 list array items, but got 0"} : C.Out}
 
 # ---------------------------------------------------------------- closed goldens of the WHOLE pure core, second batch (encoder, folding,
 # delimiters, tabular rows, expansion, small numbers through the fast twins): at least one per board row that can carry one
@@ -1135,7 +1199,7 @@ law golden_fx_enc_arrays_nested_10:
 
 # S5.112 goldens/flag_indent_0_encode
 law golden_flag_indent_0_encode:
-  {C.run_pure(["--encode", "--indent", "0"], T.ascii_bytes("{\"a\":{\"b\":1},\"l\":[{\"x\":1},{\"y\":2}]}\n", Nil{})) == C.Out{0n, "a:\nb: 1\nl[2]:\n- x: 1\n- y: 2\n", ""} : C.Out}
+  {C.run_pure(["--encode", "--indent", "0"], T.ascii_bytes("{\"a\":{\"b\":1},\"l\":[{\"x\":1},{\"y\":2}]}\n", Nil{})) == C.Out{1n, "", "Indentation size must be at least 1 when encoding TOON"} : C.Out}
 
 # S5.112 goldens/flag_indent_16_encode
 law golden_flag_indent_16_encode:
@@ -1207,7 +1271,7 @@ law golden_enc_fold_budget_threading_5:
 
 # S5.112 goldens/enc_fold_list_item_dup_key
 law golden_enc_fold_list_item_dup_key:
-  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("[{\"c.d\": 7, \"c\": {\"d\": 1}}]\n", Nil{})) == C.Out{0n, "[1]:\n  - c.d: 7\n    c.d: 1\n", ""} : C.Out}
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("[{\"c.d\": 7, \"c\": {\"d\": 1}}]\n", Nil{})) == C.Out{0n, "[1]:\n  - c.d: 7\n    c:\n      d: 1\n", ""} : C.Out}
 
 # S5.112 goldens/flag_flatten_depth_3
 law golden_flag_flatten_depth_3:
@@ -1215,11 +1279,11 @@ law golden_flag_flatten_depth_3:
 
 # S5.112 goldens/fx_dec_indentation_errors_01
 law golden_fx_dec_indentation_errors_01:
-  {C.run_pure(["--decode", "--indent", "2"], T.ascii_bytes("a:\n   b: 1", Nil{})) == C.Out{1n, "", "Validation error at line 2: Indentation must be exact multiple of 2, but found 3 spaces"} : C.Out}
+  {C.run_pure(["--decode", "--indent", "2"], T.ascii_bytes("a:\n   b: 1", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 2: Indentation must be exact multiple of 2, but found 3 spaces"} : C.Out}
 
 # S5.112 goldens/fx_dec_indentation_errors_04
 law golden_fx_dec_indentation_errors_04:
-  {C.run_pure(["--decode", "--indent", "4"], T.ascii_bytes("a:\n    b: 1", Nil{})) == C.Out{0n, "{\n    \"a\": {\n        \"b\": 1.0\n    }\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--indent", "4"], T.ascii_bytes("a:\n    b: 1", Nil{})) == C.Out{0n, "{\n    \"a\": {\n        \"b\": 1\n    }\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_indentation_errors_08
 law golden_fx_dec_indentation_errors_08:
@@ -1227,23 +1291,23 @@ law golden_fx_dec_indentation_errors_08:
 
 # S5.112 goldens/fx_dec_indentation_errors_13
 law golden_fx_dec_indentation_errors_13:
-  {C.run_pure(["--decode"], T.ascii_bytes("a: 1\n\nb: 2", Nil{})) == C.Out{0n, "{\n  \"a\": 1.0,\n  \"b\": 2.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("a: 1\n\nb: 2", Nil{})) == C.Out{0n, "{\n  \"a\": 1,\n  \"b\": 2\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_blank_lines_01
 law golden_fx_dec_blank_lines_01:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[3]:\n  - a\n\n  - b\n  - c", Nil{})) == C.Out{1n, "", "Line 3: Blank lines inside list array are not allowed in strict mode"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[3]:\n  - a\n\n  - b\n  - c", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Line 3: Blank lines inside list array are not allowed in strict mode"} : C.Out}
 
 # S5.112 goldens/toonedge_indent4
 law golden_toonedge_indent4:
-  {C.run_pure(["--decode", "--indent", "4"], T.ascii_bytes("a:\n    b:\n        c: 1\n", Nil{})) == C.Out{0n, "{\n    \"a\": {\n        \"b\": {\n            \"c\": 1.0\n        }\n    }\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--indent", "4"], T.ascii_bytes("a:\n    b:\n        c: 1\n", Nil{})) == C.Out{0n, "{\n    \"a\": {\n        \"b\": {\n            \"c\": 1\n        }\n    }\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonedge_indent0_flat
 law golden_toonedge_indent0_flat:
-  {C.run_pure(["--decode", "--indent", "0"], T.ascii_bytes("a: 1\nb: 2\n", Nil{})) == C.Out{0n, "{\"a\":1.0,\"b\":2.0}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--indent", "0"], T.ascii_bytes("a: 1\nb: 2\n", Nil{})) == C.Out{0n, "{\"a\":1,\"b\":2}\n", ""} : C.Out}
 
 # S5.112 goldens/toonlenient_indent_not_multiple
 law golden_toonlenient_indent_not_multiple:
-  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("outer:\n a: 1", Nil{})) == C.Out{0n, "{\n  \"outer\": {},\n  \"a\": 1.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("outer:\n a: 1", Nil{})) == C.Out{0n, "{\n  \"outer\": {},\n  \"a\": 1\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_primitives_01
 law golden_fx_dec_primitives_01:
@@ -1303,27 +1367,27 @@ law golden_fx_dec_delimiters_21:
 
 # S5.112 goldens/toonedge_length_plus_and_zero
 law golden_toonedge_length_plus_and_zero:
-  {C.run_pure(["--decode"], T.ascii_bytes("a[+2]: x,y\nb[02]: x,y\nc[ 2]: x,y\n", Nil{})) == C.Out{0n, "{\n  \"a\": [\n    \"x\",\n    \"y\"\n  ],\n  \"b\": [\n    \"x\",\n    \"y\"\n  ],\n  \"c[ 2]\": \"x,y\"\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("a[+2]: x,y\nb[02]: x,y\nc[ 2]: x,y\n", Nil{})) == C.Out{0n, "{\n  \"a[+2]\": \"x,y\",\n  \"b\": [\n    \"x\",\n    \"y\"\n  ],\n  \"c[ 2]\": \"x,y\"\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonedge_fields_space_only
 law golden_toonedge_fields_space_only:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[1]{ }:\n  - 1\n", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    {\n      \"\": \"- 1\"\n    }\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[1]{ }:\n  - 1\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Empty field list in array header"} : C.Out}
 
 # S5.112 goldens/fx_dec_numbers_02
 law golden_fx_dec_numbers_02:
-  {C.run_pure(["--decode"], T.ascii_bytes("value: -1E+03", Nil{})) == C.Out{0n, "{\n  \"value\": -1000.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("value: -1E+03", Nil{})) == C.Out{0n, "{\n  \"value\": -1000\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_numbers_03
 law golden_fx_dec_numbers_03:
-  {C.run_pure(["--decode"], T.ascii_bytes("value: 2.5e2", Nil{})) == C.Out{0n, "{\n  \"value\": 250.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("value: 2.5e2", Nil{})) == C.Out{0n, "{\n  \"value\": 250\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_numbers_05
 law golden_fx_dec_numbers_05:
-  {C.run_pure(["--decode"], T.ascii_bytes("value: -0", Nil{})) == C.Out{0n, "{\n  \"value\": 0.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("value: -0", Nil{})) == C.Out{0n, "{\n  \"value\": 0\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_numbers_10
 law golden_fx_dec_numbers_10:
-  {C.run_pure(["--decode"], T.ascii_bytes("value: 5E+00", Nil{})) == C.Out{0n, "{\n  \"value\": 5.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("value: 5E+00", Nil{})) == C.Out{0n, "{\n  \"value\": 5\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_numbers_16
 law golden_fx_dec_numbers_16:
@@ -1363,19 +1427,19 @@ law golden_fx_dec_root_form_01:
 
 # S5.112 goldens/fx_dec_arrays_tabular_02
 law golden_fx_dec_arrays_tabular_02:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[2]{id,value}:\n  1,null\n  2,\"test\"", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    {\n      \"id\": 1.0,\n      \"value\": null\n    },\n    {\n      \"id\": 2.0,\n      \"value\": \"test\"\n    }\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[2]{id,value}:\n  1,null\n  2,\"test\"", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"value\": null\n    },\n    {\n      \"id\": 2,\n      \"value\": \"test\"\n    }\n  ]\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_arrays_tabular_03
 law golden_fx_dec_arrays_tabular_03:
-  {C.run_pure(["--decode"], T.ascii_bytes("items[2]{id,note}:\n  1,\"a:b\"\n  2,\"c:d\"", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    {\n      \"id\": 1.0,\n      \"note\": \"a:b\"\n    },\n    {\n      \"id\": 2.0,\n      \"note\": \"c:d\"\n    }\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("items[2]{id,note}:\n  1,\"a:b\"\n  2,\"c:d\"", Nil{})) == C.Out{0n, "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"note\": \"a:b\"\n    },\n    {\n      \"id\": 2,\n      \"note\": \"c:d\"\n    }\n  ]\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonedge_data_row_test
 law golden_toonedge_data_row_test:
-  {C.run_pure(["--decode"], T.ascii_bytes("t[1]{a,b}:\n  1,2\n  x: 4,5\n", Nil{})) == C.Out{0n, "{\n  \"t\": [\n    {\n      \"a\": 1.0,\n      \"b\": 2.0\n    }\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("t[1]{a,b}:\n  1,2\n  x: 4,5\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 3: Over-indented line: expected depth 0, but found 1"} : C.Out}
 
 # S5.112 goldens/fx_dec_blank_lines_05
 law golden_fx_dec_blank_lines_05:
-  {C.run_pure(["--decode"], T.ascii_bytes("outer[2]:\n  - inner[2]:\n    - a\n\n    - b\n  - x", Nil{})) == C.Out{1n, "", "Expected 2 list array items, but got 0"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("outer[2]:\n  - inner[2]:\n    - a\n\n    - b\n  - x", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 2 list array items, but got 0"} : C.Out}
 
 # S5.112 goldens/fx_dec_blank_lines_11
 law golden_fx_dec_blank_lines_11:
@@ -1383,55 +1447,55 @@ law golden_fx_dec_blank_lines_11:
 
 # S5.112 goldens/fx_dec_validation_errors_01
 law golden_fx_dec_validation_errors_01:
-  {C.run_pure(["--decode"], T.ascii_bytes("tags[2]: a,b,c", Nil{})) == C.Out{1n, "", "Expected 2 inline array items, but got 3"} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("tags[2]: a,b,c", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 2 inline array items, but got 3"} : C.Out}
 
 # S5.112 goldens/toonlenient_row_width_short
 law golden_toonlenient_row_width_short:
-  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("rows[1]{a,b,c}:\n  1,2", Nil{})) == C.Out{0n, "{\n  \"rows\": [\n    {\n      \"a\": 1.0,\n      \"b\": 2.0,\n      \"c\": null\n    }\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("rows[1]{a,b,c}:\n  1,2", Nil{})) == C.Out{0n, "{\n  \"rows\": [\n    {\n      \"a\": 1,\n      \"b\": 2,\n      \"c\": null\n    }\n  ]\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonlenient_extra_tabular_rows
 law golden_toonlenient_extra_tabular_rows:
-  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("rows[1]{id}:\n  1\n  2", Nil{})) == C.Out{0n, "{\n  \"rows\": [\n    {\n      \"id\": 1.0\n    }\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("rows[1]{id}:\n  1\n  2", Nil{})) == C.Out{0n, "{\n  \"rows\": [\n    {\n      \"id\": 1\n    },\n    {\n      \"id\": 2\n    }\n  ]\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonlenient_blank_in_tabular
 law golden_toonlenient_blank_in_tabular:
-  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("rows[2]{id}:\n  1\n\n  2", Nil{})) == C.Out{0n, "{\n  \"rows\": [\n    {\n      \"id\": 1.0\n    },\n    {\n      \"id\": 2.0\n    }\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("rows[2]{id}:\n  1\n\n  2", Nil{})) == C.Out{0n, "{\n  \"rows\": [\n    {\n      \"id\": 1\n    },\n    {\n      \"id\": 2\n    }\n  ]\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_path_expansion_01
 law golden_fx_dec_path_expansion_01:
-  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b.c: 1", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": {\n      \"c\": 1.0\n    }\n  }\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b.c: 1", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": {\n      \"c\": 1\n    }\n  }\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_path_expansion_03
 law golden_fx_dec_path_expansion_03:
-  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b.items[2]{id,name}:\n  1,A\n  2,B", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": {\n      \"items\": [\n        {\n          \"id\": 1.0,\n          \"name\": \"A\"\n        },\n        {\n          \"id\": 2.0,\n          \"name\": \"B\"\n        }\n      ]\n    }\n  }\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b.items[2]{id,name}:\n  1,A\n  2,B", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": {\n      \"items\": [\n        {\n          \"id\": 1,\n          \"name\": \"A\"\n        },\n        {\n          \"id\": 2,\n          \"name\": \"B\"\n        }\n      ]\n    }\n  }\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_path_expansion_05
 law golden_fx_dec_path_expansion_05:
-  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b.c: 1\na.b.d: 2\na.e: 3", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": {\n      \"c\": 1.0,\n      \"d\": 2.0\n    },\n    \"e\": 3.0\n  }\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b.c: 1\na.b.d: 2\na.e: 3", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": {\n      \"c\": 1,\n      \"d\": 2\n    },\n    \"e\": 3\n  }\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_path_expansion_08
 law golden_fx_dec_path_expansion_08:
-  {C.run_pure(["--decode", "--expand-paths", "safe", "--no-strict"], T.ascii_bytes("a.b: 1\na: 2", Nil{})) == C.Out{0n, "{\n  \"a\": 2.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--expand-paths", "safe", "--no-strict"], T.ascii_bytes("a.b: 1\na: 2", Nil{})) == C.Out{0n, "{\n  \"a\": 2\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_path_expansion_10
 law golden_fx_dec_path_expansion_10:
-  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b: 1\n\"c.d\": 2", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": 1.0\n  },\n  \"c.d\": 2.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b: 1\n\"c.d\": 2", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": 1\n  },\n  \"c.d\": 2\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_path_expansion_11
 law golden_fx_dec_path_expansion_11:
-  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("full-name.x: 1", Nil{})) == C.Out{0n, "{\n  \"full-name.x\": 1.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("full-name.x: 1", Nil{})) == C.Out{0n, "{\n  \"full-name.x\": 1\n}\n", ""} : C.Out}
 
 # S5.112 goldens/toonedge_expand_quoted_unquoted_same_key
 law golden_toonedge_expand_quoted_unquoted_same_key:
-  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("\"a.b\": 1\na.b: 2\n", Nil{})) == C.Out{1n, "", "Path expansion conflict at key \"a.b\": cannot merge primitive with primitive"} : C.Out}
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("\"a.b\": 1\na.b: 2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Duplicate sibling key \"a.b\""} : C.Out}
 
 # S5.112 goldens/decnum_root_negative_zero
 law golden_decnum_root_negative_zero:
-  {C.run_pure(["--decode"], T.ascii_bytes("-0", Nil{})) == C.Out{0n, "0.0\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("-0", Nil{})) == C.Out{0n, "0\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_numbers_06
 law golden_fx_dec_numbers_06:
-  {C.run_pure(["--decode"], T.ascii_bytes("value: -0.0", Nil{})) == C.Out{0n, "{\n  \"value\": 0.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("value: -0.0", Nil{})) == C.Out{0n, "{\n  \"value\": 0\n}\n", ""} : C.Out}
 
 # S5.112 goldens/fx_dec_numbers_08
 law golden_fx_dec_numbers_08:
@@ -1439,19 +1503,19 @@ law golden_fx_dec_numbers_08:
 
 # S5.112 goldens/jsonout_root_array
 law golden_jsonout_root_array:
-  {C.run_pure(["--decode"], T.ascii_bytes("[3]: 1,two,true", Nil{})) == C.Out{0n, "[\n  1.0,\n  \"two\",\n  true\n]\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("[3]: 1,two,true", Nil{})) == C.Out{0n, "[\n  1,\n  \"two\",\n  true\n]\n", ""} : C.Out}
 
 # S5.112 goldens/jsonout_duplicate_keys
 law golden_jsonout_duplicate_keys:
-  {C.run_pure(["--decode"], T.ascii_bytes("a: 1\na: 2\nb: 3\n", Nil{})) == C.Out{0n, "{\n  \"a\": 1.0,\n  \"a\": 2.0,\n  \"b\": 3.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("a: 1\na: 2\nb: 3\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Duplicate sibling key \"a\""} : C.Out}
 
 # S5.112 goldens/flag_decode_indent_0
 law golden_flag_decode_indent_0:
-  {C.run_pure(["-d", "--indent", "0"], T.ascii_bytes("a: 1\nb[2]: 1,2\n", Nil{})) == C.Out{0n, "{\"a\":1.0,\"b\":[1.0,2.0]}\n", ""} : C.Out}
+  {C.run_pure(["-d", "--indent", "0"], T.ascii_bytes("a: 1\nb[2]: 1,2\n", Nil{})) == C.Out{0n, "{\"a\":1,\"b\":[1,2]}\n", ""} : C.Out}
 
 # S5.112 goldens/flag_decode_indent_4
 law golden_flag_decode_indent_4:
-  {C.run_pure(["-d", "--indent", "4"], T.ascii_bytes("a:\n    b: 1\n", Nil{})) == C.Out{0n, "{\n    \"a\": {\n        \"b\": 1.0\n    }\n}\n", ""} : C.Out}
+  {C.run_pure(["-d", "--indent", "4"], T.ascii_bytes("a:\n    b: 1\n", Nil{})) == C.Out{0n, "{\n    \"a\": {\n        \"b\": 1\n    }\n}\n", ""} : C.Out}
 
 # S5.112 goldens/encnum_root_negative_zero
 law golden_encnum_root_negative_zero:
@@ -1459,11 +1523,11 @@ law golden_encnum_root_negative_zero:
 
 # S5.112 goldens/encnum_overflow_positive
 law golden_encnum_overflow_positive:
-  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":1e309}\n", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: number out of range at line 1 column 10"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":1e309}\n", Nil{})) == C.Out{1n, "", "Failed to parse JSON: number out of range at line 1 column 10"} : C.Out}
 
 # S5.112 goldens/encnum_overflow_negative
 law golden_encnum_overflow_negative:
-  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":-1e309}\n", Nil{})) == C.Out{1n, "", "JSON error: Failed to parse JSON: number out of range at line 1 column 11"} : C.Out}
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":-1e309}\n", Nil{})) == C.Out{1n, "", "Failed to parse JSON: number out of range at line 1 column 11"} : C.Out}
 
 # S5.112 goldens/fx_enc_arrays_objects_01
 law golden_fx_enc_arrays_objects_01:
@@ -1475,7 +1539,7 @@ law golden_happy_readme_users:
 
 # S5.112 goldens/happy_readme_users_decode
 law golden_happy_readme_users_decode:
-  {C.run_pure(["--decode"], T.ascii_bytes("users[2]{id,name}:\n  1,Alice\n  2,Bob\n", Nil{})) == C.Out{0n, "{\n  \"users\": [\n    {\n      \"id\": 1.0,\n      \"name\": \"Alice\"\n    },\n    {\n      \"id\": 2.0,\n      \"name\": \"Bob\"\n    }\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("users[2]{id,name}:\n  1,Alice\n  2,Bob\n", Nil{})) == C.Out{0n, "{\n  \"users\": [\n    {\n      \"id\": 1,\n      \"name\": \"Alice\"\n    },\n    {\n      \"id\": 2,\n      \"name\": \"Bob\"\n    }\n  ]\n}\n", ""} : C.Out}
 
 # S5.112 goldens/flag_delimiter_word_pipe
 law golden_flag_delimiter_word_pipe:
@@ -1507,7 +1571,7 @@ law golden_flag_stdin_dash:
 
 # S5.112 goldens/flag_stdin_dash_decode
 law golden_flag_stdin_dash_decode:
-  {C.run_pure(["-d", "-"], T.ascii_bytes("name: Alice\nage: 30\ntags[2]: a,b\n", Nil{})) == C.Out{0n, "{\n  \"name\": \"Alice\",\n  \"age\": 30.0,\n  \"tags\": [\n    \"a\",\n    \"b\"\n  ]\n}\n", ""} : C.Out}
+  {C.run_pure(["-d", "-"], T.ascii_bytes("name: Alice\nage: 30\ntags[2]: a,b\n", Nil{})) == C.Out{0n, "{\n  \"name\": \"Alice\",\n  \"age\": 30,\n  \"tags\": [\n    \"a\",\n    \"b\"\n  ]\n}\n", ""} : C.Out}
 
 # ---------------------------------------------------------------- strict UTF-8 on raw byte lists (closed)
 
@@ -1625,19 +1689,19 @@ law golden_encstr_duplicate_keys_thrice:
 
 # S4.243 goldens/toonedge_expand_hash_collision_conflict (round 7: every key of this document lands in ONE bucket of the hashed carriers)
 law golden_toonedge_expand_hash_collision_conflict:
-  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("exr.k: 1\njda.k: 2\nexr.m: 3\njda.k.z: 4\n", Nil{})) == C.Out{1n, "", "Path expansion conflict at segment \"k\": expected object but found primitive"} : C.Out}
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("exr.k: 1\njda.k: 2\nexr.m: 3\njda.k.z: 4\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Path expansion conflict at segment \"k\": expected object but found primitive"} : C.Out}
 
 # S4.246 goldens/toonedge_expand_hash_collision_lenient (round 7: every key of this document lands in ONE bucket of the hashed carriers)
 law golden_toonedge_expand_hash_collision_lenient:
-  {C.run_pure(["--decode", "--expand-paths", "safe", "--no-strict"], T.ascii_bytes("exr.k: 1\njda.k: 2\nexr.m: 3\njda.k.z: 4\n", Nil{})) == C.Out{0n, "{\n  \"exr\": {\n    \"k\": 1.0,\n    \"m\": 3.0\n  },\n  \"jda\": {\n    \"k\": {\n      \"z\": 4.0\n    }\n  }\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode", "--expand-paths", "safe", "--no-strict"], T.ascii_bytes("exr.k: 1\njda.k: 2\nexr.m: 3\njda.k.z: 4\n", Nil{})) == C.Out{0n, "{\n  \"exr\": {\n    \"k\": 1,\n    \"m\": 3\n  },\n  \"jda\": {\n    \"k\": {\n      \"z\": 4\n    }\n  }\n}\n", ""} : C.Out}
 
 # S3.25 goldens/toonedge_repeated_keys_hash_collision (round 7: every key of this document lands in ONE bucket of the hashed carriers)
 law golden_toonedge_repeated_keys_hash_collision:
-  {C.run_pure(["--decode"], T.ascii_bytes("exr: 1\njda: 2\nexr: 3\n", Nil{})) == C.Out{0n, "{\n  \"exr\": 1.0,\n  \"jda\": 2.0,\n  \"exr\": 3.0\n}\n", ""} : C.Out}
+  {C.run_pure(["--decode"], T.ascii_bytes("exr: 1\njda: 2\nexr: 3\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Duplicate sibling key \"exr\""} : C.Out}
 
 # S4.245 goldens/toonerr_expand_repeated_hash_collision (round 7: every key of this document lands in ONE bucket of the hashed carriers)
 law golden_toonerr_expand_repeated_hash_collision:
-  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("exr: 1\njda: 2\nexr: 3\nt[2]{jda,exr}:\n  1,2\n  3,4\n", Nil{})) == C.Out{1n, "", "Path expansion conflict at key \"exr\": cannot merge primitive with primitive"} : C.Out}
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("exr: 1\njda: 2\nexr: 3\nt[2]{jda,exr}:\n  1,2\n  3,4\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Duplicate sibling key \"exr\""} : C.Out}
 
 # S6.10 the other worst case: seven keys put in DESCENDING order (every insertion makes a left link, which
 # only skew removes) also make three levels

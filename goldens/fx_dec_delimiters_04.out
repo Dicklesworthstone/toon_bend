@@ -2,12 +2,12 @@
   "items": [
     {
       "sku": "A1",
-      "qty": 2.0,
+      "qty": 2,
       "price": 9.99
     },
     {
       "sku": "B2",
-      "qty": 1.0,
+      "qty": 1,
       "price": 14.5
     }
   ]

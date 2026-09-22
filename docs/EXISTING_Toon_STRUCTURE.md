@@ -30,6 +30,102 @@ each part owns a range:
 | D | the encoder | S3.1–S3.19, S4.1–S4.99, S5.1–S5.29, S6.30–S6.39, S10.60–S10.79 |
 | E | the decoder and path expansion | S2.100–S2.199, S3.20–S3.39, S4.200–S4.299, S6.40–S6.49, S9.100–S9.199, S10.80–S10.99 |
 
+## Amendment 2026-09-22: the pin moved to `toon_rust` `694d73b`, every known bug FIXED
+
+The owner ordered every bug found in either program fixed, never reproduced ("ANy bugs you find in EITHER
+toon_rust (my project) or toon_bend MUST be properly FIXED"). Each bug this document recorded was judged
+against the TOON specification v3.0.3 and the reference TypeScript implementation (v2.1.0, and v4.1 §14 for
+the strict checks), fixed in `toon_rust` (`d968de1`, `a8f7e45`, `7184fe1`, `528dd48`, `0ee264c`, `694d73b`),
+and the port was re-pinned to `694d73b` (PLAN §2) and re-captured (`--repin`; 486 of 1071 cases changed).
+**This block amends the clauses below. Where a clause states the old behavior, this block wins.** The
+clauses keep their numbers and their old text as the record of what the original did before `694d73b`.
+Every example here is a captured golden of the new pin.
+
+### A1. Superseded clauses and their new behavior
+
+| clauses | before `694d73b` | now (golden) | commit |
+|---|---|---|---|
+| amends S4.100–S4.122, S9.200–S9.201 | JSON numbers read by serde_json's default, non-round-trip path | correctly rounded, the value of S4.141–S4.144 (serde_json `float_roundtrip`); `1.7976931348623158e308` is the largest finite value; only a value beyond it is `number out of range` (encnum_long_mantissa, encnum_max_finite_edge_err) | `d968de1` |
+| amends S4.132–S4.133 | TOON number text broke an exact tie between two shortest candidates upward | the even digit wins, as in JSON (encnum_tie_up_1) | `d968de1` |
+| amends S4.170–S4.175, S5.36–S5.45 | JSON number text by zmij: every number with a fraction part or `.0`, exponent outside 1e-5…1e16 | JavaScript's `Number::toString`: integers without `.0`, plain for 1e-6 ≤ \|x\| < 1e21, otherwise `d[.ddd]e±X`; zero is `0` (decnum_ints, decfmt_exp_upper_boundary, decnum_root_negative_zero) | `d968de1` |
+| amends S5.63–S5.71 | two escape tables: `--expand-paths safe` wrote `\u0008`, `\u000c` and escaped DEL and U+0080–U+009F | one table in both modes, writer A's: `\b`, `\f`, `\u00XX` below U+0020, DEL and C1 raw (decstr_control_out_expand) | `d968de1` |
+| amends S3.24–S3.28, S4.244–S4.247, S5.72, S6.14 | a repeated key in one object was written twice without expansion, and was a primitive conflict or last-write-wins with it | in every mode two objects under one key merge recursively (the path-expansion rule); any other pair is `Duplicate sibling key "k"` in strict mode (S9.151) and last-write-wins at the first position in lenient mode (jsonout_duplicate_keys, jsonout_duplicate_keys_expand_lenient) | `694d73b` |
+| amends S2.3, S2.114, S8.7, S9.11 | a UTF-8 BOM failed JSON parsing and became part of the first TOON key | one leading BOM is dropped from the input in both directions (jsonerr_bom_prefixed, toonerr_bom) | `d968de1` |
+| amends S2.113 | a CR ended a CRLF line's content; a bare `-␍` item was not recognised | one CR at the end of every line is dropped before scanning (toonedge_crlf_bare_dash) | `a8f7e45` |
+| amends S2.133 | text between `]` and `{`/`:` or between `}` and `:` was discarded | only White_Space may stand there; otherwise the line is a key-value line whose key is the text before the unquoted colon (toonedge_header_ignored_text) | `a8f7e45` |
+| amends S2.135–S2.136 | lengths accepted Rust's syntax (`+2`, leading zeros); above 2^64 − 1 the header became a key | a length is ASCII digits only; leading zeros are allowed; any value above the cap, however long, is the cap error naming the digits as written (toonedge_length_forms, toonerr_huge_length) | `a8f7e45` |
+| amends S2.137 | the fields segment ended at the first `}`; `{}` made a list array; empty names were names | the segment ends at the first `}` outside quotes; an empty list or an empty name is an error (S9.148); a quote left open is `Unterminated string` (toonedge_field_name_open_brace_ok, toonedge_fields_space_only) | `a8f7e45`, `694d73b` |
+| amends S4.203 | at the root any `:` byte made a key-value line, quotes ignored | at the root as in a list item (S4.224): only a colon outside quotes counts (toonedge_root_vs_item_keyvalue) | `a8f7e45` |
+| amends S4.202 | lines after a complete root array were ignored | strict: `Unexpected content after the document root` (S9.152); lenient: ignored (toonedge_root_array_trailing_ignored) | `a8f7e45` |
+| amends S4.206–S4.207 | a line deeper than its siblings that no block consumed ended the decode, and every later line vanished; a first child two levels down was accepted | strict: `Over-indented line` (S9.150) and `Indentation depth jump` (S9.154); lenient: the line is a field of the enclosing object (toonedge_rest_dropped_after_overindent, toonerr_depth_jump) | `a8f7e45` |
+| amends S4.210–S4.216 | lenient mode let `[N]` cut a list or table and the surplus lines ended the document; a surplus bare `-` escaped the strict count; a line whose first unquoted colon precedes the delimiter was read as a row | lenient mode decodes every item and row present; a bare `-` counts; such a line is a key-value line that ends the table (§9.3 of the format) (toonlenient_extra_list_items, toonerr_extra_bare_dash_undetected) | `a8f7e45` |
+| amends S2.137, S4.212 | `t[2]{a,b}: 1,2` was a primitive array, field names ignored | `Unexpected content after fields-bearing header colon` (S9.149) (toonedge_inline_beats_fields) | `a8f7e45` |
+| amends S2.126 (key token) | a quoted key after leading whitespace kept its quotes | whitespace is skipped before the key token (toonedge_list_item_two_spaces_quoted_key) | `a8f7e45` |
+| amends S4.11 | a string starting with `0` and a digit was always quoted (`007abc`) | quoted only when numeric-like as a whole (encstr_numeric_like) | `7184fe1` |
+| amends S4.63–S4.84 | in a list-item object the fold check did not see the first field | the remaining fields are folded against every key of the object, the first included (enc_fold_list_item_dup_key) | `7184fe1` |
+| amends S4.310–S4.319, S5.108 | `--stats` on encode only, `~1 tokens`, the percent through two binary64 operations, silent when TOON was larger | both directions; the noun is singular for exactly one; the percent is exact, rounded half up to one decimal; `TOON is larger by ~N token(s) (+P%)` and `No token difference (0.0%)` (stats_f64_below_tie, stats_output_dev_null, stats_empty_object) | `d968de1` |
+| amends S5.100–S5.113, S9.15, S10.3 | `-o -` wrote a file named `-`; a failed write to `-o` was lost at up to 8192 bytes | `-o -` is stdout; every write error is exit 1 (io_output_dev_full_8192) | `d968de1` |
+| amends S9.20 | a failing stderr aborted the process (SIGABRT) | a line stderr cannot take is dropped and the exit code stands (no golden: DISC-003) | `d968de1` |
+| amends S9.100–S9.199 | decode errors had no prefix | every decode failure line starts `Failed to decode TOON: ` | `d968de1` |
+| amends S9.50–S9.99 | JSON errors started `JSON error: Failed to parse JSON: ` | `Failed to parse JSON: ` (serde_json's message and position unchanged) | `d968de1` |
+| amends S1.2, S10.19 | usage lines named argv[0] | always `toon` | `0ee264c` |
+| amends S1.60 (help text), S1.8, S1.77 (a `-1` word) | the help text stated neither the indent range nor the delimiter words; `--indent -1` was an unexpected argument | the help states both; a negative number is a value (S1.156, S1.157) and gets the range error (usage_negative_number_word) | `d968de1`, `0ee264c` |
+| amends S4.301 (extension) | `.json` / `.toon` (a dotfile) had no extension | the suffix after the last dot counts, also for dotfiles (auto_dotfile_toon) | `d968de1` |
+| amends S7.1, S7.38 (indent on encode) | `--indent 0` on encode wrote unstructured text | `Indentation size must be at least 1 when encoding TOON`, exit 1, checked before the input is read (S1.158; flag_indent_0_encode) | `d968de1` |
+
+### A2. New clauses
+
+| S.n | clause | provenance (`toon_rust` `694d73b`) | cases |
+|---|---|---|---|
+| S1.156 | A word `-` followed by a number (ASCII digits with at most one `.` that is not first, clap's `is_number`) is one word, never a cluster of short flags. | src/cli/args.rs:41 | usage_negative_number_word |
+| S1.157 | `--indent` and `--flatten-depth` take such a word as their value when it is the next word, so `--indent -1` is the range error like `--indent=-1`. | src/cli/args.rs:54 | usage_negative_number_word, usage_bad_indent_negative |
+| S1.158 | `--indent 0` with encode mode is refused before the input is read: `Indentation size must be at least 1 when encoding TOON` on stderr, exit 1 (decode keeps 0 = compact JSON). | src/cli/mod.rs:43 | flag_indent_0_encode |
+| S4.230 | The decoder counts the objects and arrays open around each value (a tabular body is two: the array and the row object) and refuses to open a 128th, the JSON reader's limit (S9.153). | src/decode/decoders.rs:29 | jsonout_deep_200 |
+| S4.231 | Path expansion nests one object per dotted segment; the expanded value is held to the same limit of 127 levels (S9.155). | src/decode/expand.rs:31 | toonedge_expand_segments_253 |
+| S9.148 | `Empty field list in array header` for a fields segment that is empty or White_Space only; `Empty field name in field list` for an empty piece. | src/decode/parser.rs:201 | toonedge_fields_space_only |
+| S9.149 | `Unexpected content after fields-bearing header colon`. | src/decode/parser.rs:140 | toonedge_inline_beats_fields |
+| S9.150 | `Validation error at line N: Over-indented line: expected depth D, but found E` (strict). | src/decode/decoders.rs:131 | toonedge_rest_dropped_after_overindent |
+| S9.151 | `Duplicate sibling key "k"` (strict; the key as decoded), reported after the pass for a repeated key whose two values are not both objects. | src/decode/event_builder.rs:201 | jsonout_duplicate_keys |
+| S9.152 | `Validation error at line N: Unexpected content after the document root` (strict). | src/decode/decoders.rs:94 | toonedge_root_array_trailing_ignored |
+| S9.153 | `Validation error at line N: Nesting depth exceeds 127 levels`, N the line that opens the 128th container. | src/decode/decoders.rs:38 | jsonout_deep_200 |
+| S9.154 | `Validation error at line N: Indentation depth jump: expected depth D, but found E` (strict: the first field of a nested object sits exactly one level below its parent). | src/decode/decoders.rs:141 | toonerr_depth_jump |
+| S9.155 | `Nesting depth exceeds 127 levels after path expansion`. | src/decode/expand.rs:33 | toonedge_expand_segments_253 |
+
+### A3. Status of every S10 row at `694d73b`
+
+FIXED rows behave as A1 says. KEPT rows are unchanged because they are not bugs of `toon`: the format
+specification or the reference implementation mandates the behavior, or the text is serde_json's or clap's
+own diagnostic (the program reports it; it does not compose it), or the row records a corpus or documentation
+fact.
+
+| S10 rows | status |
+|---|---|
+| row S10.2, S10.3, S10.4, S10.9, S10.11, S10.15, S10.16, S10.17, S10.18, S10.19 | FIXED (A1) |
+| row S10.1 | KEPT: not a bug (the case name was wrong, the golden right) |
+| row S10.5–S10.8 | FIXED in the original's README (`7c81f94`); the program's text is the golden |
+| row S10.10, S10.12, S10.13, S10.14 | KEPT: clap's own parsing and usage diagnostics |
+| row S10.20, S10.21, S10.22, S10.28, S10.34 | FIXED (A1) |
+| row S10.23–S10.27, S10.29, S10.31 | KEPT: serde_json's messages and positions, printed as the library gives them |
+| row S10.30 | FIXED for the asymmetry (the decoder and expansion now share the JSON reader's limit, S4.230, S4.231); the bracket-time test is serde_json's and KEPT |
+| row S10.32 | KEPT: the reference CLI also uses `--indent` for both the input unit and the output indent (`Indentation must be exact multiple of 0`, run 2026-09-22) |
+| row S10.33 | KEPT: the format normalizes `-0` to `0` (spec v3.0.3 §2) |
+| row S10.35, S10.42, S10.67, S10.77 | KEPT: records, not behaviors (dead paths, a corpus gap, fixture bookkeeping) |
+| row S10.40, S10.41, S10.43, S10.44, S10.45, S10.48 | FIXED (A1) |
+| row S10.46, S10.47, S10.52 | KEPT: `1e309` is out of range as JSON (serde_json) and not a finite number as a TOON token, which the format then reads as a string; the positions are serde_json's |
+| row S10.49, S10.50 | FIXED (A1) |
+| row S10.51 | KEPT: TOON number text is plain decimal by the format (spec v3.0.3 §2, no exponent); the original's document was corrected (`7c81f94`) |
+| row S10.60 | KEPT: spec v3.0.3 §7.2 names newline, carriage return and tab as the control characters that force quoting, and TOON has no escape for any other; the reference writes U+0001 and U+007F raw too (run 2026-09-22) |
+| row S10.61, S10.65 | FIXED (A1) |
+| row S10.62, S10.63, S10.66, S10.74, S10.76 | KEPT: the reference implementation writes exactly these outputs (the R2, R7, R6 and R15 inputs of S10.62, S10.63, S10.66 and S10.76, with and without `--flattenDepth 2`: byte-identical, run 2026-09-22), and the upstream fixture "skips folding on sibling literal-key collision" requires S10.74's bare dotted key (quoting it would fail that fixture) |
+| row S10.64, S10.68, S10.69, S10.75 | KEPT: the format's rules (list items, `indent × depth`, raw Unicode data, key vs value quoting) |
+| row S10.70–S10.73 | FIXED in the original's README and structure document (`7c81f94`) |
+| row S10.80, S10.81, S10.82, S10.85, S10.87, S10.88, S10.90, S10.92, S10.93, S10.95, S10.96, S10.97, S10.98, S10.99, S10.200 | FIXED (A1) |
+| row S10.83, S10.84, S10.89 | FIXED at `7c1d6e4` (see the rows) |
+| row S10.86 | KEPT: the reference implementation rejects the fixture with the same message, `Expected 2 list array items, but got 0` (run 2026-09-22) |
+| row S10.91 | FIXED by S10.95's fix: the quoted `"a.b"` and the unquoted `a.b` are one repeated key, `Duplicate sibling key "a.b"` in strict mode |
+| row S10.94 | KEPT: the reference implementation reports the same strict tab error (run 2026-09-22) |
+
+
 ## Notation
 
 
@@ -1043,9 +1139,9 @@ padding or separators.
 | S9.147 | **Precedence 8 — expansion last:** S9.116–S9.118 can only appear for a document that decodes without error (S4.249); among them the first in the depth-first, document-order walk of S4.242 wins. Probe: `a.b: 1⏎a.b: 2⏎c.d: 1⏎c: 2` → the `key "b"` conflict. | `src/cli/conversion.rs:63` | jsonout_expand_conflict_strict, jsonout_duplicate_keys_expand toonerr_decode_beats_expand, toonerr_expand_value_error_first |
 
 
-## S10. Known bugs and oddities (to be reproduced, not fixed)
+## S10. Known bugs and oddities of the original before `694d73b` (status per row: Amendment A3)
 
-### S10, part A (command line, effects, I/O errors, --stats): Known bugs and oddities on this surface (reproduce, do not fix)
+### S10, part A (command line, effects, I/O errors, --stats): Known bugs and oddities on this surface (status: Amendment A3)
 
 | S10.n | behavior | why it is a bug | reproduce with case | decision |
 |---|---|---|---|---|
@@ -1090,7 +1186,7 @@ padding or separators.
 | S10.34 | The JSON error line has a doubled prefix: `JSON error: Failed to parse JSON: …` (`src/error.rs:33-34`, `src/error.rs:218-220`). | Two layers say the same thing. | jsonerr_empty | bug-compatible (text is pinned) |
 | S10.35 | Writer A's and the tree builder's malformed-stream messages (S9.77–S9.82) are dead code for the CLI, and the `null` fallback for non-finite numbers in both writers is dead as well (S5.54) (`src/cli/json_stream.rs:57-61`, `src/cli/json_stringify.rs:128-132`). | Not a bug: recorded so the port does not invent cases for them. | decnum_extremes | bug-compatible (no port obligation beyond the library twins) |
 
-### S10, part C (numbers: four text/value algorithms and their glue): Known bugs and oddities — S10.40–S10.59 (reproduce, do not fix)
+### S10, part C (numbers: four text/value algorithms and their glue): Known bugs and oddities — S10.40–S10.59 (status: Amendment A3)
 
 | S10.n | behavior | why it is a bug | reproduce with case | decision |
 |---|---|---|---|---|
@@ -1108,7 +1204,7 @@ padding or separators.
 | S10.51 | The original's design document says a number is encoded like JavaScript `String(value)` (`EXISTING_TOON_RUST_STRUCTURE.md:240`), which would print `1e21` as `1e+21`; the goldens show full decimal expansion (`1000000000000000000000`), never an exponent. | Documentation disagrees with behavior; the golden wins. | encnum_exponents, encnum_extremes | bug-compatible (default) |
 | S10.52 | Zero with an absurd exponent is accepted (`0e99999999999999999999` → `0`) while any nonzero significand with the same exponent is fatal; and leading zeros in an exponent are unlimited (`de.rs:866`, `de.rs:606`). | Harmless leniency, listed because a natural port would reject or mis-handle both. | encnum_zero_huge_exponent, encnum_overflow_huge_exponent | bug-compatible (default) |
 
-### S10, part D (the encoder: value to TOON lines, key folding): Known bugs and oddities of the encoder (S10.60–S10.79): reproduce, do not fix
+### S10, part D (the encoder: value to TOON lines, key folding): Known bugs and oddities of the encoder (S10.60–S10.79) (status: Amendment A3)
 
 | S10.n | behavior | why it is a bug | reproduce with case | decision |
 |---|---|---|---|---|
@@ -1131,7 +1227,7 @@ padding or separators.
 | S10.76 | The absolute path of the root-literal check is a raw dot-join (S4.71): a nested key that itself contains dots contributes several apparent segments. R15 `{"u":{"v.w":{"a":{"b":1}}},"u.v.w.a.b":1}` → `u:⏎  v.w:⏎    a:⏎      b: 1⏎u.v.w.a.b: 1`: the unrelated root key `u.v.w.a.b` blocks the fold of `a.b` under `u` → `v.w`. (`src/encode/encoders.rs:89-90`, `src/encode/folding.rs:65-68`) | path ambiguity; conservative (refuses a fold), never produces a wrong document | enc_fold_dotted_parent_path | bug-compatible (default) |
 | S10.77 | The rules "non-finite number → null" (normalization and number text) are dead through the CLI: no JSON text yields a non-finite value (S3.5). (`src/encode/normalize.rs:22-23`, `src/encode/primitives.rs:89-91`) | unreachable behavior; the port needs no case and no code path for it unless a library driver is added | `goldens/encnum_overflow_positive` (shows the reader's rejection instead) | bug-compatible (default) |
 
-### S10, part E (the decoder: TOON lines to events and values, path expansion): Known bugs and oddities — decode side (S10.80–S10.99) — reproduce, do not fix
+### S10, part E (the decoder: TOON lines to events and values, path expansion): Known bugs and oddities — decode side (S10.80–S10.99) (status: Amendment A3)
 
 **Vendored fixtures versus the pinned binary.** All 202 `fx_dec_*` fixtures were compared mechanically with the
 upstream expectations in `cases/fixtures/spec/decode/*.json`: the 23 fixtures that upstream marks as error cases

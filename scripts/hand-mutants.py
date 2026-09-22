@@ -47,9 +47,11 @@ MUTANTS = [
  ("M17", "encode.bend", "row.lock(rest, t, T.str_eq(k, key), Bool.and(prim, is_prim(v)))", "row.lock(rest, t, True{}, Bool.and(prim, is_prim(v)))", "rows in another key order count as lockstep"),
  # Round 13 (R13-9) wrote these three itself and all three SURVIVED the whole 368-law proof: no law pinned
  # writer B's escape table, the surrogate test or the TAB quoting rule. The laws exist now
- # (writer_b_escapes_del, writer_b_escapes_c1, utf8_rejects_surrogate, tab_in_value_forces_quotes), and the
+ # (writer_b_keeps_del_raw, writer_b_keeps_c1_raw, utf8_rejects_surrogate, tab_in_value_forces_quotes), and the
  # mutants live here so that stays true.
- ("M24", "json.bend", "w.ch.plain(Bool.or(U32.is_le(c, 31), Bool.and(U32.is_ge(c, 127), U32.is_le(c, 159))), c, acc)", "w.ch.plain(U32.is_le(c, 31), c, acc)", "writer B stops escaping DEL and the C1 block"),
+ # M24 was "writer B stops escaping DEL and the C1 block"; since the re-pin to toon_rust 694d73b there is one
+ # table, which keeps both raw, so the mutant now brings the old table B's DEL escape back.
+ ("M24", "json.bend", "      w.ch.plain(U32.is_lt(c, 32), c, acc)", "      w.ch.plain(Bool.or(U32.is_lt(c, 32), U32.is_eq(c, 127)), c, acc)", "the JSON writer escapes DEL again (the old table B, C-3)"),
  ("M25", "text.bend", "Bool.or(U32.is_lt(value, 55296), U32.is_gt(value, 57343))", "True{}", "a UTF-8-encoded surrogate is accepted"),
  ("M26", "encode.bend", "Bool.or(U32.is_eq(c, 13), U32.is_eq(c, 9))", "U32.is_eq(c, 13)", "a TAB in a value no longer forces quotes"),
  # Round 14's five (R14-1): each SURVIVED the whole 374-law proof while breaking captured cases, until
@@ -57,7 +59,9 @@ MUTANTS = [
  ("M27", "cli.bend", "Bool.and(U32.is_ge(c, 65), U32.is_le(c, 90))", "Bool.and(U32.is_ge(c, 65), U32.is_le(c, 83))", "the extension lowercaser stops folding T..Z, so `.TOON` is not decoded"),
  ("M28", "cli.bend", "def seven_tenths() -> F.F64:\n  F.from_dec(True{}, False{}, [7], 1n)", "def seven_tenths() -> F.F64:\n  F.from_dec(True{}, False{}, [8], 1n)", "clap's similarity threshold moves from 0.7 to 0.8"),
  ("M29", "text.bend", "U32.is_eq(c, 5760)", "U32.is_eq(c, 5761)", "U+1680 stops being White_Space and U+1681 starts"),
- ("M30", "f64.bend", "    case Pos{p}:\n      Nat.is_le(p, 16n)\n    case Neg{z}:\n      Nat.is_le(z, 4n)", "    case Pos{p}:\n      Nat.is_le(p, 15n)\n    case Neg{z}:\n      Nat.is_le(z, 4n)", "the JSON writers' plain/exponent boundary moves from 1e16 to 1e15"),
+ # M30 moved the old zmij boundary (1e16 to 1e15); M34 now covers the upper JavaScript boundary, so M30
+ # moves the LOWER one (0.000001 would print as 1e-6).
+ ("M30", "f64.bend", "    case Neg{z}:\n      Nat.is_le(z, 5n)", "    case Neg{z}:\n      Nat.is_le(z, 4n)", "the JSON writer's plain range stops at 1e-5 instead of 1e-6"),
  ("M31", "encode.bend", "Bool.or(U32.is_eq(c, 13), U32.is_eq(c, 9))", "Bool.or(U32.is_eq(c, 9), U32.is_eq(c, 9))", "a CR in a value no longer forces quotes"),
  # An author-side hunt before round 15 (2026-09-22): round 14's survivors were each one entry of a small
  # table, so other entries of the same tables were tried. Two White_Space entries SURVIVED the full
@@ -66,7 +70,7 @@ MUTANTS = [
  ("M33", "text.bend", "U32.is_eq(c, 160)", "U32.is_eq(c, 161)", "U+00A0 NO-BREAK SPACE stops being White_Space"),
  # Round 15 (R15-10): two laws this file's own notes called "proved but not SHOWN to bite" each turned out
  # to be the ONLY law that kills one of the reviewer's mutants. These make that bite permanent.
- ("M34", "f64.bend", "    case Pos{p}:\n      Nat.is_le(p, 16n)", "    case Pos{p}:\n      Nat.is_le(p, 17n)", "the JSON writers stay plain at k = 17 (only json_exponent_at_k17 catches it)"),
+ ("M34", "f64.bend", "    case Pos{p}:\n      Nat.is_le(p, 21n)", "    case Pos{p}:\n      Nat.is_le(p, 22n)", "the JSON writer stays plain at k = 22 (json_exponent_at_k22 catches it)"),
  ("M35", "text.bend", "Bool.or(Bool.and(U32.is_ge(c, 9), U32.is_le(c, 13)), Bool.or(U32.is_eq(c, 32)", "Bool.or(Bool.and(U32.is_ge(c, 9), U32.is_le(c, 14)), Bool.or(U32.is_eq(c, 32)", "White_Space gains U+000E (only is_ws_documented_non_members catches it)"),
 ]
 

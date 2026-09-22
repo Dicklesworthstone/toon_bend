@@ -1,8 +1,10 @@
 # Discrepancies — the Bend 2 port of Toon
 
 <!-- Every observed or deliberate divergence from the original's observable behavior.
-     Bug-compatibility is the default: a divergence exists only as an entry
-     here, with a kill-switch, the affected cases and a measured impact.
+     A bug is FIXED, in the original first and then in the port (the owner's
+     order of 2026-09-22), never reproduced. A divergence from the pinned
+     original exists only as an entry here, with a kill-switch, the affected
+     cases and a measured impact.
      Goldens are re-captured for an accepted DISC only through the
      canonicalizing wrapper the entry names, never edited by hand. -->
 
@@ -32,7 +34,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: the bare compiled binary keeps the Bend runtime's flags before `--`; the supported command line is the launcher `bin/toon`, which passes `--` first, so every word the user types reaches the port's argv. Nothing else may differ.
 
-### DISC-002 — the program name in clap's `Usage:` lines is the literal `toon`   [2026-09-20 | Platform | ACCEPTED]
+### DISC-002 — the program name in clap's `Usage:` lines is the literal `toon`   [2026-09-20 | Platform | RESOLVED]
 - Spec clause: S1.2, S10.19
 - Original behavior (cite the golden): `goldens/usage_extra_positional.err` line 3: `Usage: toon [OPTIONS] [INPUT]`, where `toon` is the final path component of argv[0] (a copy of the binary named `tn` prints `Usage: tn …`; `--version` always prints `toon`)
 - Port behavior: `Usage: toon …` whatever the executable is called
@@ -41,7 +43,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Affected cases: none (every golden was captured from `./oracle/toon`, so the name is `toon` in all of them)
 - Impact measured: 0 of 1071 cases (the corpus after round 15's six cases were added, each of them byte-identical to the original; the zero has held at every corpus size since the entry was written) (0 of 1005 when written; re-counted after the Phase 4 re-capture)
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
-- Resolution: ACCEPTED. Scoped contract: `Usage:` lines name the program `toon` whatever the file is called; only the program-name token of clap's usage lines may differ from an original that was renamed.
+- Resolution: ACCEPTED on 2026-09-20 (scoped contract: `Usage:` lines name the program `toon` whatever the file is called). RESOLVED on 2026-09-22 upstream: `toon_rust` `0ee264c` sets `bin_name = "toon"`, so the pinned original also prints `Usage: toon …` under any file name (a copy named `tn` run on `a b` prints `Usage: toon [OPTIONS] [INPUT]`, run 2026-09-22). The two programs agree; nothing is left to accept.
 
 ### DISC-003 — an unwritable stderr: the exit code and the abort differ   [2026-09-20 | Platform | ACCEPTED]
 - Spec clause: S9.20, S10.18 (both corrected in round 6: only a FAILING stderr write aborts the original; a CLOSED stderr is ignored by it)
@@ -53,6 +55,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Impact measured: 0 of 1071 cases (the corpus after round 15's six cases were added, each of them byte-identical to the original; the zero has held at every corpus size since the entry was written); found and tabulated by the non-author round 6
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: only when stderr cannot be WRITTEN. Through `bin/toon` a closed or read-only stderr behaves like the original's; a stderr that is open for writing and fails (`/dev/full`) gives exit 1 instead of the original's abort or its normal exit code. stdout bytes never differ.
+- Amended 2026-09-22 (re-pin to `694d73b`): the original's abort was a bug and is fixed upstream (`d968de1`: diagnostics go through `cli::report`, which drops a line stderr cannot take). The original now keeps its normal exit code with stderr = `/dev/full` (a successful `-e … -o /dev/null`: 0; `--bogus`: 2; run 2026-09-22); the native port still exits 1 in both (same run). What remains of this entry is that exit code, a property of the Bend runtime's standard streams that the program cannot intercept; the abort half no longer exists.
 
 ### DISC-004 — argv words that are not valid UTF-8   [2026-09-20 | Platform | ACCEPTED]
 - Spec clause: S1.22, S1.87, S5.107, S9.18
@@ -120,7 +123,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Approver: not needed (a repair restores the original's behavior)
 - Resolution: RESOLVED 2026-09-20 by the stdin effect `Stdin.open` (`port/main.bend`, `port/stdin_open.c`, `port/stdin_open.js`): descriptor 0 itself is read, so the read fails with EAGAIN and the port prints the original's line, exit 1. Regression artifact: `python3 scripts/stdio-probe.py -- <port>` row "stdin is an empty pipe with O_NONBLOCK" → SAME on the native binary, through the launcher and on the JavaScript build
 
-### DISC-010 — a TOON document nested about 20000 levels deep decodes instead of aborting   [2026-09-20 | Performance | ACCEPTED]
+### DISC-010 — a TOON document nested about 20000 levels deep decodes instead of aborting   [2026-09-20 | Performance | RESOLVED]
 - Spec clause: S2.150 (no nesting limit without expansion); candidate C-6 promoted to the register by round 6, because it IS a divergence
 - Original behavior: a Rust stack overflow, SIGABRT, with a thread id in stderr that varies per run (the JSON extractor's handover notes; 2000 levels decode). Measured by round 7 (R7-9; `--indent 1`, the default 8 MiB stack): 12000 levels (72 MB) decode, exit 0; 16000 levels (128 MB) abort, exit 134. The "about 20000" of this entry's title was a guess; the threshold is between 12000 and 16000
 - Port behavior: the decoder is an explicit-stack machine, so nothing in it depends on the nesting depth. Round 9 gave the port's half its first evidence at a smaller scale: under `ulimit -s 1024` a 3000-level document (`--indent 1`, 4.5 MB) aborts the original (SIGABRT, `thread 'main' has overflowed its stack`) and the port decodes it, exit 0, 9033014 bytes; at a 512 KB stack the original's threshold is between 400 and 800 levels, at 64 KB between 50 and 100; in 216 executions of that grid there is no cell where the original succeeds and the port does not. That the port DECODES a 16000-level document at the default stack has still NOT been run (no case, no capture): at the measured 47 to 70 bytes of resident memory per input byte (DISC-011) such a document needs about 6 GB, which was not spent on a shared host
@@ -129,7 +132,7 @@ to change the contract. Keep the historical entry and its original evidence.
 - Affected cases: none (a signal exit is never a golden; the input is far above 1 MB)
 - Impact measured: 0 of 1071 cases (the corpus after round 15's six cases were added, each of them byte-identical to the original; the zero has held at every corpus size since the entry was written); the original's half re-run by round 7, the port's half unverified (see above)
 - Approver: the repository owner, 2026-09-20, who delegated the ruling to the author in these words: "You decide on everything. I approve whatever you want to do." The author's ruling follows under Resolution
-- Resolution: ACCEPTED. Scoped contract: TOON documents nested deeper than the original's stack allows (between 12000 and 16000 levels at the default 8 MiB stack); the original aborts there, the port has no depth limit of its own and is bounded by memory (DISC-011).
+- Resolution: ACCEPTED on 2026-09-20 (scoped contract: documents nested deeper than the original's stack allows). RESOLVED on 2026-09-22: a stack overflow is a bug, and `toon_rust` `528dd48` gives the decoder the JSON reader's nesting limit, 127 containers, reported as `Validation error at line N: Nesting depth exceeds 127 levels` (exit 1); `694d73b` holds path expansion to the same limit. The port implements both (S9.155, S4.231; laws `expand_depth_127_accept`, `expand_depth_128_reject`); a 200-level document gives the same line and exit from both programs (run 2026-09-22), so no depth reaches either stack.
 
 ### DISC-011 — the native runtime's resource floor: 8 TiB of address space, a thread, an event loop   [2026-09-20 | Performance | ACCEPTED]
 - Spec clause: S11.1 (large inputs), S8.1 (process start)
@@ -186,27 +189,25 @@ to change the contract. Keep the historical entry and its original evidence.
 - Approver: the repository owner, 2026-09-20, by the delegation quoted under DISC-001 ("You decide on everything. I approve whatever you want to do."); the author's ruling follows under Resolution
 - Resolution: ACCEPTED. Scoped contract: only a descriptor 0 on which the size or the alignment of a read is observable (packet-mode pipes, SEQPACKET sockets with a message above 32 bytes, O_DIRECT files). There the original sees a 32-byte prefix and the port the whole message, so EITHER program may succeed where the other fails, and both may succeed on different bytes. (This entry first said "the port converts where the original reports an error"; round 12 showed that is one of three outcomes.) Reproducing the schedule would mean copying Rust's growth rule, its adaptive maximum, its short-read heuristic and the alignment of its stack buffer: one toolchain's internals, for states that no pipeline of text produces
 
-### Bug-compatibility candidates C-1 to C-11 (not divergences: the port is bug-compatible with each; listed so the owner can decide)
+### Former bug-compatibility candidates C-1 to C-11: all fixed, none reproduced
 
-**Ruling, 2026-09-20.** The repository owner delegated it to the author ("You decide on everything. I approve whatever you want to do."). The author's ruling: EVERY candidate stays bug-compatible. A port that fixes one of them is a different program for anyone who pipes both, none of them loses data silently without the original doing the same, and each has its clause in S10 and its cases, so a later owner can turn any of them into a `BugFix` DISC with a kill-switch without reading code. C-6 had already left this list (it is DISC-010).
+**Owner's order, 2026-09-22** (verbatim): "I see something in the README about "intentional bugs". That's INSANE. ANy bugs you find in EITHER toon_rust (my project) or toon_bend MUST be properly FIXED. DUH!!!!" It replaces the author's ruling of 2026-09-20, which had kept every candidate bug-compatible under the owner's delegation. Each candidate was judged against the TOON specification v3.0.3 and the reference TypeScript implementation, never against the old goldens; each bug was fixed in `toon_rust` first, the port was re-pinned to the fixed commit (`694d73b`, PLAN §2), the goldens were re-captured with `--repin` (486 of 1071 cases changed) and the port was changed to match on every lane. Because the pinned original now behaves correctly, none of these is a divergence and none needs a DISC.
 
-**Owner's order, 2026-09-22** (verbatim): "you must fix ANY bug found in either toon_rust or toon_bend immediately". It overrides the ruling above for the bug it was given about: C-10, found again by the end-to-end benchmark on a real document (`perf/e2e/`), is fixed UPSTREAM in `toon_rust` `7c1d6e4` and the port is re-pinned to that commit (PLAN §2), so the port stays bug-compatible with its original and no DISC is needed. The other ten candidates are unchanged and await the owner's word on whether the order reaches them.
+| # | was (old golden) | now | fixed in `toon_rust` |
+|---|---|---|---|
+| C-1 | decoded integers printed as floats: `"id": 1.0` | JavaScript's number text, as the reference CLI and the README print it: `"id": 1`, `1e+21`, `1e-7` (S4.173) | `d968de1` |
+| C-2 | JSON number input not correctly rounded (`0.33333333333333337`) | correctly rounded (serde_json `float_roundtrip`; the port reads through `F.token_value`) | `d968de1` |
+| C-3 | the two JSON writers escaped control characters differently | one escape style, serde_json's, with and without `--expand-paths safe` | `d968de1` |
+| C-4 | decode errors carried no `Failed to decode TOON:` prefix; JSON errors said `JSON error: Failed to parse JSON:` | `Failed to decode TOON: …`; `Failed to parse JSON: …` | `d968de1` |
+| C-5 | control characters other than `\n \r \t` written raw into TOON | NOT A BUG, unchanged: spec v3.0.3 §7.2 names exactly newline, carriage return and tab as the control characters that force quoting, TOON has no escape for any other, and the reference CLI writes U+0001 and U+007F raw too (run 2026-09-22) | — |
+| C-6 | (was DISC-010) a document nested 12000–16000 levels deep aborted the original | both programs refuse a 128th container: `Nesting depth exceeds 127 levels` (S9.155) | `528dd48`, `694d73b` |
+| C-7 | a failed write to the `-o` file was lost when the output fit in 8192 bytes: exit 0 | every write error is exit 1 (`io_output_dev_full_8192`) | `d968de1` |
+| C-8 | safe key folding could write two equal keys in one list-item object | the fold is checked against every key of the object, the first included | `7184fe1` |
+| C-9 | an over-indented line silently ended the root object and dropped the rest of the document, exit 0 | strict: `Over-indented line` error; lenient: the line is kept as a field | `a8f7e45` |
+| C-10 | a `[` inside a quoted value was read as an array header | fixed (S2.130) | `7c1d6e4` |
+| C-11 | `1.7976931348623158e308` rejected as `number out of range` | read as the largest finite value, correctly rounded | `d968de1` |
 
-These are behaviors of the pinned original that look unintended. The port reproduces all of them and the goldens pin them. Turning any into a fix is a `BugFix` DISC with the owner's approval, a kill-switch and a re-capture; none has been taken.
-
-| # | observed (golden) | note |
-|---|---|---|
-| C-1 | decoded integers print as floats: `goldens/happy_readme_users_decode.out` has `"id": 1.0` | the README shows `{"id":1,…}`; OQ-007 |
-| C-2 | JSON number input is not correctly rounded: `goldens/encnum_long_mantissa.out` n09 `0.33333333333333337` | serde_json without `float_roundtrip`; OQ-002 |
-| C-3 | the two JSON writers escape control characters differently (`decstr_control_out` vs `decstr_control_out_expand`) | streaming writer: serde_json escaping; `--expand-paths safe` writer: `\\u00XX` for every `is_control()` char |
-| C-4 | decode errors carry no `Failed to decode TOON:` prefix | README and the original's spec document say they do; OQ-006 |
-| C-5 | control characters other than `\\n \\r \\t` are written raw and unquoted into TOON (`encstr_escapes_in`) | `is_safe_unquoted` does not test them |
-| C-6 | (moved: the port does NOT reproduce this one, so it is DISC-010, not a candidate) | see DISC-010 |
-| C-7 | without `--stats`, a failing write to the `-o` file is silently lost when the output is at most 8192 bytes: success line, exit 0 (`io_output_dev_full_8192` vs `io_output_dev_full_8193`) | the original's buffered writer drops the flush error; reproduced (OQ-A6) |
-| C-8 | "safe" key folding can emit two equal keys in one list-item object: `[{"c.d":7,"c":{"d":1}}]` encodes as `- c.d: 7` then `c.d: 1` (`enc_fold_list_item_dup_key`) | S10.61: the sibling check for the remaining fields does not see the first field |
-| C-9 | a line indented deeper than any open block silently ends the root object and everything after it is dropped, exit 0: `a:`, `  b: 1`, `    c: 2`, `  d: 3`, `e: 4` decodes to `{"a":{"b":1.0}}` | S10 rows of part E; strict mode does not catch it |
-| C-10 | RESOLVED 2026-09-22, fixed UPSTREAM: the header parser found `[` inside a quoted value, so the original's own output `a: "x[1]: y"` decoded to `{"a: \"x":["y\""]}` and a real document (the Semantic Scholar corpus of `perf/e2e/`) could not be decoded after its own encode. The owner ordered every bug found fixed in both repositories: `toon_rust` `7c1d6e4` fixes the parser, the port is re-pinned to it (PLAN §2) and fixed the same way (S2.130); 7 goldens re-captured, no other changed | S10.83, S10.84, S10.89 |
-| C-11 | `1.7976931348623158e308` is rejected as `number out of range` although it rounds to the largest finite value; the encoder's own TOON text for that value is rejected when fed back as JSON | S10.41 |
+Bugs fixed in the same pass that were never on this list (each in the commit messages of `d968de1`, `a8f7e45`, `7184fe1`, `0ee264c`, `694d73b` and in S10): `-o -` wrote a file named `-`; an unwritable stderr aborted the process; a UTF-8 BOM broke JSON input and joined the first TOON key; `--stats` said `~1 tokens`, rounded the percentage twice, ignored the decode direction and stayed silent when TOON was larger; `--indent 0` on encode produced unstructured text; `.toon`/`.json` files were not auto-detected; TOON number ties went to the odd digit; lenient mode truncated lists at `[N]`; lines after a complete root were ignored; `[+2]` was a length; text between `]` and `:` was discarded; field names holding `}` did not decode; `t[2]{a,b}: 1,2` ignored the field names; strings merely starting with `0` and a digit were quoted; `--indent -1` was an unexpected argument; repeated sibling keys were kept twice in the JSON output.
 
 <!-- template for the next entry -->
 ### Entry template — `DISC-<nnn>` — `<short title>`   [<date> | <class> | OPEN · ACCEPTED · REVERTED · RESOLVED]

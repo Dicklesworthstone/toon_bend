@@ -211,99 +211,7 @@ def with_sign(neg: Bool, f: F64) -> F64:
     case FInf{n}:
       FInf{neg}
 
-# S4.117 zero test (either sign)
-def is_zero(f: F64) -> Bool:
-  match f:
-    case FNum{n, tb, man}:
-      BN.is_zero(man)
-    case FInf{n}:
-      False{}
-
-# ---------------------------------------------------------------- S4.101–S4.117 the JSON reader's value rule
-
-# S4.102 1844674407370955161 = (2^64 - 1 - 5) / 10: the fit test's pivot
-def serde.lim() -> List<&2, U32>:
-  [39321, 39321, 39321, 6553]
-
-# S4.102 a digit d fits unless S > pivot, or S = pivot and d > 5 (that is, S*10 + d > 2^64 - 1)
-def serde.fits(c: Cmp, d_gt5: Bool) -> Bool:
-  match c:
-    case LT{}:
-      True{}
-    case EQ{}:
-      Bool.not(d_gt5)
-    case GT{}:
-      False{}
-
-# S4.102 the significand so far, a digit count (dropped integer digits, or accepted fraction digits), and
-# whether a digit has already failed the fit test
-type SAcc is Data:
-  SAcc{s: List<&2, U32>, n: Nat, stop: Bool}
-
-# S4.103 integer digits: the first digit that does not fit and EVERY later one are dropped and counted
-def serde.int.pick(fits: Bool, s: List<&2, U32>, n: Nat, d: U32) -> SAcc:
-  match fits:
-    case True{}:
-      SAcc{BN.mul_small(s, 10, d), n, False{}}
-    case False{}:
-      SAcc{s, 1n+n, True{}}
-
-# S4.103 one integer digit
-def serde.int.step(st: SAcc, +d: U32) -> SAcc:
-  match st:
-    case SAcc{s, n, True{}}:
-      SAcc{s, 1n+n, True{}}
-    case SAcc{+s, n, False{}}:
-      serde.int.pick(serde.fits(BN.cmp(s, serde.lim()), U32.is_gt(d, 5)), s, n, d)
-
-# S4.102 the integer digits, left to right
-def serde.int(digits: String, st: SAcc) -> SAcc:
-  match digits:
-    case SNil{}:
-      st
-    case SCon{c, rest}:
-      serde.int(rest, serde.int.step(st, (Char.to_u32(c) - 48 : U32)))
-
-# S4.104 fraction digits: a fitting digit is appended and counted; the first that does not fit ends it
-def serde.frac.pick(fits: Bool, s: List<&2, U32>, n: Nat, d: U32) -> SAcc:
-  match fits:
-    case True{}:
-      SAcc{BN.mul_small(s, 10, d), 1n+n, False{}}
-    case False{}:
-      SAcc{s, n, True{}}
-
-# S4.104 one fraction digit
-def serde.frac.step(st: SAcc, +d: U32) -> SAcc:
-  match st:
-    case SAcc{s, n, True{}}:
-      SAcc{s, n, True{}}
-    case SAcc{+s, n, False{}}:
-      serde.frac.pick(serde.fits(BN.cmp(s, serde.lim()), U32.is_gt(d, 5)), s, n, d)
-
-# S4.104 the fraction digits, left to right (S4.105: they are offered to the fit test even after
-# integer digits were dropped, starting from the unchanged S)
-def serde.frac(digits: String, st: SAcc) -> SAcc:
-  match digits:
-    case SNil{}:
-      st
-    case SCon{c, rest}:
-      serde.frac(rest, serde.frac.step(st, (Char.to_u32(c) - 48 : U32)))
-
-# S4.117 a finite result carries the literal's sign, a zero of either sign is +0, an infinite result is
-# the "number out of range" verdict (None)
-def serde.done(f: F64, neg: Bool) -> Maybe<&2, F64>:
-  match f:
-    case FInf{n}:
-      None{}
-    case FNum{n, tb, Nil{}}:
-      Some{FNum{False{}, 98926n, Nil{}}}
-    case FNum{n, tb, Con{h, t}}:
-      Some{FNum{neg, tb, h <> t}}
-
-# S4.115 the state of the T < -308 loop: still dividing, or finished with a result
-type Down is Data:
-  DGo{f: F64, k: Nat}
-  DEnd{r: Maybe<&2, F64>}
+# ---------------------------------------------------------------- S8.2, S4.114 the twin gate and ONE division by 10^k
 
 # S8.2 THE gate of every numeric fast twin: a fast twin is selected only when the kill-switch is off
 # AND its own applicability verdict holds. Law twin_gate_switch: twin.on(True, ok) == False for every ok.
@@ -344,81 +252,6 @@ def div_p10(f: F64, +k: Nat, spec: Bool) -> F64:
     case other:
       div(other, pow10(k))
 
-# S4.115 one step from the two verdicts "more than 308 remain" and "F is zero"
-def serde.down.pick(more: Bool, fzero: Bool, f: F64, +k: Nat, neg: Bool, spec: Bool) -> Down:
-  match more fzero:
-    case False{} _:
-      DEnd{serde.done(div_p10(f, k, spec), neg)}
-    case True{} True{}:
-      DEnd{Some{FNum{False{}, 98926n, Nil{}}}}
-    case True{} False{}:
-      DGo{div(f, pow10(308n)), Nat.sub(k, 308n)}
-
-# S4.115 one step of the loop; a finished state stays finished
-def serde.down.step(st: Down, neg: Bool, spec: Bool) -> Down:
-  match st:
-    case DEnd{r}:
-      DEnd{r}
-    case DGo{+f, +k}:
-      serde.down.pick(Nat.is_gt(k, 308n), is_zero(f), f, k, neg, spec)
-
-# S4.115 F0 < 2^64, so two divisions by P(308) always give zero: four steps of fuel cannot run out
-# in the dividing state, and if they did the value would be that zero (the spec's own bound)
-def serde.down.end(st: Down) -> Maybe<&2, F64>:
-  match st:
-    case DEnd{r}:
-      r
-    case DGo{f, k}:
-      Some{FNum{False{}, 98926n, Nil{}}}
-
-# S4.115 T < -308: while more than 308 remain, stop with zero when F = 0, else divide by P(308)
-def serde.down(fuel: Nat, st: Down, +neg: Bool, +spec: Bool) -> Maybe<&2, F64>:
-  match fuel:
-    case 0n:
-      serde.down.end(st)
-    case 1n+g:
-      serde.down(g, serde.down.step(st, neg, spec), neg, spec)
-
-# S4.116 T > 308: zero when F0 = 0, otherwise "number out of range"
-def serde.over(fzero: Bool) -> Maybe<&2, F64>:
-  match fzero:
-    case True{}:
-      Some{FNum{False{}, 98926n, Nil{}}}
-    case False{}:
-      None{}
-
-# S4.113 0 <= T <= 308: one multiplication by P(T); T > 308: S4.116
-def serde.up(big: Bool, +f0: F64, k: Nat, neg: Bool) -> Maybe<&2, F64>:
-  match big:
-    case True{}:
-      serde.over(is_zero(f0))
-    case False{}:
-      serde.done(mul(f0, pow10(k)), neg)
-
-# S4.113–S4.116 the value G(S, T) from F0 = RNE(S) and the total decimal exponent T
-def serde.g(neg: Bool, f0: F64, t: Int, spec: Bool) -> Maybe<&2, F64>:
-  match t:
-    case Pos{+k}:
-      serde.up(Nat.is_gt(k, 308n), f0, k, neg)
-    case Neg{k}:
-      serde.down(4n, DGo{f0, k}, neg, spec)
-
-# S4.109 T = E10 + the written exponent, with E10 = dropped integer digits - accepted fraction digits
-def serde.finish(a: SAcc, dropped: Nat, neg: Bool, exp: Int, spec: Bool) -> Maybe<&2, F64>:
-  match a:
-    case SAcc{s, accepted, stop}:
-      serde.g(neg, from_big(False{}, s), Int.add(Int.diff(dropped, accepted), exp), spec)
-
-# S4.105 the fraction starts from the S the integer part left, whether or not digits were dropped
-def serde.frac.start(a: SAcc, fracs: String, neg: Bool, exp: Int, spec: Bool) -> Maybe<&2, F64>:
-  match a:
-    case SAcc{s, dropped, stop}:
-      serde.finish(serde.frac(fracs, SAcc{s, 0n, False{}}), dropped, neg, exp, spec)
-
-# S4.101 the literal path of the JSON number reader: digits into S with the fit test, then G(S, T)
-def serde.literal(neg: Bool, ints: String, fracs: String, exp: Int, spec: Bool) -> Maybe<&2, F64>:
-  serde.frac.start(serde.int(ints, SAcc{Nil{}, 0n, False{}}), fracs, neg, exp, spec)
-
 # ---------------------------------------------------------------- S4.141–S4.144 the value of a TOON number token
 
 # ---------------------------------------------------------------- S4.101, S4.143 fast twin: short integer texts
@@ -443,29 +276,6 @@ def int_text.ok(spec: Bool, +ints: String, fracs: String, e: Int) -> Bool:
 # S4.101 a non-zero integer below 10^14 with its sign
 def int_text.value(v: Nat, neg: Bool) -> Maybe<&2, F64>:
   Some{with_sign(neg, from_nat(v))}
-
-# S4.101 zero keeps the literal path; any other short integer text is built from its Nat value
-def serde.short.value(v: Nat, neg: Bool, ints: String, fracs: String, e: Int) -> Maybe<&2, F64>:
-  match v:
-    case 0n:
-      serde.literal(neg, ints, fracs, e, False{})
-    case 1n++p:
-      int_text.value(1n+p, neg)
-
-# S4.101 the Nat value is only computed for a text the fast twin accepts (at most 14 digits)
-def serde.short(ok: Bool, neg: Bool, +ints: String, fracs: String, e: Int, spec: Bool) -> Maybe<&2, F64>:
-  match ok:
-    case False{}:
-      serde.literal(neg, ints, fracs, e, spec)
-    case True{}:
-      serde.short.value(T.nat_of(ints, 0n), neg, ints, fracs, e)
-
-# S4.101 the binary64 value of a JSON number literal given as its sign, integer digits, fraction digits
-# and written exponent (a magnitude the reader has already kept within 2147483647, S4.107);
-# None is "number out of range" (S9.200, S9.201). spec is the kill-switch: with it, every number
-# takes the literal path with the restoring division.
-def serde_value(neg: Bool, +ints: String, +fracs: String, +exp: Int, +spec: Bool) -> Maybe<&2, F64>:
-  serde.short(int_text.ok(spec, ints, fracs, exp), neg, ints, fracs, exp, spec)
 
 # S4.143 the loop of strip_zeros: h is the character before `rest`, zero says whether it is '0'
 def strip_zeros.go(rest: String, zero: Bool, h: U32) -> String:
@@ -728,16 +538,16 @@ def dg.digit(fuel: Nat, +r: List<&2, U32>, +s: List<&2, U32>, d: U32) -> List<&2
       +ge = BN.is_ge(r, s)
       dg.digit(f, dg.sub_if(ge, r, s), s, (d + Bool.pick(U32, ge, 1, 0) : U32))
 
-# S4.132, S4.172 both ends reached: the nearer candidate wins (S4.133); on an EXACT tie the TOON printer
-# takes the larger magnitude (tie_up) and the JSON printer the even last digit
-def dg.tie(c: Cmp, tie_up: Bool, d_odd: Bool) -> Bool:
+# S4.132, S4.172 both ends reached: the nearer candidate wins (S4.133); on an EXACT tie the even last
+# digit wins, in both printers (JavaScript's Number::toString rule)
+def dg.tie(c: Cmp, d_odd: Bool) -> Bool:
   match c:
     case GT{}:
       True{}
     case LT{}:
       False{}
     case EQ{}:
-      Bool.or(tie_up, d_odd)
+      d_odd
 
 # S4.131 emit the digit, or the digit plus one, and say whether generation ends
 def dg.emit(tc1: Bool, tc2: Bool, up: Bool, rem: List<&2, U32>, s: List<&2, U32>, mp: List<&2, U32>, mm: List<&2, U32>, +d: U32, ds: List<&2, U32>) -> Dg:
@@ -752,26 +562,26 @@ def dg.emit(tc1: Bool, tc2: Bool, up: Bool, rem: List<&2, U32>, s: List<&2, U32>
       Dg{rem, s, mp, mm, (d + Bool.pick(U32, up, 1, 0) : U32) <> ds, True{}}
 
 # S4.131 the two termination tests on the new remainder
-def dg.step2(p: List<&2, U32> & U32, +s: List<&2, U32>, +mp: List<&2, U32>, +mm: List<&2, U32>, ds: List<&2, U32>, low_ok: Bool, high_ok: Bool, tie_up: Bool) -> Dg:
+def dg.step2(p: List<&2, U32> & U32, +s: List<&2, U32>, +mp: List<&2, U32>, +mm: List<&2, U32>, ds: List<&2, U32>, low_ok: Bool, high_ok: Bool) -> Dg:
   match p:
     case (+rem, +d):
-      dg.emit(dg.low(low_ok, BN.cmp(rem, mm)), dg.high(high_ok, BN.cmp(BN.add(rem, mp, 0), s)), dg.tie(BN.cmp(BN.shl_bits(rem, 1n, 0), s), tie_up, U32.is_eq((d .&. 1 : U32), 1)), rem, s, mp, mm, d, ds)
+      dg.emit(dg.low(low_ok, BN.cmp(rem, mm)), dg.high(high_ok, BN.cmp(BN.add(rem, mp, 0), s)), dg.tie(BN.cmp(BN.shl_bits(rem, 1n, 0), s), U32.is_eq((d .&. 1 : U32), 1)), rem, s, mp, mm, d, ds)
 
 # S4.131 one digit; a finished state stays as it is
-def dg.step(st: Dg, low_ok: Bool, high_ok: Bool, tie_up: Bool) -> Dg:
+def dg.step(st: Dg, low_ok: Bool, high_ok: Bool) -> Dg:
   match st:
     case Dg{r, s, mp, mm, ds, True{}}:
       Dg{r, s, mp, mm, ds, True{}}
     case Dg{r, +s, mp, mm, ds, False{}}:
-      dg.step2(dg.digit(10n, BN.mul_small(r, 10, 0), s, 0), s, BN.mul_small(mp, 10, 0), BN.mul_small(mm, 10, 0), ds, low_ok, high_ok, tie_up)
+      dg.step2(dg.digit(10n, BN.mul_small(r, 10, 0), s, 0), s, BN.mul_small(mp, 10, 0), BN.mul_small(mm, 10, 0), ds, low_ok, high_ok)
 
 # S7.30 at most 17 digits are ever produced; fuel 25
-def dg.gen(fuel: Nat, st: Dg, +low_ok: Bool, +high_ok: Bool, +tie_up: Bool) -> Dg:
+def dg.gen(fuel: Nat, st: Dg, +low_ok: Bool, +high_ok: Bool) -> Dg:
   match fuel:
     case 0n:
       st
     case 1n+f:
-      dg.gen(f, dg.step(st, low_ok, high_ok, tie_up), low_ok, high_ok, tie_up)
+      dg.gen(f, dg.step(st, low_ok, high_ok), low_ok, high_ok)
 
 # S4.131 the digits d1..dn (each 0..9, no trailing zero) and k as an Int: the value is 0.d1d2...dn * 10^k
 type Short is Data:
@@ -784,20 +594,20 @@ def dg.finish(st: Dg, +kb: Nat) -> Short:
       Short{List.reverse(&2, U32, ds), Int.diff(kb, 78913n)}
 
 # S4.131 generate after the fix-up
-def dg.run(fixed: DgK, +even: Bool, tie_up: Bool) -> Short:
+def dg.run(fixed: DgK, +even: Bool) -> Short:
   match fixed:
     case DgK{st, kb}:
-      dg.finish(dg.gen(25n, st, even, even, tie_up), kb)
+      dg.finish(dg.gen(25n, st, even, even), kb)
 
 # S4.131 shortest round-trip digits of  man * 2^(tb - 100000) > 0.  The estimate
 # floor((bitlen + t - 1) * 78913 / 2^18) never exceeds k (78913/2^18 is just below log10 2); it is
 # formed with the bias 262144, whose product with the ratio is the integer 78913.
-def shortest(+man: List<&2, U32>, +tb: Nat, tie_up: Bool) -> Short:
+def shortest(+man: List<&2, U32>, +tb: Nat) -> Short:
   +even = Bool.not(BN.is_odd(man))
   +kb = Nat.div(Nat.mul(Nat.add(Nat.sub(Nat.add(BN.bitlen(man, 0n), tb), 1n), 162144n), 78913n), 262144n)
   +up = Nat.is_ge(kb, 78913n)
   +p = BN.pow10(Bool.pick(Nat, up, Nat.sub(kb, 78913n), Nat.sub(78913n, kb)), [1])
-  dg.run(dg.fix(5n, dg.scale(up, dg.init(Nat.is_ge(tb, 100000n), Bool.and(BN.is_eq(man, two52()), Nat.is_gt(tb, 98926n)), man, tb), p), even, kb), even, tie_up)
+  dg.run(dg.fix(5n, dg.scale(up, dg.init(Nat.is_ge(tb, 100000n), Bool.and(BN.is_eq(man, two52()), Nat.is_gt(tb, 98926n)), man, tb), p), even, kb), even)
 
 # ---------------------------------------------------------------- S5.30–S5.42 the two layouts
 
@@ -813,24 +623,24 @@ def digits.text(ds: List<&2, U32>) -> String:
 def plain.small(zeros: Nat, text: String) -> String:
   "0." ++ String.repeat("0", zeros) ++ text
 
-# S5.31 (a) the digits then k - n zeros; (b) the first k digits, a point, the rest. `tail` is "" for
-# the TOON layout and ".0" for the JSON layout of an integer value (S5.37)
-def plain.big(whole: Bool, +text: String, +k: Nat, n: Nat, tail: String) -> String:
+# S5.31 (a) the digits then k - n zeros (an integer value has no fraction, in both layouts, S5.37);
+# (b) the first k digits, a point, the rest
+def plain.big(whole: Bool, +text: String, +k: Nat, n: Nat) -> String:
   match whole:
     case True{}:
-      text ++ String.repeat("0", Nat.sub(k, n)) ++ tail
+      text ++ String.repeat("0", Nat.sub(k, n))
     case False{}:
       String.take(text, k) ++ "." ++ String.drop(text, k)
 
 # S5.31 plain decimal notation of digits and k
-def plain(ds: List<&2, U32>, k: Int, +n: Nat, tail: String) -> String:
+def plain(ds: List<&2, U32>, k: Int, +n: Nat) -> String:
   match k:
     case Neg{z}:
       plain.small(z, digits.text(ds))
     case Pos{0n}:
       plain.small(0n, digits.text(ds))
     case Pos{1n++p}:
-      plain.big(Nat.is_ge(1n+p, n), digits.text(ds), 1n+p, n, tail)
+      plain.big(Nat.is_ge(1n+p, n), digits.text(ds), 1n+p, n)
 
 # S5.41 a leading minus for a negative value
 def signed(neg: Bool, text: String) -> String:
@@ -844,7 +654,7 @@ def signed(neg: Bool, text: String) -> String:
 def toon.short(sh: Short, neg: Bool) -> String:
   match sh:
     case Short{+ds, k}:
-      signed(neg, plain(ds, k, List.length(&2, U32, ds), ""))
+      signed(neg, plain(ds, k, List.length(&2, U32, ds)))
 
 # ---------------------------------------------------------------- S4.131 fast twin: integers below 2^48
 # EXP-001. The spec twin is shortest. TOON_SPEC=1 selects it everywhere. Laws: shortest_fast_*.
@@ -903,19 +713,19 @@ def int.fit(in_range: Bool, man: List<&2, U32>, tb: Nat) -> IntFit:
       int.fit.q(BN.shr(man, Nat.sub(100000n, tb)))
 
 # S4.131 an integer below 2^48 prints its own digits; every other value takes the spec twin
-def shortest.pick(fit: IntFit, man: List<&2, U32>, tb: Nat, tie_up: Bool) -> Short:
+def shortest.pick(fit: IntFit, man: List<&2, U32>, tb: Nat) -> Short:
   match fit:
     case IntFit{True{}, q}:
       short.of_digits(nat.digits(16n, BN.to_nat(q), Nil{}))
     case IntFit{False{}, q}:
-      shortest(man, tb, tie_up)
+      shortest(man, tb)
 
 # S4.131 the fast twin of shortest: an integer below 2^48 (a binary exponent in -52..0) through the gate
-def shortest_fast(+man: List<&2, U32>, +tb: Nat, tie_up: Bool, spec: Bool) -> Short:
-  shortest.pick(int.fit(twin.on(spec, Bool.and(Nat.is_le(tb, 100000n), Nat.is_ge(tb, 99948n))), man, tb), man, tb, tie_up)
+def shortest_fast(+man: List<&2, U32>, +tb: Nat, spec: Bool) -> Short:
+  shortest.pick(int.fit(twin.on(spec, Bool.and(Nat.is_le(tb, 100000n), Nat.is_ge(tb, 99948n))), man, tb), man, tb)
 
 # S4.130 the TOON text of a number: 0 for zero, null for a non-finite value, else the shortest digits
-# with exact ties going up (S4.132), laid out per S5.31
+# with exact ties going to the even digit (S4.132), laid out per S5.31
 def show_toon(f: F64) -> String:
   match f:
     case FInf{n}:
@@ -923,7 +733,7 @@ def show_toon(f: F64) -> String:
     case FNum{n, tb, Nil{}}:
       "0"
     case FNum{n, tb, Con{h, t}}:
-      toon.short(shortest(h <> t, tb, True{}), n)
+      toon.short(shortest(h <> t, tb), n)
 
 # S4.130 the fast twin of show_toon: the same layout over shortest_fast
 def show_toon_fast(f: F64, spec: Bool) -> String:
@@ -933,7 +743,7 @@ def show_toon_fast(f: F64, spec: Bool) -> String:
     case FNum{n, tb, Nil{}}:
       "0"
     case FNum{n, tb, Con{h, t}}:
-      toon.short(shortest_fast(h <> t, tb, True{}, spec), n)
+      toon.short(shortest_fast(h <> t, tb, spec), n)
 
 # S5.40 d1, then a point and the other digits when there are any
 def expo.mant(ds: List<&2, U32>) -> String:
@@ -953,19 +763,19 @@ def expo(ds: List<&2, U32>, k: Int) -> String:
     case Neg{z}:
       expo.mant(ds) ++ "e-" ++ Nat.show(1n+z)
 
-# S4.173 plain decimal when -5 <= q <= 15, that is -4 <= k <= 16
+# S4.173 plain decimal when -5 <= k <= 21 (JavaScript's Number::toString: 1e-6 <= |x| < 1e21)
 def json.is_plain(k: Int) -> Bool:
   match k:
     case Pos{p}:
-      Nat.is_le(p, 16n)
+      Nat.is_le(p, 21n)
     case Neg{z}:
-      Nat.is_le(z, 4n)
+      Nat.is_le(z, 5n)
 
 # S4.173 layout choice
 def json.pick(plain_ok: Bool, ds: List<&2, U32>, k: Int, n: Nat) -> String:
   match plain_ok:
     case True{}:
-      plain(ds, k, n, ".0")
+      plain(ds, k, n)
     case False{}:
       expo(ds, k)
 
@@ -975,16 +785,17 @@ def json.short(sh: Short, neg: Bool) -> String:
     case Short{+ds, +k}:
       signed(neg, json.pick(json.is_plain(k), ds, k, List.length(&2, U32, ds)))
 
-# S4.170 the JSON text of a number: 0.0 for zero, null for a non-finite value, else the shortest digits
-# with exact ties going to the even digit (S4.172), laid out per S5.37–S5.40
+# S4.170 the JSON text of a number, as JavaScript's JSON.stringify writes it: 0 for zero, null for a
+# non-finite value, else the shortest digits with exact ties going to the even digit (S4.172), laid
+# out per S5.37–S5.40
 def show_json(f: F64) -> String:
   match f:
     case FInf{n}:
       "null"
     case FNum{n, tb, Nil{}}:
-      "0.0"
+      "0"
     case FNum{n, tb, Con{h, t}}:
-      json.short(shortest(h <> t, tb, False{}), n)
+      json.short(shortest(h <> t, tb), n)
 
 # S4.170 the fast twin of show_json: the same layout over shortest_fast
 def show_json_fast(f: F64, spec: Bool) -> String:
@@ -992,15 +803,16 @@ def show_json_fast(f: F64, spec: Bool) -> String:
     case FInf{n}:
       "null"
     case FNum{n, tb, Nil{}}:
-      "0.0"
+      "0"
     case FNum{n, tb, Con{h, t}}:
-      json.short(shortest_fast(h <> t, tb, False{}, spec), n)
+      json.short(shortest_fast(h <> t, tb, spec), n)
 
 # ---------------------------------------------------------------- S4.141, S4.161 the two numeric grammars
 
 # S4.141 lexer state. Phases: 0 a digit is required, 1 the integer part is the single digit 0, 2 integer
 # digits, 3 after '.', 4 fraction digits, 5 after e/E, 6 after the exponent sign, 7 exponent digits,
-# 8 rejected, 9 accepted early (S4.161's leading-zero shortcut). Digits are kept reversed; X saturates
+# 8 rejected. In the numeric-like grammar (S4.161) a 0 followed by a digit is phase 2 like any other
+# digit; the token grammar (S4.141) rejects it. Digits are kept reversed; X saturates
 # at 10^9, far past every range decision of S4.142, so a long exponent cannot reach Nat's wall.
 # Phases and classes are Nat: a match on U32 literals compiles to a bit tree per arm set (bend #867).
 type Lex is Data:
@@ -1015,10 +827,10 @@ def lex.x(x: Nat, d: Nat) -> Nat:
   Nat.min(Nat.add(Nat.mul(x, 10n), d), 1000000000n)
 
 # S4.141 a digit right after a leading zero: the decoder's grammar rejects it; S4.161 accepts at once
-def lex.zero_digit(like: Bool, ints: String, fracs: String, eneg: Bool, x: Nat) -> Lex:
+def lex.zero_digit(like: Bool, c: U32, ints: String, fracs: String, eneg: Bool, x: Nat) -> Lex:
   match like:
     case True{}:
-      Lex{9n, ints, fracs, eneg, x}
+      Lex{2n, SCon{Chr{c}, ints}, fracs, eneg, x}
     case False{}:
       Lex{8n, ints, fracs, eneg, x}
 
@@ -1030,9 +842,9 @@ def lex.tr(ph: Nat, k: Nat, +c: U32, like: Bool, ints: String, fracs: String, en
     case 0n 1n:
       Lex{2n, SCon{Chr{c}, ints}, fracs, eneg, x}
     case 1n 0n:
-      lex.zero_digit(like, ints, fracs, eneg, x)
+      lex.zero_digit(like, c, ints, fracs, eneg, x)
     case 1n 1n:
-      lex.zero_digit(like, ints, fracs, eneg, x)
+      lex.zero_digit(like, c, ints, fracs, eneg, x)
     case 1n 2n:
       Lex{3n, ints, fracs, eneg, x}
     case 1n 3n:
@@ -1071,8 +883,6 @@ def lex.tr(ph: Nat, k: Nat, +c: U32, like: Bool, ints: String, fracs: String, en
       Lex{7n, ints, fracs, eneg, lex.x(x, 0n)}
     case 7n 1n:
       Lex{7n, ints, fracs, eneg, lex.x(x, U32.to_nat((c - 48 : U32)))}
-    case 9n _:
-      Lex{9n, ints, fracs, eneg, x}
     case _ _:
       Lex{8n, ints, fracs, eneg, x}
 
@@ -1090,7 +900,7 @@ def lex.go(s: String, st: Lex, +like: Bool) -> Lex:
     case SCon{Chr{c}, rest}:
       lex.go(rest, lex.step(st, c, like), like)
 
-# S4.141 the text matched completely when the lexer ends in phase 1, 2, 4, 7 (or 9)
+# S4.141 the text matched completely when the lexer ends in phase 1, 2, 4 or 7
 def lex.ok(ph: Nat) -> Bool:
   match ph:
     case 1n:
@@ -1101,12 +911,10 @@ def lex.ok(ph: Nat) -> Bool:
       True{}
     case 7n:
       True{}
-    case 9n:
-      True{}
     case _:
       False{}
 
-# S4.161 numeric-like: optional '-', digits with the leading-zero shortcut, optional fraction and exponent
+# S4.161 numeric-like: optional '-', digits (leading zeros allowed), optional fraction and exponent
 def is_like.body(st: Lex) -> Bool:
   match st:
     case Lex{ph, ints, fracs, eneg, x}:
@@ -1184,50 +992,6 @@ def cmp(a: F64, b: F64) -> Cmp:
       LT{}
     case FInf{na} FInf{nb}:
       EQ{}
-
-# S4.316 the shifted value without its sticky flag
-def fixed1.fst(p: List<&2, U32> & Bool) -> List<&2, U32>:
-  (q, s) = p
-  q
-
-# S4.316 drop the half bit
-def fixed1.half(r1: List<&2, U32>) -> List<&2, U32>:
-  fixed1.fst(BN.shr(r1, 1n))
-
-# S4.316 round up by one
-def fixed1.up(up: Bool, q: List<&2, U32>) -> List<&2, U32>:
-  match up:
-    case True{}:
-      BN.add(q, [1], 0)
-    case False{}:
-      q
-
-# S4.316 ten times the significand, scaled to an integer with round-half-to-even on the EXACT value:
-# with a negative binary exponent -k, the bits below the half bit are the sticky flag
-def fixed1.round(p: List<&2, U32> & Bool) -> List<&2, U32>:
-  (+r1, s1) = p
-  fixed1.up(Bool.and(BN.is_odd(r1), Bool.or(s1, BN.is_odd(fixed1.half(r1)))), fixed1.half(r1))
-
-# S4.316 the text of a small non-negative count of tenths: integer part, '.', one digit
-def fixed1.text(+n: Nat) -> String:
-  Nat.show(Nat.div(n, 10n)) ++ "." ++ Nat.show(Nat.mod(n, 10n))
-
-# S4.316 the count of tenths of man10 * 2^(tb - 100000)
-def fixed1.tenths(int: Bool, man10: List<&2, U32>, +tb: Nat) -> List<&2, U32>:
-  match int:
-    case True{}:
-      BN.shl(man10, Nat.sub(tb, 100000n))
-    case False{}:
-      fixed1.round(BN.shr(man10, Nat.sub(Nat.sub(100000n, tb), 1n)))
-
-# S4.316 `{:.1}` of a non-negative finite value below 2^44: at least one integer digit, exactly one
-# fractional digit, no exponent
-def fixed1(f: F64) -> String:
-  match f:
-    case FNum{neg, +tb, man}:
-      fixed1.text(BN.to_nat(fixed1.tenths(Nat.is_ge(tb, 100000n), BN.mul_small(man, 10, 0), tb)))
-    case FInf{neg}:
-      "inf"
 
 # ---------------------------------------------------------------- S7.20 a text form of the exact value, for laws
 

@@ -762,13 +762,24 @@ def num.wrap(m: Maybe<&2, F.F64>) -> Maybe<&2, Json>:
     case Some{f}:
       Some{JNum{f}}
 
-# S4.101 the value of a finished token; phase 8 is the harmless exponent overflow, whose value is zero
+# S4.101 the value of a finished token: the correctly rounded binary64 of the whole literal (every
+# digit counts), None when that is infinite; phase 8 is the harmless exponent overflow, whose value
+# is zero
 def num.value(num: Num, spec: Bool) -> Maybe<&2, Json>:
   match num:
     case Num{8n, neg, ints, fracs, eneg, x, nz}:
       Some{JNum{F.zero()}}
     case Num{ph, neg, ints, fracs, eneg, x, nz}:
-      num.wrap(F.serde_value(neg, String.reverse(ints), String.reverse(fracs), num.exp_int(eneg, x), spec))
+      num.wrap(F.token_value(neg, String.reverse(ints), String.reverse(fracs), num.exp_int(eneg, x), spec))
+
+# S7.20 the exact bits of a read number as text, for laws (the checker cannot compare two F64 values
+# directly: their biased exponents are 100000-scale Nat literals)
+def num.bits(m: Maybe<&2, Json>) -> String:
+  match m:
+    case Some{JNum{f}}:
+      F.bits(f)
+    case other:
+      "none"
 
 # S2.13 after the token's value is pushed, the byte that ended it is judged by the enclosing context
 def step.after(st: St, k: Nat) -> St:
@@ -947,11 +958,9 @@ def finish(st: St, spec: Bool) -> Parsed:
 def read(bytes: List<&2, U32>, +spec: Bool) -> Parsed:
   finish(run(bytes, St{MVal{0n}, Nil{}, 0n, 1n, 0n, None{}}, spec), spec)
 
-# ---------------------------------------------------------------- S5.50–S5.78 the JSON writers
-# S5.73: for equal values the two writers print identical bytes except for their escape tables, so
-# ONE writer serves both: `tab_b` selects writer B's table (S5.64) over writer A's (S5.63). Writer A's
-# other difference, repeated keys (S5.72), lives in its input: the value built from the decoder's
-# events keeps every occurrence. The text is accumulated reversed and reversed once.
+# ---------------------------------------------------------------- S5.50–S5.78 the JSON writer
+# S5.73: one writer for every decoded value, with one escape table (S5.63); the value it receives has
+# unique keys (S3.26). The text is accumulated reversed and reversed once.
 
 # S5.66 a lower-case hex digit
 def hexc(+d: U32) -> Char:
@@ -995,42 +1004,17 @@ def w.ch_a(k: Nat, +c: U32, acc: String) -> String:
       w.ch.plain(U32.is_lt(c, 32), c, acc)
 
 
-# S5.64 writer B: only \" \\ \n \r \t have short forms; every other Cc scalar (U+0000-U+001F, U+007F,
-# U+0080-U+009F) is \u00XX; there is no \b and no \f (k is w.cls of c)
-def w.ch_b(k: Nat, +c: U32, acc: String) -> String:
-  match k:
-    case 1n:
-      SCon{Chr{34}, SCon{Chr{92}, acc}}
-    case 2n:
-      SCon{Chr{92}, SCon{Chr{92}, acc}}
-    case 4n:
-      SCon{Chr{116}, SCon{Chr{92}, acc}}
-    case 5n:
-      SCon{Chr{110}, SCon{Chr{92}, acc}}
-    case 7n:
-      SCon{Chr{114}, SCon{Chr{92}, acc}}
-    case _:
-      w.ch.plain(Bool.or(U32.is_le(c, 31), Bool.and(U32.is_ge(c, 127), U32.is_le(c, 159))), c, acc)
-
-# S5.63, S5.64 one scalar under the selected table
-def w.ch(tab_b: Bool, +c: U32, acc: String) -> String:
-  match tab_b:
-    case False{}:
-      w.ch_a(w.cls(c), c, acc)
-    case True{}:
-      w.ch_b(w.cls(c), c, acc)
-
 # S5.67 the scalars of a string or key, escaped, onto acc (a loop over the text)
-def w.chars(s: String, +tab_b: Bool, acc: String) -> String:
+def w.chars(s: String, acc: String) -> String:
   match s:
     case SNil{}:
       acc
-    case SCon{Chr{c}, rest}:
-      w.chars(rest, tab_b, w.ch(tab_b, c, acc))
+    case SCon{Chr{+c}, rest}:
+      w.chars(rest, w.ch_a(w.cls(c), c, acc))
 
 # S5.63 a quoted, escaped string or key
-def w.str(s: String, tab_b: Bool, acc: String) -> String:
-  SCon{Chr{34}, w.chars(s, tab_b, SCon{Chr{34}, acc})}
+def w.str(s: String, acc: String) -> String:
+  SCon{Chr{34}, w.chars(s, SCon{Chr{34}, acc})}
 
 # S5.61 indentation is space bytes only
 def w.pad(k: Nat, acc: String) -> String:
@@ -1084,7 +1068,7 @@ def is_nil(j: Json) -> Bool:
 # S5.54–S5.60 the text of a value, onto acc. ONE def over Json (values and their chains): for a
 # value `depth` is its own depth; for a chain it is the depth of the elements. Siblings are a tail
 # call; only nesting recurses.
-def w(j: Json, first: Bool, +n: Nat, +tab_b: Bool, +depth: Nat, +spec: Bool, acc: String) -> String:
+def w(j: Json, first: Bool, +n: Nat, +depth: Nat, +spec: Bool, acc: String) -> String:
   match j:
     case JNull{}:
       SCon{Chr{108}, SCon{Chr{108}, SCon{Chr{117}, SCon{Chr{110}, acc}}}}
@@ -1095,23 +1079,23 @@ def w(j: Json, first: Bool, +n: Nat, +tab_b: Bool, +depth: Nat, +spec: Bool, acc
     case JNum{f}:
       T.rev_onto(F.show_json_fast(f, spec), acc)
     case JStr{s}:
-      w.str(s, tab_b, acc)
+      w.str(s, acc)
     case JArr{cnt, +items}:
-      w.close(is_nil(items), 91, 93, n, depth, w(items, True{}, n, tab_b, 1n+depth, spec, SCon{Chr{91}, acc}))
+      w.close(is_nil(items), 91, 93, n, depth, w(items, True{}, n, 1n+depth, spec, SCon{Chr{91}, acc}))
     case JObj{+entries}:
-      w.close(is_nil(entries), 123, 125, n, depth, w(entries, True{}, n, tab_b, 1n+depth, spec, SCon{Chr{123}, acc}))
+      w.close(is_nil(entries), 123, 125, n, depth, w(entries, True{}, n, 1n+depth, spec, SCon{Chr{123}, acc}))
     case JNil{}:
       acc
     case JCons{h, t}:
-      w(t, False{}, n, tab_b, depth, spec, w(h, True{}, n, tab_b, depth, spec, w.nl(n, depth, w.comma(first, acc))))
+      w(t, False{}, n, depth, spec, w(h, True{}, n, depth, spec, w.nl(n, depth, w.comma(first, acc))))
     case JECons{k, q, v, t}:
-      w(t, False{}, n, tab_b, depth, spec, w(v, True{}, n, tab_b, depth, spec, w.colon(n, w.str(k, tab_b, w.nl(n, depth, w.comma(first, acc))))))
+      w(t, False{}, n, depth, spec, w(v, True{}, n, depth, spec, w.colon(n, w.str(k, w.nl(n, depth, w.comma(first, acc))))))
 
-# S5.51 the JSON text of a value at indent N under writer A's table (tab_b False) or writer B's
-def write(j: Json, n: Nat, tab_b: Bool, spec: Bool) -> String:
-  String.reverse(w(j, True{}, n, tab_b, 0n, spec, SNil{}))
+# S5.51 the JSON text of a value at indent N
+def write(j: Json, n: Nat, spec: Bool) -> String:
+  String.reverse(w(j, True{}, n, 0n, spec, SNil{}))
 
 # S5.101 the JSON text followed by exactly one LF (pushed before the single reversal: `++` would
 # recurse to the depth of the whole text)
-def write_ln(j: Json, n: Nat, tab_b: Bool, spec: Bool) -> String:
-  String.reverse(SCon{Chr{10}, w(j, True{}, n, tab_b, 0n, spec, SNil{})})
+def write_ln(j: Json, n: Nat, spec: Bool) -> String:
+  String.reverse(SCon{Chr{10}, w(j, True{}, n, 0n, spec, SNil{})})

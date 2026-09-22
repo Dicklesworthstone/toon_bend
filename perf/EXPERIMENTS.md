@@ -259,6 +259,19 @@ single-limb multiplication, one subtraction and one comparison replace up to nin
 The third profile: `BN.cmp`, `BN.sub`, `BN.is_ge`, `BN.is_lt` and `F.dg.*` are 75% of all def calls on that input. DISC-013 (113 times
 the original on random doubles).
 
+### Precondition added 2026-09-21 by NE-007 (do not start without it)
+EXP-005 chose its lever and set a 25% gate from this same CALL census, and the lever moved the median by about 8% — the census counted
+`BN.mul_small` at 39.0% while `BN.pow10` itself was 3.5%, and it weighted a one-limb multiply like a sixty-limb one. **A call share is not
+a wall share, so the 75% above does not license the 30% gate below.** Before writing a line of the twin: take a WALL-time profile of
+`--encode` on `perf/inputs/doubles_20000.json` at 1 thread (`clang -O2 -pg` on the emitted C, `gprof -b -p` read for SELF SECONDS, not for
+call counts, and the artifact committed to `perf/evidence/` — the third profile has no artifact file, which is its own weakness), and set
+the gate from the self time the digit step actually owns. If that profile gives the digit step less than 30% of the wall, the gate below is
+unreachable by construction and the card is re-carded or abandoned BEFORE any code is written, not after a refused capture.
+
+Two things about EXP-006 are nonetheless stronger than EXP-005 was, and the profile should confirm or refute both: the lever is a
+STRUCTURAL reduction (one estimate replaces up to nine compare-and-subtract rounds per digit, so the work removed is not merely the same
+work in fewer calls), and the defs it touches run per DIGIT of every number rather than once per power of ten.
+
 ### Lever (one)
 A fast twin of the digit step behind `F.twin.on`. Laws: the shortest-digit generator does not normalize in the checker (ARCH §11 A7), so
 the twin is bound by closed laws on the DIGIT STEP alone (R, S pairs at the estimate's two failure boundaries) and by

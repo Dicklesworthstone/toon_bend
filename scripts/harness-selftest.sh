@@ -20,6 +20,7 @@
 #   M10 a `present` board row with no golden and no law  -> parity-board.sh MALFORMED (exit 1)
 #   M11 a re-capture without --repin/--disc              -> golden-capture.sh refused (exit 3); needs -- <original cmd>
 #   M12 a case added, the documents' counts left behind  -> claims-audit.py FINDINGS (exit 1)
+#   M13 one more REFUSED_CV capture, the count left behind -> claims-audit.py FINDINGS (exit 1)
 # The port under test is the native binary built once from port/main.bend
 # (--lane c-1t, the default) or the interpreter through scripts/interp-lane.sh
 # (--lane interpreter). PARITY-GATE "Anti-gaming" lists what these lies are.
@@ -524,6 +525,20 @@ if [[ -f scripts/claims-audit.py ]]; then
 else
   echo "UNTESTABLE M12_stale_count          scripts/claims-audit.py is not in this port"
   n=$((n+1)); untestable+=(M12_stale_count)
+fi
+
+# M13 a refusal that moved on: one more REFUSED_CV capture lands in perf/evidence/ and the documents keep
+# the old number. M12 proves the stale-CASE-count check bites; this proves the stale-REFUSAL-count one does,
+# which is the check that caught 16 -> 17 when QGU.wide2000.json was added (bead toon_bend-txm)
+if [[ -f scripts/claims-audit.py && -d perf/evidence ]]; then
+  D="$(copy m13)"
+  # a REALISTIC capture: claims-audit counts the two-arm captures (a file with both `original` and `port`),
+  # so a stub without them is correctly ignored and would leak instead of catching
+  printf '{"tag":"selftest-m13","ratio":null,"verdict":"REFUSED_CV","original":{"median_ms":1.0,"cv_pct":9.9,"sha":"x","exit":0},"port":{"median_ms":1.0,"cv_pct":9.9,"sha":"x","exit":0}}\n' >"$D/perf/evidence/SELFTEST-M13.json"
+  expect M13_stale_refused_count "$b_audit" 1 "$D" python3 scripts/claims-audit.py
+else
+  echo "UNTESTABLE M13_stale_refused_count  scripts/claims-audit.py or perf/evidence/ is not in this port"
+  n=$((n+1)); untestable+=(M13_stale_refused_count)
 fi
 
 verdict=OK

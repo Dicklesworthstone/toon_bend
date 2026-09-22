@@ -232,9 +232,11 @@ demanded at least 25%; the precommitted A/A null arm was never captured; and the
 `scripts/port-lint.py` reported as a PL-11 ERROR on the tree of `91927dd`.
 
 The lever is reverted (`port/` is byte-identical to `3b67865`) and ledgered as **NE-007** in `perf/NEGATIVE-EVIDENCE.md` with its
-retry predicate. The reusable finding is on that entry: `BN.mul_small` is 39% of def CALLS on this input, but removing about three
-quarters of them moved the median by about 8% — a call census is not a wall census here, because the power of ten is built once per
-number while the digit generator runs per digit.
+retry predicate. The reusable finding is on that entry: the "Third profile" above counts `BN.mul_small` at 39.0% of this input's 72.3 M
+def calls, while `BN.pow10` itself is only 3.5% — and removing about three quarters of those multiplications moved the median by about 8%.
+A CALL census is not a WALL census: it weights a one-limb `mul_small` like a sixty-limb one, and the 27.3% `BN.cmp` + 9.6% `BN.sub` of the
+digit generator's compare-and-subtract, which this lever never touches, is where EXP-006 aims. Choosing a lever by call share alone is what
+set a 25% gate this code could not meet.
 
 ## EXP-006 — a quotient estimate per digit in the shortest-digit generator
 

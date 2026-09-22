@@ -499,15 +499,37 @@ def write_report(out):
                  + ' | '.join(g) + ' | ' + ' | '.join(r) + ' |')
     L.append('')
 
+    def ratio_of(c, o, key):
+        a, b = c['arms'][o].get(key), c['arms'][ref].get(key)
+        return a / b if a and b else None
+
+    L.append('### The same ratios by three estimators\n')
+    L.append('On a loaded host the median carries the noise of every sample. Two estimators are less sensitive to it: the '
+             'MINIMUM over the interleaved samples (contention only ever adds time) and the median CPU time (user + sys of '
+             'the child itself, which excludes waiting for a core but not cache or SMT interference). Where the three agree, '
+             'the ratio does not depend on the noise. None of them replaces the cv gate: a NOISY cell stays orientation.\n')
+    L.append('| scenario | ' + ' | '.join(f'{o}/{ref} median | min | CPU' for o in others) + ' |')
+    L.append('|---|' + '---|' * (3 * len(others)))
+    for scen in dict.fromkeys(c['scenario'] for c in cells):
+        cs = [c for c in cells if c['scenario'] == scen and c['status'] != 'TIMEOUT' and not errpath(c)]
+        row = []
+        for o in others:
+            for key in ('median_ms', 'min_ms', 'cpu_ms_median'):
+                gm = geomean([ratio_of(c, o, key) for c in cs])
+                row.append(f'{gm:.1f}×' if gm else '-')
+        L.append(f'| {scen} | ' + ' | '.join(row) + ' |')
+    L.append('')
+
     ok_cells = [c for c in cells if c['status'] != 'TIMEOUT' and not errpath(c) and c['file']]
     L.append('## By document\n')
     L.append(f'Geometric mean over the scenarios of each document of `<arm> / {ref}`; the MEASURED column counts cells within the '
              'cv gate.\n')
-    L.append('| document | tier | JSON size | scenarios | MEASURED | ' + ' | '.join(f'geomean {o}/{ref}' for o in others) + ' |')
-    L.append('|---|---|---|---|---|' + '---|' * len(others))
+    L.append('| document | tier | JSON size | scenarios | MEASURED | '
+             + ' | '.join(f'{o}/{ref} median | min | CPU' for o in others) + ' |')
+    L.append('|---|---|---|---|---|' + '---|' * (3 * len(others)))
     for doc in dict.fromkeys(c['file'] for c in ok_cells):
         cs = [c for c in ok_cells if c['file'] == doc]
-        gm = [geomean([c['arms'][o].get('ratio_vs_ref') for c in cs]) for o in others]
+        gm = [geomean([ratio_of(c, o, key) for c in cs]) for o in others for key in ('median_ms', 'min_ms', 'cpu_ms_median')]
         L.append(f"| {doc} | {cs[0]['tier']} | {cs[0].get('json_bytes', 0) / 1e6:.2f} MB | {len(cs)} | "
                  f"{sum(c['status'] == 'MEASURED' for c in cs)} | " + ' | '.join(f'{g:.1f}×' if g else '-' for g in gm) + ' |')
     L.append('')

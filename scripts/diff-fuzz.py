@@ -388,6 +388,11 @@ def lens_scale(rnd, n):
     yield ["-e"], ("{" + rep + "," + rep + "}").encode(), None
     yield ["-d"], ("".join("k%d: a\n" % i for i in range(size // 2)) * 2).encode(), None
     yield ["-d", "--expand-paths", "safe", "--no-strict"], ("".join("p.k%d: a\n" % i for i in range(size // 2)) * 2).encode(), None
+    # ONE key repeated, its object GROWING: the merge target of every occurrence is the object the
+    # previous ones built (bead toon_bend-zgb; the repeated-key inputs above grow the OUTER chain
+    # instead, which is why this lens passed while the nested merge was quadratic)
+    yield ["-d"], "".join("a:\n  k%d: %d\n" % (i, i) for i in range(size // 2)).encode(), None
+    yield ["-d", "--expand-paths", "safe"], "".join("a:\n  k%d: %d\n" % (i, i) for i in range(size // 2)).encode(), None
     yield ["-e"], json.dumps({("k%d" % i): i for i in range(size)}).encode(), None
     yield ["-e", "--key-folding", "safe"], json.dumps({("k%d" % i): {"a": {"b": "v"}} for i in range(size)}).encode(), None
     yield ["-d", "--expand-paths", "safe"], "".join("a.k%d.c: v\n" % i for i in range(size)).encode(), None

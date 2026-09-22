@@ -153,7 +153,7 @@ Outcome taxonomy (closed set):
 - Tally: W0/L0/N1
 - Agent: Claude (author session)
 
-### NE-008 — numbers rendered by a PARALLEL pre-pass (EXP-007), on the CPU worker pool   [2026-09-22 | NO_EVIDENCE]
+### NE-008 — numbers rendered by a PARALLEL pre-pass (EXP-007), on the CPU worker pool   [2026-09-22 | ADMITTED, ratios NO_EVIDENCE]
 - Program / def: `port/encode.bend` / `pre` (a pass that renders every number's text before emission and forks long item chains with parallel lets) plus `port/json.bend` / `num.defer`, `raw.f64` (the reader keeps a token raw when it cannot overflow). NOT in the repository: the spike is `perf/evidence/EXP-007.parallel-prerender.patch` against `3851a08`; card EXP-007
 - Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, SHARED HOST AT LOAD 8-9 THROUGHOUT (other agents' gates), single timed runs unless a line says otherwise
 - Exact command: `<spike binary> --threads N -- --encode perf/e2e/corpus/<doc>.json`, the documents of `perf/e2e/corpus.json`
@@ -164,6 +164,27 @@ Outcome taxonomy (closed set):
 - Disposition: NOT admitted, NOT committed to `port/`. No law binds `pre` to the pass-free pipeline, and the capture was refused
 - Killing metric: wall on this host; and, before the stopwatch, the missing law
 - **Do-not-retry unless:** a quantified law `{encode(pre(f, j, …), opt) == encode(j, opt)}` is written and proved first (the pass is a reordering of the same function, so the law is the natural one, and `port-lint.py` PL-11 would demand it anyway); AND the capture runs on a quiet host (load below 1) with at least 15 pairs; AND the document's ORIGINAL arm reaches 100 ms (NE-006's predicate). A retry on the 17-digit-double documents (`canada`, `marine_ik`) also needs the allocation cost addressed first (bead `toon_bend-2t0`), because their scaling stops at two threads for a reason no thread count changes
+- **ADMITTED 2026-09-22 (commit `0131342`), and what changed since the lines above.** The pass is in
+  `port/` now, behind the existing `TOON_SPEC=1` kill-switch, with three laws the checker proves:
+  `pre_gate_switch` (for EVERY value, the switch hands the value to the emitter untouched),
+  `pre_txt_is_num` and `pre_raw_is_num` (a rendered or deferred number prints exactly what `put.prim`
+  would have printed for its `JNum`). The 295 closed whole-pipeline golden laws now run THROUGH the
+  pass inside the checker, so the proof gate re-verifies it on every one of them. Gates on the wired
+  tree: `bend PROOF.bend` → `All terms check.` (396 laws); conform 1071/1071 on c-1t, on c-8t and on
+  js; kill-switch parity on six real documents (`TOON_SPEC=1` and off, both equal to the original);
+  `diff-fuzz docs` 2500 inputs and `numbers`, 0 differences; `port-lint` OK. The INTERPRETER lane had
+  not been run when this line was written
+- **The ratios are still NO_EVIDENCE and the entry keeps that word.** Three interleaved cv-gated
+  captures on 2026-09-22 (base at `--threads 1` against the wired build at `--threads 8`, 7 pairs each)
+  were all REFUSED: 10001 doubles 418.6 → 155.6 ms (cv 10.2% / 16.3%), canada 6025.5 → 4504.7 ms (cv
+  5.0% / 6.1%), twitter 199.5 → 211.1 ms (cv 9.4% / 12.5%); stdout identical in every sample of all
+  three. The host carried seven other agents at load 13 throughout. What the medians orient toward: a
+  2 to 3× gain where the numbers are, a gain of about 1.3× on the two 17-digit-double documents, and a
+  LOSS of about 6% on the text-heavy ones at 8 threads which is neutral at 1 thread — that loss is
+  measured beside other agents on the same cores and is not separated from them
+- **The threshold was tuned once and the loser is recorded:** forking arrays longer than 512 items
+  instead of 64 was worse everywhere (10001 doubles 152 → 240 ms, mesh 532 → 753 ms, canada 4001 →
+  5665 ms) and did not remove the twitter loss, so 64 stays
 - Tally: W0/L0/N1
 - Agent: Claude (author session, 2026-09-22)
 

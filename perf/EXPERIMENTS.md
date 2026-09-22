@@ -302,7 +302,7 @@ scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-006 --original <baselin
 | created (UTC) | 2026-09-22 |
 | agent | Claude (Claude Code session, author) |
 | graveyard sweep | `rg -i 'parallel\|thread\|gpu\|bang' perf/NEGATIVE-EVIDENCE.md` → the inherited priors (GPU wins on uniform numeric work, loses on divergent work) and now NE-008, NE-009, this card's own outcomes |
-| status | SPIKE MEASURED, NOT ADMITTED (NE-008 NO_EVIDENCE on the CPU pool, NE-009 NEGATIVE on the GPU). The spike is `perf/evidence/EXP-007.parallel-prerender.patch` against `3851a08`; `port/` is untouched |
+| status | **WIRED IN 2026-09-22, commit `0131342`**, behind `TOON_SPEC=1`, with three proved laws and four gates (proof, c-1t, c-8t, js, kill-switch parity, two fuzz lenses); the interpreter lane was still to run. The RATIOS remain NO_EVIDENCE: every cv-gated capture on this shared host was REFUSED (NE-008). The GPU half stays NEGATIVE (NE-009). The original spike patch is `perf/evidence/EXP-007.parallel-prerender.patch` |
 | precommitted | false (a spike to size the lever, run because the owner asked what Bend's parallelism is worth here) |
 
 ### Hypothesis

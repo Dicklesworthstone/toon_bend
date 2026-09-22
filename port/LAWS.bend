@@ -374,6 +374,17 @@ law json_plain_at_k16:
 law json_exponent_at_k17:
   {F.json.is_plain(F.Pos{17n}) == False{} : Bool}
 
+# S4.8 the WHOLE White_Space table, all 25 members. Round 14 pinned one entry (U+1680); an author-side
+# hunt before round 15 then showed U+3000 and U+00A0 each SURVIVED the full 381-law proof, so the table
+# is pinned whole rather than one entry at a time.
+law is_ws_all_25_members:
+  {Bool.and(T.is_ws(9), Bool.and(T.is_ws(10), Bool.and(T.is_ws(11), Bool.and(T.is_ws(12), Bool.and(T.is_ws(13), Bool.and(T.is_ws(32), Bool.and(T.is_ws(133), Bool.and(T.is_ws(160), Bool.and(T.is_ws(5760), Bool.and(T.is_ws(8192), Bool.and(T.is_ws(8193), Bool.and(T.is_ws(8194), Bool.and(T.is_ws(8195), Bool.and(T.is_ws(8196), Bool.and(T.is_ws(8197), Bool.and(T.is_ws(8198), Bool.and(T.is_ws(8199), Bool.and(T.is_ws(8200), Bool.and(T.is_ws(8201), Bool.and(T.is_ws(8202), Bool.and(T.is_ws(8232), Bool.and(T.is_ws(8233), Bool.and(T.is_ws(8239), Bool.and(T.is_ws(8287), T.is_ws(12288))))))))))))))))))))))))) == True{} : Bool}
+
+# S4.8 ... and NOTHING else: the spec's explicit exclusions (U+001C-U+001F, U+180E, U+200B-U+200D, U+2060,
+# U+FEFF) plus both neighbours of every range and singleton, so each boundary of the table is pinned too
+law is_ws_documented_non_members:
+  {Bool.and(Bool.not(T.is_ws(8)), Bool.and(Bool.not(T.is_ws(14)), Bool.and(Bool.not(T.is_ws(28)), Bool.and(Bool.not(T.is_ws(29)), Bool.and(Bool.not(T.is_ws(30)), Bool.and(Bool.not(T.is_ws(31)), Bool.and(Bool.not(T.is_ws(33)), Bool.and(Bool.not(T.is_ws(132)), Bool.and(Bool.not(T.is_ws(134)), Bool.and(Bool.not(T.is_ws(159)), Bool.and(Bool.not(T.is_ws(161)), Bool.and(Bool.not(T.is_ws(5759)), Bool.and(Bool.not(T.is_ws(5761)), Bool.and(Bool.not(T.is_ws(6158)), Bool.and(Bool.not(T.is_ws(8191)), Bool.and(Bool.not(T.is_ws(8203)), Bool.and(Bool.not(T.is_ws(8204)), Bool.and(Bool.not(T.is_ws(8205)), Bool.and(Bool.not(T.is_ws(8231)), Bool.and(Bool.not(T.is_ws(8234)), Bool.and(Bool.not(T.is_ws(8238)), Bool.and(Bool.not(T.is_ws(8240)), Bool.and(Bool.not(T.is_ws(8286)), Bool.and(Bool.not(T.is_ws(8288)), Bool.and(Bool.not(T.is_ws(12287)), Bool.and(Bool.not(T.is_ws(12289)), Bool.not(T.is_ws(65279)))))))))))))))))))))))))))) == True{} : Bool}
+
 # ---------------------------------------------------------------- closed goldens of the WHOLE pure core
 #
 # Each law below is one case of goldens/cases.tsv, pasted from its captured files: argv, the input

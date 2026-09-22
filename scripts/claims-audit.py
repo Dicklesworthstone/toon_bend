@@ -79,6 +79,8 @@ def facts():
     f["laws_quantified"] = sum(1 for b in laws if re.search(r"(?m)^  for ", b.split("\nlaw ")[0]))
     f["laws_golden"] = sum(1 for n in names if n.startswith("golden_"))
     f["laws_closed"] = f["laws"] - f["laws_quantified"] - f["laws_golden"]
+    f["quantified_names"] = {n for n, b in zip(names, laws) if re.search(r"(?m)^  for ", b.split("\nlaw ")[0])}
+    f["closed_unit_names"] = {n for n in names if n not in f["quantified_names"] and not n.startswith("golden_")}
     f["proofs"] = len(re.findall(r"(?m)^def Laws\.", read("port/PROOF.bend")))
     rows = [l for l in read("goldens/cases.tsv").splitlines() if l.strip() and not l.startswith("#")]
     f["cases"] = len(rows)
@@ -446,6 +448,28 @@ def audit(files, f, gates, verbose):
                     continue
                 if not os.path.exists(os.path.join(ROOT, ident)):
                     hit(path, n, "names the path %s, which does not exist" % ident, line)
+    # The board's proof-coverage table splits the closed unit laws over two rows. Round 14 (R14-4) found the
+    # split six short, it was repaired by hand -- and the very next law added drifted it again, nine short,
+    # because the gate's `(\d+) closed unit laws` never matches `| other closed unit laws | N |`. Both rows
+    # are now checked: each stated count equals the names it lists, and every closed unit law is on one.
+    if "docs/FEATURE_PARITY.md" in files and f.get("closed_unit_names"):
+        board_lines = read("docs/FEATURE_PARITY.md").splitlines()
+        cited = set()
+        for n, l in enumerate(board_lines, 1):
+            m = re.match(r"^\| (laws about the fast twins|other closed unit laws)\b[^|]*\| (\d+) \|([^|]*)\|", l)
+            if not m:
+                continue
+            names_here = re.findall(r"`([a-z0-9_]+)`", m.group(3))
+            if int(m.group(2)) != len(names_here):
+                hit("docs/FEATURE_PARITY.md", n, "the row '%s' says %s laws and lists %d"
+                    % (m.group(1), m.group(2), len(names_here)), l)
+            cited.update(names_here)
+        if cited:
+            missing = sorted(f["closed_unit_names"] - cited)
+            if missing:
+                findings.append({"file": "docs/FEATURE_PARITY.md", "line": 0, "text": "",
+                                 "finding": "%d closed unit law(s) of port/LAWS.bend on neither proof-coverage row: %s"
+                                            % (len(missing), ", ".join(missing[:6]) + (" …" if len(missing) > 6 else ""))})
     # the parity board's own columns: every case it names must be in the corpus, every law in LAWS.bend
     if "docs/FEATURE_PARITY.md" in files:
         board = read("docs/FEATURE_PARITY.md")

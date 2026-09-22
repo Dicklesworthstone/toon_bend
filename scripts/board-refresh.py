@@ -62,7 +62,7 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(cr_in_value_forces_quotes)$", ["encoder primitives"]),
  (r"(lower_rev_folds_upper_toon)$", ["mode detection"]),
  (r"(seven_tenths_is_0_7)$", ["clap error shapes"]),
- (r"(is_ws_ogham_space_mark|is_ws_not_after_ogham)$", ["encoder primitives", "--stats"]),
+ (r"(is_ws_ogham_space_mark|is_ws_not_after_ogham|is_ws_all_25_members|is_ws_documented_non_members)$", ["encoder primitives", "--stats"]),
  (r"(json_plain_at_k16|json_exponent_at_k17)$", ["JSON number text"]),
  (r"golden_jsonerr_", ["JSON input errors"]),
  (r"golden_(jsonout_duplicate_keys)$", ["JSON writer A", "structural decoding"]),

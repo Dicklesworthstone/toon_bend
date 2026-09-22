@@ -332,6 +332,14 @@ def Laws.json_plain_at_k16():
 def Laws.json_exponent_at_k17():
   {==}
 
+# S4.8 the whole White_Space table, all 25 members (author-side hunt before round 15)
+def Laws.is_ws_all_25_members():
+  {==}
+
+# S4.8 the table's documented non-members and every boundary neighbour (author-side hunt before round 15)
+def Laws.is_ws_documented_non_members():
+  {==}
+
 # S5.112 goldens/usage_none
 def Laws.golden_usage_none():
   {==}

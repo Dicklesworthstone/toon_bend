@@ -59,6 +59,11 @@ MUTANTS = [
  ("M29", "text.bend", "U32.is_eq(c, 5760)", "U32.is_eq(c, 5761)", "U+1680 stops being White_Space and U+1681 starts"),
  ("M30", "f64.bend", "    case Pos{p}:\n      Nat.is_le(p, 16n)\n    case Neg{z}:\n      Nat.is_le(z, 4n)", "    case Pos{p}:\n      Nat.is_le(p, 15n)\n    case Neg{z}:\n      Nat.is_le(z, 4n)", "the JSON writers' plain/exponent boundary moves from 1e16 to 1e15"),
  ("M31", "encode.bend", "Bool.or(U32.is_eq(c, 13), U32.is_eq(c, 9))", "Bool.or(U32.is_eq(c, 9), U32.is_eq(c, 9))", "a CR in a value no longer forces quotes"),
+ # An author-side hunt before round 15 (2026-09-22): round 14's survivors were each one entry of a small
+ # table, so other entries of the same tables were tried. Two White_Space entries SURVIVED the full
+ # 381-law proof; the `:` and LF arms of `bad_char` were already killed by golden laws.
+ ("M32", "text.bend", "U32.is_eq(c, 12288)", "U32.is_eq(c, 12289)", "U+3000 IDEOGRAPHIC SPACE stops being White_Space"),
+ ("M33", "text.bend", "U32.is_eq(c, 160)", "U32.is_eq(c, 161)", "U+00A0 NO-BREAK SPACE stops being White_Space"),
 ]
 
 def reduced(laws_text, proof_text):

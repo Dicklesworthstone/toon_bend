@@ -115,6 +115,10 @@ def facts():
         if isinstance(j, dict) and "port" in j and "original" in j:
             ev[name] = j
     f["evidence"] = ev
+    # How many captures the cv gate REFUSED. A document that states this number was wrong for two review
+    # rounds ("ten files" while fifteen carried the verdict) because nothing computed it: the five refusals
+    # rounds 12 and 13 added were never counted. The count is over the same two-arm captures as `ratios`.
+    f["refused"] = sum(1 for j in ev.values() if j.get("verdict") == "REFUSED_CV")
     f["ratios"] = {round(j["ratio"], d) for j in ev.values() if j.get("ratio") for d in (2, 3, 4)}
     f["medians"] = {round(j[side]["median_ms"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1, 2)}
     f["cvs"] = {round(j[side]["cv_pct"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1)}
@@ -165,6 +169,9 @@ def audit(files, f, gates, verbose):
         ("spec clauses", r"\b(\d+) clauses\b", f["clauses"]),
         ("mutants", r"\b(\d+) hand-written (?:semantic )?mutants\b", f["mutants"]),
         ("mutants in a pasted line", r'"mutants": (\d+)', f["mutants"]),
+        # `\*{0,2}` because these documents bold a number as **16**, which would otherwise put `**`
+        # between the digits and the noun and silently stop the row from ever matching.
+        ("REFUSED_CV captures", r"\b(\d+)\*{0,2} files? in `perf/evidence/` carry\b", f["refused"]),
         ("probe rows", r"\b(\d+) descriptor-state rows\b", f["probe_rows"]),
         ("probe rows in a pasted line", r'"rows":\s*(\d+),\s*"same"', f["probe_rows"]),
         ("rounds in a pasted converge line", r'"rounds":\s*(\d+)', gates.get("converge", {}).get("rounds")),

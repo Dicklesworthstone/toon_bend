@@ -1,0 +1,38 @@
+{
+  "schema": "toon_bend.e2e-corpus.v1",
+  "about": "Real-world JSON documents, pinned by upstream commit and sha256. Fetched into perf/e2e/corpus/ (gitignored) by `python3 perf/e2e/bench.py fetch`. None of these files is generated; every one is a public benchmark document or a public dataset.",
+  "sources": {
+    "simdjson-data": {
+      "repo": "https://github.com/simdjson/simdjson-data",
+      "commit": "4197c425e857f0ec38e89822fdd0bd9ea21f4daf",
+      "raw": "https://raw.githubusercontent.com/simdjson/simdjson-data/4197c425e857f0ec38e89822fdd0bd9ea21f4daf/jsonexamples/"
+    },
+    "vega-datasets": {
+      "repo": "https://github.com/vega/vega-datasets",
+      "commit": "a96a3d74ac8948b0871c375d7b2cf129cd4a0304",
+      "raw": "https://raw.githubusercontent.com/vega/vega-datasets/a96a3d74ac8948b0871c375d7b2cf129cd4a0304/data/"
+    }
+  },
+  "files": [
+    {"name": "github_events", "source": "simdjson-data", "file": "github_events.json", "bytes": 65132, "sha256": "c9eebb2cf2d46649059e9d48700919bacb3e8e0fb58452065a1a9de7778fd22e", "tier": "S", "shape": "GitHub REST API event feed: nested objects, URLs, mixed literals"},
+    {"name": "apache_builds", "source": "simdjson-data", "file": "apache_builds.json", "bytes": 127275, "sha256": "f8e3422ac7d3c3550674afcb37e979e4e9bbeccffdb66933423495d55b6f5c74", "tier": "S", "shape": "Jenkins API dump: 884 small uniform objects of short strings (tabular)"},
+    {"name": "numbers", "source": "simdjson-data", "file": "numbers.json", "bytes": 150124, "sha256": "82e9ddfe00963110ed8a0704e7df4d1ad1af9c0f336d1b24431ebc63cf430a2b", "tier": "S", "shape": "one flat array of 10001 doubles (float-parse/print stress)"},
+    {"name": "instruments", "source": "simdjson-data", "file": "instruments.json", "bytes": 220346, "sha256": "f3069235d4e2695d36c0c7735a435a7abb279fc4d64bbcf4ed9f888b8da1fdb9", "tier": "S", "shape": "music-app save file: deep objects, many small integers and booleans"},
+    {"name": "random", "source": "simdjson-data", "file": "random.json", "bytes": 510476, "sha256": "61a3544f2bc987b7378c66a9025b1f23eb5456d4f0443595c06d6fc20f3b0a68", "tier": "M", "shape": "generated-user records (json-generator): 1000 objects with nested arrays, non-ASCII names"},
+    {"name": "update_center", "source": "simdjson-data", "file": "update-center.json", "bytes": 533178, "sha256": "e7b6a037bfdb5abdf122fa3445ddfacea78522a23df31c4799884c4ebf4c01fa", "tier": "M", "shape": "Jenkins plugin registry: wide objects of strings keyed by plugin name"},
+    {"name": "twitterescaped", "source": "simdjson-data", "file": "twitterescaped.json", "bytes": 562408, "sha256": "2a288b5af4691c55b6f40fa534225b3e08b8d8b7f7ca4ed29bc5c7c81566ed4a", "tier": "M", "shape": "twitter.json with every non-ASCII character written as a \\u escape"},
+    {"name": "twitter", "source": "simdjson-data", "file": "twitter.json", "bytes": 631515, "sha256": "30721e496a8d73cfc50658923c34eb2c0fbe15ee6835005e43ee624d8dedf200", "tier": "M", "shape": "Twitter search API response: 100 tweets, heavy UTF-8 (CJK), nested user objects"},
+    {"name": "mesh", "source": "simdjson-data", "file": "mesh.json", "bytes": 723597, "sha256": "45bc8bf429340a874a7af8ea7056d60497402f80f55dba1e6ecc4ca8f1e46aff", "tier": "M", "shape": "3D mesh: arrays of integer indices and short decimals"},
+    {"name": "jobs", "source": "vega-datasets", "file": "jobs.json", "bytes": 936649, "sha256": "bc9a798eba79dd166939d040c92641943a0b031955eb6fd897223a9cdab8a7e6", "tier": "M", "shape": "US census occupations: 7650 uniform rows with small decimals (tabular)"},
+    {"name": "football", "source": "vega-datasets", "file": "football.json", "bytes": 1207180, "sha256": "89db986ec1fe0c2ef88cc56f6c7bfb22a4928735c4d6fc0055fc2745af316f3a", "tier": "M", "shape": "international football results: 6508 uniform rows of strings and ints (tabular)"},
+    {"name": "earthquakes", "source": "vega-datasets", "file": "earthquakes.json", "bytes": 1219853, "sha256": "a42702a83ffbae679f95d1fa53e2cae0bae13b21e599a68cdd50a44fc52129f7", "tier": "M", "shape": "USGS GeoJSON feed: features with properties, coordinates, URLs"},
+    {"name": "movies", "source": "vega-datasets", "file": "movies.json", "bytes": 1399981, "sha256": "e63c499759e3b07b49563e036f55290f87feb56def8703ec049ca305ab1523d3", "tier": "M", "shape": "3201 film records, uniform keys with many nulls (tabular)"},
+    {"name": "citm_catalog", "source": "simdjson-data", "file": "citm_catalog.json", "bytes": 1727204, "sha256": "a73e7a883f6ea8de113dff59702975e60119b4b58d451d518a929f31c92e2059", "tier": "L", "shape": "ticketing catalog: maps keyed by numeric ids, integer-heavy, repetitive"},
+    {"name": "flights_20k", "source": "vega-datasets", "file": "flights-20k.json", "bytes": 1784867, "sha256": "52f0ddd892d4569284b845e17323abc9afb7d303ec8f63251634a20327a610bb", "tier": "L", "shape": "20000 flight rows of 5 fields (the TOON sweet spot: one big uniform table)"},
+    {"name": "canada", "source": "simdjson-data", "file": "canada.json", "bytes": 2251051, "sha256": "f83b3b354030d5dd58740c68ac4fecef64cb730a0d12a90362a7f23077f50d78", "tier": "L", "shape": "GeoJSON border polygon: 111080 high-precision doubles in coordinate pairs"},
+    {"name": "marine_ik", "source": "simdjson-data", "file": "marine_ik.json", "bytes": 2983466, "sha256": "61590a397542ae274ccd8a47ba9f64e7c9216a223a5e7e702dea5b2375411d62", "tier": "L", "shape": "three.js animated model: 245k numbers, half doubles"},
+    {"name": "gsoc_2018", "source": "simdjson-data", "file": "gsoc-2018.json", "bytes": 3327831, "sha256": "72f1ef4898d88049da856c2ab8f4ec3e2c968ce209b2bbfd16cef842eb2e185f", "tier": "L", "shape": "Google Summer of Code 2018 projects: long prose strings, uniform objects"},
+    {"name": "semanticscholar", "source": "simdjson-data", "file": "semanticscholar-corpus.json", "bytes": 8593351, "sha256": "fd3a31c604da2529c51f0124fa74e186781185d3f4aeb49c0af2f740ffb63db3", "tier": "XL", "shape": "Semantic Scholar paper records: abstracts, author lists, nested arrays"},
+    {"name": "flights_200k", "source": "vega-datasets", "file": "flights-200k.json", "bytes": 9863892, "sha256": "82c60682ccdec1a9cf1102b2a011bef789243053f1ac01a531580c72be3d8bc0", "tier": "XL", "shape": "200000 flight rows of 3 numeric fields (a large uniform table, one third doubles)"}
+  ]
+}

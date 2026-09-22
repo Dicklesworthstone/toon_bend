@@ -38,7 +38,7 @@ The DISC register is complete since 2026-09-20: the repository owner delegated t
 
 ### Proved
 - 14 quantified laws, for every input and under the checker's assumptions: the first failure ends a pass (`argv_stop_is_sticky`, `decode_error_ends_pass`, `decode_root_ends_pass`, `json_error_is_sticky`), lenient mode never reports a scan or body check (`lenient_scan_never_fails`, `lenient_body_never_fails`), the mode flags win (`encode_flag_wins`, `decode_flag_wins`, `stdin_defaults_to_encode`), no `Saved` line without savings, the expansion cap on values and merges, and the kill-switch gate (`twin_gate_switch`, `twin_gate_open`); `All terms check.` (unsafe 0 = 0 `@unsafe` + 0 template instances, bend 2.0.16)
-- 354 closed laws, each about ONE value: 59 unit laws (the big-natural carry, the divisions and readers of the fast twins against their specification twins, the twins' bounds, the key hash, the balanced buckets, the percent roundings) and 295 captured goldens restated as `run_pure(argv, bytes) == (exit code, stdout, stderr)`; same verdict line
+- 360 closed laws, each about ONE value: 65 unit laws (the big-natural carry, the divisions and readers of the fast twins against their specification twins, the twins' bounds, the key hash, the balanced buckets, the percent roundings, and round 13's six on writer B's escape table, UTF-8 surrogates and TAB quoting) and 295 captured goldens restated as `run_pure(argv, bytes) == (exit code, stdout, stderr)`; same verdict line
 - NOT proved: `fast == spec` for every input, for any of the three twins; anything about the compiled C or the JavaScript build; anything about a non-integer number through the pipeline (the checker does not normalize the shortest-digit generator)
 
 ### Golden-tested

@@ -102,7 +102,7 @@ def put.key(+k: String, acc: String) -> String:
   put.value.if(Bool.not(T.is_ident(k, True{})), k, acc)
 
 # S4.3–S4.5 a primitive's text: null, true, false, the number's TOON text (S4.130), or a string
-def put.prim(j: J.Json, delim: U32, spec: Bool, acc: String) -> String:
+def put.prim(j: J.Json, delim: U32, +spec: Bool, acc: String) -> String:
   match j:
     case J.JBool{True{}}:
       T.rev_onto("true", acc)
@@ -112,6 +112,10 @@ def put.prim(j: J.Json, delim: U32, spec: Bool, acc: String) -> String:
       T.rev_onto(F.show_toon_fast(f, spec), acc)
     case J.JStr{s}:
       put.value(s, delim, acc)
+    case J.JTxt{s}:
+      T.rev_onto(s, acc)
+    case J.JRaw{neg, ints, fracs, eneg, x}:
+      T.rev_onto(F.show_toon_fast(J.raw.f64(neg, ints, fracs, eneg, x, spec), spec), acc)
     case other:
       T.rev_onto("null", acc)
 
@@ -127,6 +131,10 @@ def is_prim(j: J.Json) -> Bool:
     case J.JNum{f}:
       True{}
     case J.JStr{s}:
+      True{}
+    case J.JTxt{s}:
+      True{}
+    case J.JRaw{neg, ints, fracs, eneg, x}:
       True{}
     case other:
       False{}
@@ -769,6 +777,96 @@ def emit(j: J.Json, cx: Ctx, +opt: Opts, acc: List<&2, String>) -> List<&2, Stri
     case _ _:
       acc
 
+# ---------------------------------------------------------------- EXP-007 numbers rendered in parallel
+#
+# Every number's text depends on that number alone, so a pass BEFORE emission renders them all and the
+# emitter copies the text (JTxt). The pass forks an item chain of more than 64 items into halves with a
+# parallel let, so the renderings run on the worker pool. A value the pass does not reach keeps its own
+# node, which put.prim renders exactly as before: running out of fuel changes the speed, never the text.
+
+# S4.60, EXP-007 the pass's mode: a value; the rest of a chain, walked and collected onto acc; an item chain of
+# n items; a chain cut in two, split when it is long
+type PM is Data:
+  PVal{}
+  PSeq{}
+  PPar{n: Nat}
+  PCut{long: Bool, n: Nat, left: J.Json, right: J.Json}
+
+# S4.60, EXP-007 the first k items of a chain, in order, and the rest
+type PS is Data:
+  PS{left: J.Json, right: J.Json}
+
+# S4.60, EXP-007 take k items off a chain
+def par.take(k: Nat, c: J.Json, acc: J.Json) -> PS:
+  match k c:
+    case 0n r:
+      PS{J.rev_items(acc, J.JNil{}), r}
+    case 1n+p J.JCons{h, t}:
+      par.take(p, t, J.JCons{h, acc})
+    case 1n+p r:
+      PS{J.rev_items(acc, J.JNil{}), r}
+
+# S4.60, EXP-007 a chain appended to another
+def par.cat(a: J.Json, b: J.Json) -> J.Json:
+  J.rev_items(J.rev_items(a, J.JNil{}), b)
+
+# S4.60, EXP-007 a chain walked sequentially was collected newest first: items or entries
+def par.back(acc: J.Json) -> J.Json:
+  match acc:
+    case J.JECons{k, q, v, t}:
+      J.rev_entries(J.JECons{k, q, v, t}, J.JNil{})
+    case other:
+      J.rev_items(other, J.JNil{})
+
+# S4.60, EXP-007 the cut of a chain of n items at n/2, split while it is longer than 64 items
+def par.cut(+n: Nat, s: PS) -> PM:
+  match s:
+    case PS{l, r}:
+      PCut{Nat.is_gt(n, 64n), n, l, r}
+
+# S4.60, S4.130, EXP-007 one def over (fuel, value): a cut and a split each spend one unit of fuel, every other step
+# descends into j
+def pre(+fuel: Nat, j: J.Json, m: PM, acc: J.Json, +spec: Bool) -> J.Json:
+  match fuel j m:
+    case f J.JNum{x} PVal{}:
+      J.JTxt{F.show_toon_fast(x, spec)}
+    case f J.JRaw{neg, ints, fracs, eneg, x} PVal{}:
+      J.JTxt{F.show_toon_fast(J.raw.f64(neg, ints, fracs, eneg, x, spec), spec)}
+    case f J.JArr{+n, items} PVal{}:
+      J.JArr{n, pre(f, items, PPar{n}, J.JNil{}, spec)}
+    case f J.JObj{e} PVal{}:
+      J.JObj{pre(f, e, PSeq{}, J.JNil{}, spec)}
+    case f J.JCons{h, t} PSeq{}:
+      pre(f, t, PSeq{}, J.JCons{pre(f, h, PVal{}, J.JNil{}, spec), acc}, spec)
+    case f J.JECons{k, q, v, t} PSeq{}:
+      pre(f, t, PSeq{}, J.JECons{k, q, pre(f, v, PVal{}, J.JNil{}, spec), acc}, spec)
+    case f J.JNil{} PSeq{}:
+      par.back(acc)
+    case 1n++p c PPar{+n}:
+      pre(p, J.JNil{}, par.cut(n, par.take(Nat.div(n, 2n), c, J.JNil{})), acc, spec)
+    case 1n++p z PCut{True{}, +n, l, r}:
+      a b = pre(p, l, PPar{Nat.div(n, 2n)}, J.JNil{}, spec) pre(p, r, PPar{Nat.sub(n, Nat.div(n, 2n))}, J.JNil{}, spec)
+      par.cat(a, b)
+    case 1n++p z PCut{False{}, n, l, r}:
+      pre(p, par.cat(l, r), PSeq{}, J.JNil{}, spec)
+    case 0n z PCut{long, n, l, r}:
+      par.cat(l, r)
+    case f v m:
+      v
+
+# S8.2, EXP-007 the kill-switch: with TOON_SPEC=1 the value goes to the emitter untouched and every
+# number takes its spec twin inside put.prim, exactly as before this pass existed
+def pre.if(spec: Bool, j: J.Json) -> J.Json:
+  match spec:
+    case True{}:
+      j
+    case False{}:
+      pre(64n, j, PVal{}, J.JNil{}, False{})
+
 # S4.60 the TOON lines of a value, in order (an empty root object gives no line)
-def encode(+j: J.Json, +opt: Opts) -> List<&2, String>:
+def encode.go(+j: J.Json, +opt: Opts) -> List<&2, String>:
   List.reverse(&2, String, emit(j, ctx.root(j, opt), opt, Nil{}))
+
+# S4.60, EXP-007 the numbers are rendered first (in parallel), then the lines are emitted
+def encode(j: J.Json, +opt: Opts) -> List<&2, String>:
+  encode.go(pre.if(opt.spec(opt), j), opt)

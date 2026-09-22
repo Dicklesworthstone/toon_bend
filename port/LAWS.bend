@@ -18,6 +18,7 @@ import ./f64.bend as F
 import ./text.bend as T
 import ./json.bend as J
 import ./decode.bend as D
+import ./encode.bend as E
 import ./cli.bend as C
 
 # ---------------------------------------------------------------- first failure wins
@@ -1729,3 +1730,33 @@ law golden_usage_unknown_first_in_cluster_after_value_option:
 # S1.77 goldens/usage_unknown_digit_cluster_after_value_option (round 8: the FIRST character of a cluster after a pending value option decides)
 law golden_usage_unknown_digit_cluster_after_value_option:
   {C.run_pure(["-o", "-5e"], Nil{}) == C.Out{2n, "", "error: unexpected argument '-5' found\n\n  tip: to pass '-5' as a value, use '-- -5'\n\nUsage: toon [OPTIONS] [INPUT]\n\nFor more information, try '--help'."} : C.Out}
+
+# ---------------------------------------------------------------- EXP-007: numbers rendered before emission
+
+# S8.2 the kill-switch closes the pass: with TOON_SPEC=1 the value reaches the emitter untouched, so
+# every number takes its spec twin inside put.prim exactly as it did before the pass existed
+law pre_gate_switch:
+  for j: J.Json
+  {E.pre.if(True{}, j) == j : J.Json}
+
+# S4.130, EXP-007 a rendered number prints the text the emitter would have produced for it: the pass
+# moves WHEN show_toon_fast runs, never WHAT it returns
+law pre_txt_is_num:
+  for f: F.F64
+  for spec: Bool
+  for delim: U32
+  for acc: String
+  {E.put.prim(J.JTxt{F.show_toon_fast(f, spec)}, delim, spec, acc) == E.put.prim(J.JNum{f}, delim, spec, acc) : String}
+
+# S2.51, EXP-007 a deferred token prints what its own conversion prints: put.prim converts a JRaw with
+# the reader's own token_value, so a token the pass never reaches is emitted identically
+law pre_raw_is_num:
+  for neg: Bool
+  for ints: String
+  for fracs: String
+  for eneg: Bool
+  for x: Nat
+  for spec: Bool
+  for delim: U32
+  for acc: String
+  {E.put.prim(J.JRaw{neg, ints, fracs, eneg, x}, delim, spec, acc) == E.put.prim(J.JNum{J.raw.f64(neg, ints, fracs, eneg, x, spec)}, delim, spec, acc) : String}

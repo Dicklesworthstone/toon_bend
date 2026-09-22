@@ -22,6 +22,8 @@ type Json is Data:
   JBool{b: Bool}
   JNum{f: F.F64}
   JStr{s: String}
+  JTxt{s: String}
+  JRaw{neg: Bool, ints: String, fracs: String, eneg: Bool, x: Nat}
   JArr{n: Nat, items: Json}
   JObj{entries: Json}
   JNil{}
@@ -765,12 +767,42 @@ def num.wrap(m: Maybe<&2, F.F64>) -> Maybe<&2, Json>:
 # S4.101 the value of a finished token: the correctly rounded binary64 of the whole literal (every
 # digit counts), None when that is infinite; phase 8 is the harmless exponent overflow, whose value
 # is zero
+# S2.51, EXP-007 a token that CANNOT overflow: a negative exponent (underflow is not an error), or an
+# exponent of at most 250 with at most 50 integer digits, so below 10^301 against a limit of 1.8e308.
+# Such a token is kept raw and converted by the pre-pass, in parallel; every other token is converted
+# HERE, so `number out of range` keeps its position and its precedence over later failures.
+def num.safe(+eneg: Bool, +x: Nat, +ints: String) -> Bool:
+  Bool.or(eneg, Bool.and(Nat.is_le(x, 250n), Nat.is_le(T.str_len(ints, 0n), 50n)))
+
+# S2.51, EXP-007 the token kept raw, or converted now
+def num.defer(safe: Bool, neg: Bool, ints: String, fracs: String, +eneg: Bool, +x: Nat, spec: Bool) -> Maybe<&2, Json>:
+  match safe:
+    case True{}:
+      Some{JRaw{neg, ints, fracs, eneg, x}}
+    case False{}:
+      num.wrap(F.token_value(neg, String.reverse(ints), String.reverse(fracs), num.exp_int(eneg, x), spec))
+
+# S4.101 the value of a finished token: the binary64 of the whole literal, deferred when it provably
+# cannot overflow; phase 8 is the harmless exponent overflow, whose value is zero
 def num.value(num: Num, spec: Bool) -> Maybe<&2, Json>:
   match num:
     case Num{8n, neg, ints, fracs, eneg, x, nz}:
       Some{JNum{F.zero()}}
-    case Num{ph, neg, ints, fracs, eneg, x, nz}:
-      num.wrap(F.token_value(neg, String.reverse(ints), String.reverse(fracs), num.exp_int(eneg, x), spec))
+    case Num{ph, neg, +ints, fracs, +eneg, +x, nz}:
+      num.defer(num.safe(eneg, x, ints), neg, ints, fracs, eneg, x, spec)
+
+# S2.51, EXP-007 the binary64 of a deferred token. num.safe excluded overflow, so F.token_value
+# answers Some; the zero of the None arm is unreachable and is there because the type demands it
+def raw.unwrap(m: Maybe<&2, F.F64>) -> F.F64:
+  match m:
+    case Some{f}:
+      f
+    case None{}:
+      F.zero()
+
+# S2.51, EXP-007 the binary64 of a deferred token, by the reader's own conversion
+def raw.f64(neg: Bool, ints: String, fracs: String, eneg: Bool, x: Nat, spec: Bool) -> F.F64:
+  raw.unwrap(F.token_value(neg, String.reverse(ints), String.reverse(fracs), num.exp_int(eneg, x), spec))
 
 # S7.20 the exact bits of a read number as text, for laws (the checker cannot compare two F64 values
 # directly: their biased exponents are 100000-scale Nat literals)
@@ -1080,6 +1112,10 @@ def w(j: Json, first: Bool, +n: Nat, +depth: Nat, +spec: Bool, acc: String) -> S
       T.rev_onto(F.show_json_fast(f, spec), acc)
     case JStr{s}:
       w.str(s, acc)
+    case JTxt{s}:
+      T.rev_onto(s, acc)
+    case JRaw{neg, ints, fracs, eneg, x}:
+      T.rev_onto(F.show_json_fast(raw.f64(neg, ints, fracs, eneg, x, spec), spec), acc)
     case JArr{cnt, +items}:
       w.close(is_nil(items), 91, 93, n, depth, w(items, True{}, n, 1n+depth, spec, SCon{Chr{91}, acc}))
     case JObj{+entries}:

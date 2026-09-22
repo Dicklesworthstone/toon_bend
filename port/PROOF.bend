@@ -7,6 +7,7 @@ import ./f64.bend as F
 import ./text.bend as T
 import ./json.bend as J
 import ./decode.bend as D
+import ./encode.bend as E
 import ./cli.bend as C
 import ./LAWS.bend as Laws
 
@@ -117,6 +118,10 @@ def Laws.expansion_cap_on_values(v, strict):
     case J.JNum{f}:
       {==}
     case J.JStr{s}:
+      {==}
+    case J.JTxt{s}:
+      {==}
+    case J.JRaw{neg, ints, fracs, eneg, x}:
       {==}
     case J.JArr{n, items}:
       {==}
@@ -1646,4 +1651,16 @@ def Laws.golden_usage_unknown_first_in_cluster_after_value_option():
 
 # S1.77 goldens/usage_unknown_digit_cluster_after_value_option
 def Laws.golden_usage_unknown_digit_cluster_after_value_option():
+  {==}
+
+# S8.2 the kill-switch closes the pass
+def Laws.pre_gate_switch(j):
+  {==}
+
+# S4.130 a rendered number prints the emitter's own text
+def Laws.pre_txt_is_num(f, spec, delim, acc):
+  {==}
+
+# S2.51 a deferred token prints its own conversion
+def Laws.pre_raw_is_num(neg, ints, fracs, eneg, x, spec, delim, acc):
   {==}

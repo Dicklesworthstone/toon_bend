@@ -55,6 +55,15 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(writer_b_escapes_)", ["JSON writer B"]),
  (r"(writer_a_keeps_del_raw)$", ["JSON writer A"]),
  (r"(tab_in_value_forces_quotes)$", ["encoder primitives", "delimiters comma, tab, pipe on encode"]),
+ # round 14 (R14-1): five more behaviours whose mutants survived the whole proof, now pinned by laws. Each
+ # row is the one that cites the cases its mutant broke (encstr_quoting, auto_upper_toon_ext,
+ # usage_similar_arg_*, stats_ws_each + encstr_ws_edge_sweep, decfmt_exp_upper_boundary). CR is a quoting
+ # character only, not a delimiter, so unlike TAB it is not placed on the delimiters row.
+ (r"(cr_in_value_forces_quotes)$", ["encoder primitives"]),
+ (r"(lower_rev_folds_upper_toon)$", ["mode detection"]),
+ (r"(seven_tenths_is_0_7)$", ["clap error shapes"]),
+ (r"(is_ws_ogham_space_mark|is_ws_not_after_ogham)$", ["encoder primitives", "--stats"]),
+ (r"(json_plain_at_k16|json_exponent_at_k17)$", ["JSON number text"]),
  (r"golden_jsonerr_", ["JSON input errors"]),
  (r"golden_(jsonout_duplicate_keys)$", ["JSON writer A", "structural decoding"]),
  (r"golden_jsonout_", ["JSON writer A"]),

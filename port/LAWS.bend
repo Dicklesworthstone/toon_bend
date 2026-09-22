@@ -340,6 +340,40 @@ law writer_a_keeps_del_raw:
 law tab_in_value_forces_quotes:
   {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":\"x\\ty\"}", Nil{})) == C.Out{0n, "a: \"x\\ty\"\n", ""} : C.Out}
 
+# Round 14 (R14-1) wrote five mutants in five defs no existing mutant touched; each SURVIVED the whole
+# 374-law proof while breaking captured cases, so each behaviour below was golden-tested only. One law
+# per mutation; where a mutation moves a boundary, both of its sides are pinned.
+
+# S4.12-S4.16 a CR inside a value forces quotes (the CR arm of `bad_char`; the TAB arm is M26's law above).
+# Expected output captured from the pinned original: `a: "x\ry"`.
+law cr_in_value_forces_quotes:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":\"x\\ry\"}", Nil{})) == C.Out{0n, "a: \"x\\ry\"\n", ""} : C.Out}
+
+# S4.302 the extension lowercaser folds the WHOLE range A..Z, so an upper-case `.TOON` path is the TOON
+# extension (the result is reversed onto the accumulator, hence "noot")
+law lower_rev_folds_upper_toon:
+  {C.lower.rev("TOON", SNil{}) == "noot" : String}
+
+# S1.74 clap's similarity threshold is the binary64 literal 0.7, bit for bit
+law seven_tenths_is_0_7:
+  {F.bits(C.seven_tenths()) == F.bits(F.from_dec(True{}, False{}, [7], 1n)) : String}
+
+# S4.8 U+1680 OGHAM SPACE MARK is White_Space ...
+law is_ws_ogham_space_mark:
+  {T.is_ws(5760) == True{} : Bool}
+
+# S4.8 ... and the code point after it, U+1681, is not
+law is_ws_not_after_ogham:
+  {T.is_ws(5761) == False{} : Bool}
+
+# S4.173 the JSON writers stay PLAIN up to decimal exponent k = 16 ...
+law json_plain_at_k16:
+  {F.json.is_plain(F.Pos{16n}) == True{} : Bool}
+
+# S4.173 ... and switch to an exponent at k = 17
+law json_exponent_at_k17:
+  {F.json.is_plain(F.Pos{17n}) == False{} : Bool}
+
 # ---------------------------------------------------------------- closed goldens of the WHOLE pure core
 #
 # Each law below is one case of goldens/cases.tsv, pasted from its captured files: argv, the input

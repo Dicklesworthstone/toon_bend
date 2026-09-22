@@ -52,6 +52,13 @@ MUTANTS = [
  ("M24", "json.bend", "w.ch.plain(Bool.or(U32.is_le(c, 31), Bool.and(U32.is_ge(c, 127), U32.is_le(c, 159))), c, acc)", "w.ch.plain(U32.is_le(c, 31), c, acc)", "writer B stops escaping DEL and the C1 block"),
  ("M25", "text.bend", "Bool.or(U32.is_lt(value, 55296), U32.is_gt(value, 57343))", "True{}", "a UTF-8-encoded surrogate is accepted"),
  ("M26", "encode.bend", "Bool.or(U32.is_eq(c, 13), U32.is_eq(c, 9))", "U32.is_eq(c, 13)", "a TAB in a value no longer forces quotes"),
+ # Round 14's five (R14-1): each SURVIVED the whole 374-law proof while breaking captured cases, until
+ # the laws of 2026-09-22 pinned them. M31 mutates the same expression as M26 but the OTHER arm (CR, not TAB).
+ ("M27", "cli.bend", "Bool.and(U32.is_ge(c, 65), U32.is_le(c, 90))", "Bool.and(U32.is_ge(c, 65), U32.is_le(c, 83))", "the extension lowercaser stops folding T..Z, so `.TOON` is not decoded"),
+ ("M28", "cli.bend", "def seven_tenths() -> F.F64:\n  F.from_dec(True{}, False{}, [7], 1n)", "def seven_tenths() -> F.F64:\n  F.from_dec(True{}, False{}, [8], 1n)", "clap's similarity threshold moves from 0.7 to 0.8"),
+ ("M29", "text.bend", "U32.is_eq(c, 5760)", "U32.is_eq(c, 5761)", "U+1680 stops being White_Space and U+1681 starts"),
+ ("M30", "f64.bend", "    case Pos{p}:\n      Nat.is_le(p, 16n)\n    case Neg{z}:\n      Nat.is_le(z, 4n)", "    case Pos{p}:\n      Nat.is_le(p, 15n)\n    case Neg{z}:\n      Nat.is_le(z, 4n)", "the JSON writers' plain/exponent boundary moves from 1e16 to 1e15"),
+ ("M31", "encode.bend", "Bool.or(U32.is_eq(c, 13), U32.is_eq(c, 9))", "Bool.or(U32.is_eq(c, 9), U32.is_eq(c, 9))", "a CR in a value no longer forces quotes"),
 ]
 
 def reduced(laws_text, proof_text):

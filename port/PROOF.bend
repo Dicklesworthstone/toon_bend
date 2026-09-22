@@ -304,6 +304,34 @@ def Laws.writer_a_keeps_del_raw():
 def Laws.tab_in_value_forces_quotes():
   {==}
 
+# S4.12-S4.16 the CR arm of bad_char (round 14, R14-1)
+def Laws.cr_in_value_forces_quotes():
+  {==}
+
+# S4.302 the extension lowercaser over A..Z (round 14, R14-1)
+def Laws.lower_rev_folds_upper_toon():
+  {==}
+
+# S1.74 the similarity threshold 0.7 (round 14, R14-1)
+def Laws.seven_tenths_is_0_7():
+  {==}
+
+# S4.8 U+1680 is White_Space (round 14, R14-1)
+def Laws.is_ws_ogham_space_mark():
+  {==}
+
+# S4.8 U+1681 is not White_Space (round 14, R14-1)
+def Laws.is_ws_not_after_ogham():
+  {==}
+
+# S4.173 plain at k = 16 (round 14, R14-1)
+def Laws.json_plain_at_k16():
+  {==}
+
+# S4.173 exponent at k = 17 (round 14, R14-1)
+def Laws.json_exponent_at_k17():
+  {==}
+
 # S5.112 goldens/usage_none
 def Laws.golden_usage_none():
   {==}

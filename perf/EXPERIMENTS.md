@@ -195,7 +195,7 @@ deterministic equivalents `perf/inputs/doubles_20000.json` and `perf/inputs/sci_
 | created (UTC) | 2026-09-20 |
 | agent | Claude (Claude Code session, author) |
 | graveyard sweep | `rg -i 'pow10\|power of ten\|mul_small' perf/NEGATIVE-EVIDENCE.md` → only NE-003 (the DIVISION by a power of ten; its do-not-retry does not cover building the power) |
-| status | PROPOSED (not started: a code change restarts the lanes run and the review rounds, and the parity gate had not converged when this card was written) |
+| status | CLOSED, NOT ADMITTED (2026-09-21) — built, measured, REFUSED_CV, reverted; ledgered as NE-007 |
 | precommitted | true |
 
 ### Hypothesis
@@ -221,6 +221,20 @@ EXP-001..004 slower by more than 5%.
 ```bash
 scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-005 --original <baseline binary> --threads 1 -- -e perf/inputs/sci_5000.json --port <lever binary> --threads 1 -- -e perf/inputs/sci_5000.json
 ```
+
+### Result (2026-09-21): NOT ADMITTED
+
+The lever was built (`pow10.by4` in `port/bignat.bend`, `shortest.by4` / `shortest.sel` / the `shortest.pick` arm in `port/f64.bend`,
+commit `91927dd`) and captured once: `perf/evidence/EXP-005.ab.json`, 18 samples per arm, medians 1312.19 ms → 1208.72 ms,
+cv 3.56% / 5.45%, verdict **REFUSED_CV** — the lever's arm is above the card's 5% gate, so the capture claims nothing and no ratio is
+claimed. The precommitted gate is missed on four counts: the cv gate refused it; the refused medians are about 8% apart where the card
+demanded at least 25%; the precommitted A/A null arm was never captured; and the twin carried no `{fast == spec}` law, which
+`scripts/port-lint.py` reported as a PL-11 ERROR on the tree of `91927dd`.
+
+The lever is reverted (`port/` is byte-identical to `3b67865`) and ledgered as **NE-007** in `perf/NEGATIVE-EVIDENCE.md` with its
+retry predicate. The reusable finding is on that entry: `BN.mul_small` is 39% of def CALLS on this input, but removing about three
+quarters of them moved the median by about 8% — a call census is not a wall census here, because the power of ten is built once per
+number while the digit generator runs per digit.
 
 ## EXP-006 — a quotient estimate per digit in the shortest-digit generator
 

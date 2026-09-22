@@ -799,24 +799,6 @@ def shortest(+man: List<&2, U32>, +tb: Nat, tie_up: Bool) -> Short:
   +p = BN.pow10(Bool.pick(Nat, up, Nat.sub(kb, 78913n), Nat.sub(78913n, kb)), [1])
   dg.run(dg.fix(5n, dg.scale(up, dg.init(Nat.is_ge(tb, 100000n), Bool.and(BN.is_eq(man, two52()), Nat.is_gt(tb, 98926n)), man, tb), p), even, kb), even, tie_up)
 
-# S4.131 EXP-005: the fast twin of shortest. Line for line the spec twin above except for ONE call:
-# the power of ten is built in steps of 10^4 (BN.pow10.by4). Reached only through twin.on, so
-# TOON_SPEC=1 keeps the spec twin.
-def shortest.by4(+man: List<&2, U32>, +tb: Nat, tie_up: Bool) -> Short:
-  +even = Bool.not(BN.is_odd(man))
-  +kb = Nat.div(Nat.mul(Nat.add(Nat.sub(Nat.add(BN.bitlen(man, 0n), tb), 1n), 162144n), 78913n), 262144n)
-  +up = Nat.is_ge(kb, 78913n)
-  +p = BN.pow10.by4(Bool.pick(Nat, up, Nat.sub(kb, 78913n), Nat.sub(78913n, kb)), [1])
-  dg.run(dg.fix(5n, dg.scale(up, dg.init(Nat.is_ge(tb, 100000n), Bool.and(BN.is_eq(man, two52()), Nat.is_gt(tb, 98926n)), man, tb), p), even, kb), even, tie_up)
-
-# S4.131 EXP-005: which power-of-ten construction the non-integer arm uses
-def shortest.sel(by4: Bool, man: List<&2, U32>, tb: Nat, tie_up: Bool) -> Short:
-  match by4:
-    case True{}:
-      shortest.by4(man, tb, tie_up)
-    case False{}:
-      shortest(man, tb, tie_up)
-
 # ---------------------------------------------------------------- S5.30–S5.42 the two layouts
 
 # S5.31 digits as text (at most 17 of them)
@@ -921,16 +903,16 @@ def int.fit(in_range: Bool, man: List<&2, U32>, tb: Nat) -> IntFit:
       int.fit.q(BN.shr(man, Nat.sub(100000n, tb)))
 
 # S4.131 an integer below 2^48 prints its own digits; every other value takes the spec twin
-def shortest.pick(fit: IntFit, man: List<&2, U32>, tb: Nat, tie_up: Bool, by4: Bool) -> Short:
+def shortest.pick(fit: IntFit, man: List<&2, U32>, tb: Nat, tie_up: Bool) -> Short:
   match fit:
     case IntFit{True{}, q}:
       short.of_digits(nat.digits(16n, BN.to_nat(q), Nil{}))
     case IntFit{False{}, q}:
-      shortest.sel(by4, man, tb, tie_up)
+      shortest(man, tb, tie_up)
 
 # S4.131 the fast twin of shortest: an integer below 2^48 (a binary exponent in -52..0) through the gate
-def shortest_fast(+man: List<&2, U32>, +tb: Nat, tie_up: Bool, +spec: Bool) -> Short:
-  shortest.pick(int.fit(twin.on(spec, Bool.and(Nat.is_le(tb, 100000n), Nat.is_ge(tb, 99948n))), man, tb), man, tb, tie_up, twin.on(spec, True{}))
+def shortest_fast(+man: List<&2, U32>, +tb: Nat, tie_up: Bool, spec: Bool) -> Short:
+  shortest.pick(int.fit(twin.on(spec, Bool.and(Nat.is_le(tb, 100000n), Nat.is_ge(tb, 99948n))), man, tb), man, tb, tie_up)
 
 # S4.130 the TOON text of a number: 0 for zero, null for a non-finite value, else the shortest digits
 # with exact ties going up (S4.132), laid out per S5.31

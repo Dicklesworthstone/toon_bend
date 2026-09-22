@@ -266,30 +266,6 @@ def pow10(k: Nat, acc: List<&2, U32>) -> List<&2, U32>:
     case 1n+p:
       pow10(p, mul_small(acc, 10, 0))
 
-# S7.26 EXP-005: the fast twin of pow10. The same value in steps of 10^4: floor(k/4) single-limb
-# multiplications by 10000 and one by 10^(k mod 4), where pow10 does k of them by 10. A limb below
-# 65536 times 10000 plus a carry is at most 655359999, so it stays inside U32 and the carry out stays
-# at most 10000 (below the 65536 mul_small requires). Selected only through F.twin.on; the spec twin
-# above is what TOON_SPEC=1 keeps.
-def pow10.by4(k: Nat, acc: List<&2, U32>) -> List<&2, U32>:
-  match k:
-    case 0n:
-      acc
-    case 1n+a:
-      match a:
-        case 0n:
-          mul_small(acc, 10, 0)
-        case 1n+b:
-          match b:
-            case 0n:
-              mul_small(acc, 100, 0)
-            case 1n+c:
-              match c:
-                case 0n:
-                  mul_small(acc, 1000, 0)
-                case 1n+d:
-                  pow10.by4(d, mul_small(acc, 10000, 0))
-
 # S7.21 the value of a string of ASCII digits appended to acc (acc * 10^len + digits)
 def from_dec(s: String, acc: List<&2, U32>) -> List<&2, U32>:
   match s:

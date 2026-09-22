@@ -1080,15 +1080,6 @@ def w.colon(n: Nat, acc: String) -> String:
     case 1n+p:
       SCon{Chr{32}, SCon{Chr{58}, acc}}
 
-# S5.56 an empty container is two bytes at every position and every N; a non-empty one closes on its
-# own line at its own depth (S5.60)
-def w.close(empty: Bool, open: U32, shut: U32, n: Nat, depth: Nat, body: String) -> String:
-  match empty:
-    case True{}:
-      SCon{Chr{shut}, body}
-    case False{}:
-      SCon{Chr{shut}, w.nl(n, depth, body)}
-
 # S5.56 whether a chain is empty
 def is_nil(j: Json) -> Bool:
   match j:
@@ -1099,7 +1090,10 @@ def is_nil(j: Json) -> Bool:
 
 # S5.54–S5.60 the text of a value, onto acc. ONE def over Json (values and their chains): for a
 # value `depth` is its own depth; for a chain it is the depth of the elements. Siblings are a tail
-# call; only nesting recurses.
+# call; only nesting recurses. S5.56: an empty container is two bytes at every position and every N,
+# decided by its pattern (EXP-011: a `+` share of the chain for an emptiness test made the writer
+# take every chain apart as a shared value); a non-empty one closes on its own line at its own
+# depth (S5.60).
 def w(j: Json, first: Bool, +n: Nat, +depth: Nat, +spec: Bool, acc: String) -> String:
   match j:
     case JNull{}:
@@ -1116,10 +1110,14 @@ def w(j: Json, first: Bool, +n: Nat, +depth: Nat, +spec: Bool, acc: String) -> S
       T.rev_onto(s, acc)
     case JRaw{neg, ints, fracs, eneg, x}:
       T.rev_onto(F.show_json_fast(raw.f64(neg, ints, fracs, eneg, x, spec), spec), acc)
-    case JArr{cnt, +items}:
-      w.close(is_nil(items), 91, 93, n, depth, w(items, True{}, n, 1n+depth, spec, SCon{Chr{91}, acc}))
-    case JObj{+entries}:
-      w.close(is_nil(entries), 123, 125, n, depth, w(entries, True{}, n, 1n+depth, spec, SCon{Chr{123}, acc}))
+    case JArr{cnt, JNil{}}:
+      SCon{Chr{93}, SCon{Chr{91}, acc}}
+    case JArr{cnt, items}:
+      SCon{Chr{93}, w.nl(n, depth, w(items, True{}, n, 1n+depth, spec, SCon{Chr{91}, acc}))}
+    case JObj{JNil{}}:
+      SCon{Chr{125}, SCon{Chr{123}, acc}}
+    case JObj{entries}:
+      SCon{Chr{125}, w.nl(n, depth, w(entries, True{}, n, 1n+depth, spec, SCon{Chr{123}, acc}))}
     case JNil{}:
       acc
     case JCons{h, t}:

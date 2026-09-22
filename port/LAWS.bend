@@ -20,7 +20,6 @@ import ./json.bend as J
 import ./decode.bend as D
 import ./encode.bend as E
 import ./cli.bend as C
-import ./encode.bend as E
 
 # ---------------------------------------------------------------- first failure wins
 
@@ -1820,6 +1819,23 @@ law hot_dups_deep:
 # first failure is the first conflicting key's, a later conflict does not replace it
 law hot_dups_strict_conflict:
   {(D.hr.entries(D.hot.dups(J.JECons{"a", False{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{})), D.hr.err(D.hot.dups(J.JECons{"a", False{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{}))) == (D.mr.entries(D.dups(J.JECons{"a", False{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{})), D.mr.err(D.dups(J.JECons{"a", False{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JNull{}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, True{}))) : J.Json & Maybe<&2, String>}
+
+# S5.56 (EXP-011) an empty array is two bytes at any indent
+law write_empty_array:
+  {J.write(J.JArr{0n, J.JNil{}}, 2n, False{}) == "[]" : String}
+
+# S5.56 (EXP-011) an empty object is two bytes at any indent
+law write_empty_object:
+  {J.write(J.JObj{J.JNil{}}, 2n, False{}) == "{}" : String}
+
+# S5.56, S5.58, S5.60 (EXP-011) an empty object inside a non-empty one stays two bytes; a non-empty
+# array opens a line per element and closes at its own depth
+law write_nested_indent_2:
+  {J.write(J.JObj{J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JArr{1n, J.JCons{J.JNull{}, J.JNil{}}}, J.JNil{}}}}, 2n, False{}) == "{\n  \"a\": {},\n  \"b\": [\n    null\n  ]\n}" : String}
+
+# S5.58, S5.59 (EXP-011) at indent 0 no line breaks and ':' alone
+law write_nested_indent_0:
+  {J.write(J.JObj{J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JArr{1n, J.JCons{J.JNull{}, J.JNil{}}}, J.JNil{}}}}, 0n, False{}) == "{\"a\":{},\"b\":[null]}" : String}
 
 # S2.130 (EXP-009) no '[': the precheck answers what the cut would (not a header)
 law hdr_precheck_miss:

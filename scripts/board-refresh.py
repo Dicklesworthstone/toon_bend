@@ -98,6 +98,7 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(decode_error_ends_pass|decode_root_ends_pass|decode_trailing_line_is_error|decode_dup_reported_at_end)$",["structural decoding"]),
  (r"hot_dups_", ["structural decoding"]),
  (r"hdr_precheck_", ["tokens, string literals"]),
+ (r"write_(empty_array|empty_object|nested_indent_[02])$", ["JSON writer A"]),
  (r"golden_(decstr_|toonerr_|toonedge_|fx_dec_)", ["structural decoding"]),
  (r"(encode_flag_wins|decode_flag_wins|stdin_defaults_to_encode)$", ["mode detection"]),
  (r"golden_flag_(stdin_dash|double_dash)", ["mode detection", "argv: option spellings"]),

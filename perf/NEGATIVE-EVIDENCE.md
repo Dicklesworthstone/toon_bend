@@ -290,6 +290,17 @@ Outcome taxonomy (closed set):
 - Tally: W0/L0/N1 (neutral)
 - Agent: Claude (session ef481f9c, 2026-09-22)
 
+### NE-015 — the JSON writer decides an empty container by pattern, not by a shared look at its chain (EXP-011)   [2026-09-22 | PROVISIONAL]
+- Program / def: `port/json.bend` / `w` (the `JArr` and `JObj` arms; `w.close` removed, now unused). Not behind the switch: the same text by construction (the empty chain is the pattern, the non-empty arm is the old `False` branch of `w.close`)
+- Provenance: as NE-013; base = the EXP-009 binary `a63151ed793e6164…`, lever binary `7963669b9aaadef7…`, `--threads 1`, load 10-11
+- Binding (the weaker kind): four closed laws on the output text (`write_empty_array`, `write_empty_object`, `write_nested_indent_2`, `write_nested_indent_0`), `All terms check.` against the lever's writer AND against the previous writer (a scratch book of the four laws over each `json.bend`), so the instances pin that the text did not change
+- Correctness evidence: `conform.sh` 1071/1071 on c-1t; `scripts/diff-fuzz.py` seed 13: docs, mutate, expand 1500 inputs each, 0 differences
+- Orientation (interleaved ABBA, 10 rounds): `gsoc_2018 --decode` 1102.0 → 903.4 ms, 1.220× by median, 1.284× by minimum, 1.204× by CPU, cv 11.4% / 9.5% (not a capture)
+- Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
+- **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
+- Tally: W0/L0/N1 (provisional)
+- Agent: Claude (session ef481f9c, 2026-09-22)
+
 ---
 
 ## Inherited priors (re-confirm on THIS program's shape; not local evidence)

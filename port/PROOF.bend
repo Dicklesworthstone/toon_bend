@@ -9,7 +9,6 @@ import ./json.bend as J
 import ./decode.bend as D
 import ./encode.bend as E
 import ./cli.bend as C
-import ./encode.bend as E
 import ./LAWS.bend as Laws
 
 # S1.4 the first arm of on.tok matches a stopped scan whatever the token is
@@ -1708,6 +1707,22 @@ def Laws.hot_dups_deep():
 
 # S3.26 closed
 def Laws.hot_dups_strict_conflict():
+  {==}
+
+# S5.56 closed
+def Laws.write_empty_array():
+  {==}
+
+# S5.56 closed
+def Laws.write_empty_object():
+  {==}
+
+# S5.56, S5.58, S5.60 closed
+def Laws.write_nested_indent_2():
+  {==}
+
+# S5.58, S5.59 closed
+def Laws.write_nested_indent_0():
   {==}
 
 # S2.130 closed

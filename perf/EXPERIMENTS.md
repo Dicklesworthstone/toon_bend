@@ -420,3 +420,35 @@ and by the corpus on every lane.
 ### Precommitted gate
 ≥ 5% below the EXP-009 binary on `gsoc_2018.toon` (`--decode`, `--threads 1`), cv ≤ 5% on both arms; 1071/1071 on c-1t; the proof
 green.
+
+## EXP-011 — the JSON writer decides an empty container by pattern, not by a shared look at its chain
+
+| field | value |
+|---|---|
+| experiment_id | EXP-011 |
+| program / def | `port/json.bend` / `w` (the JSON writer, S5.54–S5.60), its `JArr` and `JObj` arms |
+| created (UTC) | 2026-09-22 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'writer\|is_nil\|share\|span_fade' perf/NEGATIVE-EVIDENCE.md` → NE-012 (borrowing is not inferred for `List<&2, U32>`: a different def and type; it is why this lever removes the share instead of hoping for a borrow) |
+| status | BUILT 2026-09-22, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-015): orientation 1.204× by the least favourable estimator, above the gate; both arms' cv above the capture's bound |
+| precommitted | true |
+
+### Hypothesis
+`w` binds `JArr{cnt, +items}` and `JObj{+entries}` so that `is_nil` can look at the chain before `w` writes it: every array and
+object chain of the document becomes shared, and the writer then takes each node apart as a shared value (`span_fade`) while the
+other reference is dropped. Matching `JArr{cnt, JNil{}}` and `JObj{JNil{}}` first (the empty container, written as two bytes) and
+the non-empty arm without `+` removes the share, and the median wall of `--decode` on `gsoc_2018.toon` at 1 thread falls by at
+least 5% against the EXP-009 binary.
+
+### Evidence before the lever
+gprof of the EXP-010 tree, `--decode` of `gsoc_2018.toon`: `WL_FID_JSON_W` 20.9% inclusive, all of it under `spin_365` (the
+writer's loop), which calls `span_fade` 2943616 times (orientation).
+
+### Lever (one)
+The two arms split by pattern. Laws: closed instances of `J.write` on an empty array, an empty object, a nested empty object inside
+a non-empty object, and a non-empty array at indent 0 and 2 (the text each must be); the corpus on every lane (the `jsonout_*`
+and every `--decode` case go through this def).
+
+### Precommitted gate
+≥ 5% below the EXP-009 binary on `gsoc_2018.toon` (`--decode`, `--threads 1`), cv ≤ 5% on both arms; 1071/1071 on c-1t; the proof
+green.

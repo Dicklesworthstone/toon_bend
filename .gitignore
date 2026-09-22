@@ -18,3 +18,5 @@ oracle/
 /-
 # the real-world benchmark documents and their TOON twins (python3 perf/e2e/bench.py fetch / prepare)
 /perf/e2e/corpus/
+# bench.py run: the verification run's /usr/bin/time scratch file
+perf/e2e/results/*/.rss

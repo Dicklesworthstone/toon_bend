@@ -1,0 +1,139 @@
+    28.36%  [.] term_drop
+            |
+            ---__libc_start_main
+               0x77667342a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               |          
+               |--7.09%--WL_FID_CLI_CONVERT_K1658
+               |          term_drop
+               |          
+               |--6.28%--WL_FID_ENCODE_PUT_PRIM
+               |          spin_322 (inlined)
+               |          spin_283 (inlined)
+               |          spin_248 (inlined)
+               |          |          
+               |           --4.52%--spin_43
+               |                     term_sink (inlined)
+               |                     term_drop
+               |          
+               |--4.61%--WL_FID_ENCODE_CTX_FIELD_K1150
+               |          |          
+               |           --2.93%--spin_313
+               |                     term_sink (inlined)
+               |                     term_drop
+               |          
+               |--3.50%--WL_FID_CLI_CONVERT
+               |          spin_449 (inlined)
+               |          ctr_take (inlined)
+               |          span_fade
+               |          term_drop
+               |          
+                --3.47%--WL_FID_JSON_AFTER
+                          term_drop
+    11.05%  [.] span_fade
+            |
+            ---__libc_start_main
+               0x77667342a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               |          
+                --5.26%--WL_FID_CLI_CONVERT
+                          spin_449 (inlined)
+                          ctr_take (inlined)
+                          span_fade
+                          rfc_bump (inlined)
+    10.55%  [.] rfc_wrap
+            |
+            ---__libc_start_main
+               0x77667342a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               |          
+                --2.37%--WL_FID_CLI_CONVERT_K1658
+                          spin_421 (inlined)
+     7.64%  [.] io_cstr
+            |
+            ---__libc_start_main
+               0x77667342a601
+               main
+               io_loop
+               io_step
+               io_exec
+               io_write_run
+               io_cstr
+               |          
+                --5.88%--ctr_take (inlined)
+     7.32%  [.] WL_FID_JSON_STEP
+            |
+            ---__libc_start_main
+               0x77667342a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               WL_FID_JSON_STEP
+     5.87%  [.] spin_9
+            |
+            ---__libc_start_main
+               0x77667342a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               |          
+                --4.74%--WL_FID_CLI_CONVERT_K1658
+                          spin_421 (inlined)
+                          spin_404 (inlined)
+                          spin_9
+                          ctr_take (inlined)
+     5.11%  [.] spin_7
+            |
+            ---__libc_start_main
+               0x77667342a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+     3.47%  [.] WL_FID_JSON_RUN
+            |
+            ---__libc_start_main
+               0x77667342a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               WL_FID_JSON_RUN
+     2.96%  [.] heap_alloc_miss
+            |
+            ---__libc_start_main
+               0x77667342a601
+               main
+               io_loop
+               |          
+                --2.38%--io_wait
+                          io_take (inlined)
+                          file_read_bytes_pack
+                          io_node (inlined)
+                          heap_alloc (inlined)
+                          heap_alloc_miss

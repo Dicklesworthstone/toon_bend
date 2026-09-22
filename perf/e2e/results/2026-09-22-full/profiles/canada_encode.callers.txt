@@ -1,0 +1,97 @@
+    38.28%  [.] term_drop
+            |
+            ---__libc_start_main
+               0x731b9002a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               |          
+               |--23.60%--WL_FID_BIGNAT_CMP
+               |          |          
+               |           --23.29%--ctr_take (inlined)
+               |                     |          
+               |                      --23.12%--span_fade
+               |                                term_drop
+               |          
+               |--5.16%--WL_FID_BIGNAT_SUB
+               |          ctr_take (inlined)
+               |          |          
+               |           --5.10%--span_fade
+               |                     term_drop
+               |          
+                --2.14%--WL_FID_BIGNAT_ADD
+    30.98%  [.] span_fade
+            |
+            ---__libc_start_main
+               0x731b9002a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               |          
+               |--21.11%--WL_FID_BIGNAT_CMP
+               |          ctr_take (inlined)
+               |          span_fade
+               |          |          
+               |           --20.25%--rfc_bump (inlined)
+               |          
+                --4.92%--WL_FID_BIGNAT_SUB
+                          ctr_take (inlined)
+                          span_fade
+                          |          
+                           --4.69%--rfc_bump (inlined)
+     4.87%  [.] WL_FID_F64_DG_DIGIT
+            |
+            ---__libc_start_main
+               0x731b9002a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               WL_FID_F64_DG_DIGIT
+               |          
+                --4.84%--term_keep (inlined)
+                          |          
+                           --4.71%--rfc_bump (inlined)
+     4.17%  [.] rfc_wrap
+            |
+            ---__libc_start_main
+               0x731b9002a601
+               main
+               io_loop
+               |          
+                --4.08%--io_step
+                          term_peek (inlined)
+                          term_loc (inlined)
+                          corpus_eval
+     3.09%  [.] WL_FID_F64_DG_DIGIT_K207
+            |
+            ---__libc_start_main
+               0x731b9002a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               |          
+                --3.07%--corpus_eval
+                          WL_FID_F64_DG_DIGIT_K207
+                          term_keep (inlined)
+                          rfc_bump (inlined)
+     2.30%  [.] spin_140
+            |
+            ---__libc_start_main
+               0x731b9002a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval

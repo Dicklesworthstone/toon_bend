@@ -1,0 +1,7 @@
+    44.00%  [.] term_drop
+    28.31%  [.] span_fade
+     4.76%  [.] WL_FID_F64_DG_DIGIT
+     3.29%  [.] WL_FID_F64_DG_DIGIT_K207
+     3.00%  [.] spin_140
+     2.59%  [.] rfc_wrap
+     1.90%  [k] 0xffffffffae200ef0

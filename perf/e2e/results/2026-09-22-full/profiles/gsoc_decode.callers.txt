@@ -1,0 +1,176 @@
+    31.66%  [.] term_drop
+            |
+            ---__libc_start_main
+               0x705f6ba2a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               |          
+               |--12.07%--WL_FID_DECODE_HEADER
+               |          |          
+               |          |--6.99%--spin_64
+               |          |          spin_66 (inlined)
+               |          |          |          
+               |          |           --5.16%--spin_65
+               |          |                     |          
+               |          |                     |--2.58%--ctr_take (inlined)
+               |          |                     |          span_fade
+               |          |                     |          term_drop
+               |          |                     |          
+               |          |                      --2.58%--term_sink (inlined)
+               |          |                                term_drop
+               |          |          
+               |           --5.08%--term_sink (inlined)
+               |                     term_triv (inlined)
+               |                     term_drop
+               |          
+               |--9.77%--WL_FID_CLI_CONVERT
+               |          |          
+               |          |--7.37%--term_sink (inlined)
+               |          |          term_drop
+               |          |          
+               |           --2.39%--spin_449 (inlined)
+               |                     ctr_take (inlined)
+               |                     span_fade
+               |                     term_drop
+               |          
+                --7.23%--WL_FID_JSON_W_K1245
+                          term_sink (inlined)
+                          term_drop
+    17.95%  [.] span_fade
+            |
+            ---__libc_start_main
+               0x705f6ba2a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               |          
+               |--6.10%--WL_FID_DECODE_HEADER
+               |          spin_64
+               |          spin_66 (inlined)
+               |          |          
+               |          |--3.94%--ctr_take (inlined)
+               |          |          span_fade
+               |          |          |          
+               |          |           --3.62%--rfc_bump (inlined)
+               |          |          
+               |           --2.17%--spin_65
+               |                     ctr_take (inlined)
+               |                     span_fade
+               |                     rfc_bump (inlined)
+               |          
+               |--5.82%--WL_FID_JSON_W
+               |          |          
+               |           --5.60%--spin_375
+               |                     spin_341 (inlined)
+               |                     ctr_take (inlined)
+               |                     span_fade
+               |                     |          
+               |                      --5.50%--rfc_bump (inlined)
+               |          
+                --4.95%--WL_FID_CLI_CONVERT
+                          spin_449 (inlined)
+                          ctr_take (inlined)
+                          span_fade
+                          rfc_bump (inlined)
+    14.87%  [.] rfc_wrap
+            |
+            ---__libc_start_main
+               0x705f6ba2a601
+               main
+               io_loop
+               |          
+                --14.24%--io_step
+                          term_peek (inlined)
+                          term_loc (inlined)
+                          corpus_eval
+                          |          
+                          |--2.99%--WL_FID_DECODE_KV
+                          |          |          
+                          |           --2.88%--spin_120 (inlined)
+                          |                     spin_41 (inlined)
+                          |                     spin_47 (inlined)
+                          |                     spin_7
+                          |                     spin_8 (inlined)
+                          |                     rfc_seal (inlined)
+                          |                     rfc_wrap
+                          |          
+                           --2.03%--WL_FID_JSON_WRITE_LN_K1362
+                                     spin_7
+                                     spin_8 (inlined)
+                                     rfc_seal (inlined)
+                                     rfc_wrap
+     9.67%  [.] spin_7
+            |
+            ---__libc_start_main
+               0x705f6ba2a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               |          
+                --2.36%--WL_FID_JSON_WRITE_LN_K1362
+                          spin_7
+                          spin_8 (inlined)
+                          |          
+                           --2.26%--ctr_take (inlined)
+     3.45%  [.] io_cstr
+            |
+            ---__libc_start_main
+               0x705f6ba2a601
+               main
+               io_loop
+               io_step
+               io_exec
+               io_write_run
+               io_cstr
+               |          
+                --2.58%--ctr_take (inlined)
+     2.91%  [.] spin_64
+            |
+            ---__libc_start_main
+               0x705f6ba2a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               |          
+                --2.58%--WL_FID_DECODE_HEADER
+                          spin_64
+                          spin_66 (inlined)
+                          |          
+                           --2.48%--term_keep (inlined)
+                                     rfc_bump (inlined)
+     2.46%  [.] WL_FID_DECODE_SCAN_CH
+            |
+            ---__libc_start_main
+               0x705f6ba2a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               |          
+                --2.36%--corpus_eval
+                          WL_FID_DECODE_SCAN_CH
+     2.36%  [.] WL_FID_DECODE_SCAN_GO
+            |
+            ---__libc_start_main
+               0x705f6ba2a601
+               main
+               io_loop
+               io_step
+               term_peek (inlined)
+               term_loc (inlined)
+               corpus_eval
+               WL_FID_DECODE_SCAN_GO

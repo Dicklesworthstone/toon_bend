@@ -1,0 +1,82 @@
+{
+  "utc": "2026-09-22T14:31:21Z",
+  "host": "hetzner1",
+  "kernel": "7.0.0-30-generic",
+  "cpu": "AMD EPYC-Milan Processor",
+  "cores": 8,
+  "governor": null,
+  "mem_total_kib": 32082076,
+  "loadavg_start": [
+    3.78759765625,
+    6.22412109375,
+    6.59423828125
+  ],
+  "python": "3.14.4",
+  "git_head": "83e1c0b8f5df987f688653048d50955ca73180d0",
+  "git_dirty_port": false,
+  "arms": [
+    {
+      "name": "rust_z",
+      "kind": "rust",
+      "path": "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/arms/z/toon",
+      "sha256": "745508359fb8ec31f261d6dff55b4b7f76afcda2e0fefe9905d638c24fcf328d",
+      "bytes": 670936
+    },
+    {
+      "name": "rust_o3",
+      "kind": "rust",
+      "path": "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/arms/o3/toon",
+      "sha256": "c509128e6a2ea8794c057377908e96e7dae90fc3dcff0efe5ac870a6515dcf9b",
+      "bytes": 862904
+    },
+    {
+      "name": "bend",
+      "kind": "bend",
+      "path": "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/arms/bend/toon",
+      "sha256": "911558ed7be1db80c7d2923ec69b9a170074e3c80229d90d6d7b0a07dbe59858",
+      "bytes": 842032
+    }
+  ],
+  "scenarios": [
+    "encode",
+    "encode_stdin",
+    "encode_fold",
+    "encode_tab",
+    "encode_stats",
+    "decode",
+    "decode_expand"
+  ],
+  "files": [
+    "github_events",
+    "apache_builds",
+    "numbers",
+    "instruments",
+    "random",
+    "update_center",
+    "twitterescaped",
+    "twitter",
+    "mesh",
+    "jobs",
+    "football",
+    "earthquakes",
+    "movies",
+    "citm_catalog",
+    "flights_20k",
+    "canada",
+    "marine_ik",
+    "gsoc_2018",
+    "semanticscholar",
+    "flights_200k"
+  ],
+  "budget_s": 30.0,
+  "min_runs": 5,
+  "max_runs": 30,
+  "max_cv_pct": 5.0,
+  "seed": 1,
+  "loadavg_end": [
+    7.62744140625,
+    6.61865234375,
+    6.146484375
+  ],
+  "finished_utc": "2026-09-22T15:15:13Z"
+}

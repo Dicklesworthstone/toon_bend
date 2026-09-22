@@ -1,0 +1,82 @@
+{
+  "utc": "2026-09-22T05:48:35Z",
+  "host": "hetzner1",
+  "kernel": "7.0.0-30-generic",
+  "cpu": "AMD EPYC-Milan Processor",
+  "cores": 8,
+  "governor": null,
+  "mem_total_kib": 32082076,
+  "loadavg_start": [
+    4.27685546875,
+    2.380859375,
+    1.54833984375
+  ],
+  "python": "3.14.4",
+  "git_head": "dc3dec768e9fa5d61d6a004c99080637ce0242d1",
+  "git_dirty_port": true,
+  "arms": [
+    {
+      "name": "rust_z",
+      "kind": "rust",
+      "path": "/data/projects/toon_bend/oracle/toon",
+      "sha256": "980f2b26484f424b74cb0a0b61062183d0038d45101590a38953a82611879a6d",
+      "bytes": 670376
+    },
+    {
+      "name": "rust_o3",
+      "kind": "rust",
+      "path": "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/bin/toon_o3",
+      "sha256": "58dae1cb06030a7a7c5bef05d181a4b35b8a95b831a07d4a1dc1a80d862ec82d",
+      "bytes": 862792
+    },
+    {
+      "name": "bend",
+      "kind": "bend",
+      "path": "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/build/toon",
+      "sha256": "27787b9babd0a8388b92070437548a1a847a9f62c30119442355b7723cd76465",
+      "bytes": 842032
+    }
+  ],
+  "scenarios": [
+    "encode",
+    "encode_stdin",
+    "encode_fold",
+    "encode_tab",
+    "encode_stats",
+    "decode",
+    "decode_expand"
+  ],
+  "files": [
+    "github_events",
+    "apache_builds",
+    "numbers",
+    "instruments",
+    "random",
+    "update_center",
+    "twitterescaped",
+    "twitter",
+    "mesh",
+    "jobs",
+    "football",
+    "earthquakes",
+    "movies",
+    "citm_catalog",
+    "flights_20k",
+    "canada",
+    "marine_ik",
+    "gsoc_2018",
+    "semanticscholar",
+    "flights_200k"
+  ],
+  "budget_s": 30.0,
+  "min_runs": 5,
+  "max_runs": 30,
+  "max_cv_pct": 5.0,
+  "seed": 1,
+  "loadavg_end": [
+    5.3974609375,
+    3.27197265625,
+    2.9052734375
+  ],
+  "finished_utc": "2026-09-22T06:29:06Z"
+}

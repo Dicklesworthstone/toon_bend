@@ -10,6 +10,9 @@ port/*.js
 !port/stdin_open.js
 port/*.gpu
 port/toon
+# README's Quick Start builds `bend port/main.bend -o toon` at the root (round 14, R14-13)
+/toon
+/toon.js
 .ruff_cache/
 oracle/
 /-

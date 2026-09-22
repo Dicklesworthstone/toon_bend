@@ -7,9 +7,9 @@
      partial never rounds up; excluded is debt; a present feature names
      its evidence. Statuses: present | partial | missing | excluded | n/a. -->
 
-Last gate run: 2026-09-22 on this commit's `port/` and `goldens/` (1071 cases) · `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` (alone or inside `scripts/port-doctor.sh`; the pasted line names the timeouts it ran with) → `{"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1071,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1071,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1071,"failed":0},{"lane":"js","verdict":"PASS","passed":1071,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":60.0,"compiled":5.0,"build":600},"verdict":"PASS"}` ·
-proofs: `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.` with 0 unsafe (0 `@unsafe` + 0 template instances, bend 2.0.16), 383 laws (14 quantified, 74 closed unit laws, 295 closed whole-pipeline `golden_<case>` laws) · `scripts/law-coverage.sh`: every law cited by a row below, 0 ghost citations ·
-a row is `present` when the goldens it names pass on EVERY lane of that run and the laws it names are proved; "laws" on a row are closed instances unless the row names one of the 14 quantified laws.
+Last gate run: 2026-09-22 on the tree of commit `94a9ecf` · `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` (alone or inside `scripts/port-doctor.sh`; the pasted line names the timeouts it ran with) → `{"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1071,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1071,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1071,"failed":0},{"lane":"js","verdict":"PASS","passed":1071,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":60.0,"compiled":5.0,"build":600},"verdict":"PASS"}` ·
+proofs: `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.` with 0 unsafe (0 `@unsafe` + 0 template instances, bend 2.0.16), 393 laws (16 quantified, 82 closed unit laws, 295 closed whole-pipeline `golden_<case>` laws) · `scripts/law-coverage.sh`: every law cited by a row below, 0 ghost citations ·
+a row is `present` when the goldens it names pass on EVERY lane of that run and the laws it names are proved; "laws" on a row are closed instances unless the row names one of the 16 quantified laws.
 
 | feature | original ref | port def | goldens | laws | status | notes |
 |---|---|---|---|---|---|---|
@@ -53,9 +53,9 @@ a row is `present` when the goldens it names pass on EVERY lane of that run and 
 
 | kind | count | list |
 |---|---|---|
-| quantified laws (hold for every input) | 14 | `argv_stop_is_sticky`, `decode_error_ends_pass`, `decode_root_ends_pass`, `json_error_is_sticky`, `lenient_body_never_fails`, `lenient_scan_never_fails`, `encode_flag_wins`, `decode_flag_wins`, `stdin_defaults_to_encode`, `no_saved_line_without_savings`, `expansion_cap_on_values`, `expansion_cap_on_merges`, `twin_gate_switch`, `twin_gate_open` |
+| quantified laws (hold for every input) | 16 | `argv_stop_is_sticky`, `decode_error_ends_pass`, `decode_root_ends_pass`, `decode_trailing_line_is_error`, `decode_dup_reported_at_end`, `json_error_is_sticky`, `lenient_body_never_fails`, `lenient_scan_never_fails`, `encode_flag_wins`, `decode_flag_wins`, `stdin_defaults_to_encode`, `no_saved_line_without_savings`, `expansion_cap_on_values`, `expansion_cap_on_merges`, `twin_gate_switch`, `twin_gate_open` |
 | laws about the fast twins (one quantified gate pair; the rest closed instances, `perf/NEGATIVE-EVIDENCE.md` NE-001..003) | 39 | `twin_gate_switch`, `twin_gate_open`, `show_toon_fast_1500`, `show_json_fast_1500`, `show_toon_fast_one`, `serde_short_42`, `serde_short_zero`, `token_short_42`, `token_short_neg7`, `div_p10_37_1`, `div_p10_k5`, `div_p10_k7`, `from_dec_p10_37`, `from_dec_p10_k30`, `serde_decimal_3_7`, `token_decimal_3_7`, `div_pow10_a20_k0`, `div_pow10_a20_k1`, `div_pow10_a20_k5`, `div_pow10_a20_k6`, `div_pow10_a20_k7`, `div_pow10_a20_k12`, `div_pow10_a20_k19`, `div_pow10_a20_k22`, `div_pow10_a20_k23`, `div_pow10_multiple_k7`, `div_pow10_below_multiple_k7`, `div_pow10_one_k1`, `div_pow10_zero_k3`, `div_pow10_even_not_multiple_k1`, `div_pow10_pow2_multiple_k7`, `div_pow10_sticky_from_remainder`, `int_fit_refuses_lost_bit`, `int_fit_accepts_2p48_minus_1`, `int_fit_refuses_2p48`, `int_text_14_digits_ok`, `int_text_15_digits_refused`, `int_text_fraction_refused`, `short_of_digits_drops_trailing_zeros` |
-| other closed unit laws | 37 | `bn_add_carry`, `depth_of_indent`, `depth_with_indent_zero`, `stats_estimate_small`, `stats_estimate_empty`, `stats_pct_6_25`, `stats_pct_18_75`, `stats_pct_double_rounding`, `key_hash_fnv1a`, `kt_member`, `kt_not_member`, `expand_order_first_insertion`, `expand_cap_is_256_reject`, `expand_cap_is_256_accept`, `kt_collision_not_member`, `kt_collision_both_members`, `kt_collision_hashes`, `str_cmp_orders`, `ks_bucket_is_balanced`, `ks_bucket_members`, `ks_bucket_is_balanced_descending`, `ks_bucket_members_descending`, `tab_in_value_forces_quotes`, `utf8_rejects_surrogate`, `utf8_accepts_below_surrogate`, `writer_a_keeps_del_raw`, `writer_b_escapes_del`, `writer_b_escapes_c1`, `cr_in_value_forces_quotes`, `lower_rev_folds_upper_toon`, `seven_tenths_is_0_7`, `is_ws_ogham_space_mark`, `is_ws_not_after_ogham`, `json_plain_at_k16`, `json_exponent_at_k17`, `is_ws_all_25_members`, `is_ws_documented_non_members` |
+| other closed unit laws | 45 | `stats_exact_tie_rounds_up`, `stats_larger_toon_reported`, `bn_add_carry`, `depth_of_indent`, `depth_with_indent_zero`, `stats_estimate_small`, `stats_estimate_empty`, `stats_pct_6_25`, `stats_pct_18_75`, `stats_pct_double_rounding`, `key_hash_fnv1a`, `kt_member`, `kt_not_member`, `expand_order_first_insertion`, `expand_cap_is_256_reject`, `expand_segments_253_hits_nesting_cap`, `expand_depth_127_accept`, `expand_depth_128_reject`, `expand_segments_253_not_ok`, `utf8_rejects_surrogate`, `utf8_accepts_below_surrogate`, `writer_b_keeps_del_raw`, `writer_b_keeps_c1_raw`, `writer_a_keeps_del_raw`, `tab_in_value_forces_quotes`, `cr_in_value_forces_quotes`, `lower_rev_folds_upper_toon`, `seven_tenths_is_0_7`, `is_ws_ogham_space_mark`, `is_ws_not_after_ogham`, `json_plain_at_k16`, `json_plain_at_k21`, `json_exponent_at_k22`, `json_plain_at_kneg5`, `json_exponent_at_kneg6`, `is_ws_all_25_members`, `is_ws_documented_non_members`, `kt_collision_not_member`, `kt_collision_both_members`, `kt_collision_hashes`, `str_cmp_orders`, `ks_bucket_is_balanced`, `ks_bucket_members`, `ks_bucket_is_balanced_descending`, `ks_bucket_members_descending` |
 | closed goldens as laws (`C.run_pure(argv, bytes) == Out`) | 295 | `golden_<case>` for 295 corpus cases, each cited on its row above |
 | `@unsafe` defs | 0 | none; template instances: 0 |
 
@@ -63,10 +63,10 @@ a row is `present` when the goldens it names pass on EVERY lane of that run and 
 
 | lane | cases | verdict | date |
 |---|---|---|---|
-| interpreter | 1071/1071 | PASS | 2026-09-22 (this commit's `port/` and `goldens/`) |
-| c-1t | 1071/1071 | PASS | 2026-09-22 (this commit's `port/` and `goldens/`) |
-| c-8t | 1071/1071 | PASS | 2026-09-22 (this commit's `port/` and `goldens/`) |
-| js | 1071/1071 | PASS | 2026-09-22 (this commit's `port/` and `goldens/`) |
+| interpreter | 1071/1071 | PASS | 2026-09-22 (tree of `94a9ecf`) |
+| c-1t | 1071/1071 | PASS | 2026-09-22 (tree of `94a9ecf`) |
+| c-8t | 1071/1071 | PASS | 2026-09-22 (tree of `94a9ecf`) |
+| js | 1071/1071 | PASS | 2026-09-22 (tree of `94a9ecf`) |
 | gpu (`--gpu on`) | - | MISSING: no bang is placed (text with data-dependent structure), so there is no device lane to run | - |
 
 The two native lanes are ONE sequential execution under two labels: no bang and no parallel let is placed, so `--threads N` changes nothing

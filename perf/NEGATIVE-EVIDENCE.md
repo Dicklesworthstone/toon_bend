@@ -153,6 +153,33 @@ Outcome taxonomy (closed set):
 - Tally: W0/L0/N1
 - Agent: Claude (author session)
 
+### NE-008 — numbers rendered by a PARALLEL pre-pass (EXP-007), on the CPU worker pool   [2026-09-22 | NO_EVIDENCE]
+- Program / def: `port/encode.bend` / `pre` (a pass that renders every number's text before emission and forks long item chains with parallel lets) plus `port/json.bend` / `num.defer`, `raw.f64` (the reader keeps a token raw when it cannot overflow). NOT in the repository: the spike is `perf/evidence/EXP-007.parallel-prerender.patch` against `3851a08`; card EXP-007
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, SHARED HOST AT LOAD 8-9 THROUGHOUT (other agents' gates), single timed runs unless a line says otherwise
+- Exact command: `<spike binary> --threads N -- --encode perf/e2e/corpus/<doc>.json`, the documents of `perf/e2e/corpus.json`
+- Kill-switch: none in the spike. A `TOON_SPEC=1` arm was NOT captured
+- Correctness (the part that IS established): `./scripts/conform.sh goldens/cases.tsv goldens --lane spike -- <spike> --threads 8 --` → 1071/1071 PASS against the goldens of `3851a08`; and 60 encodes of the 20 real documents of `perf/e2e/` (default, `--key-folding safe`, `--stats`) byte-identical to the original `7c1d6e4`. Parallelism did not change one output byte
+- Measured (orientation only, single runs on a loaded host; the cv gate REFUSED the one paired capture): `numbers` 0.43 s → 0.12 s at 8 threads, `mesh` 1.22 → 0.47, `flights_200k` 11.3 → 6.3, `canada` 5.54 → 4.31 (its best, at TWO threads; 8 threads is slower than 2), `marine_ik` 3.14 → 3.03, `twitter` and `semanticscholar` unchanged. `scripts/incumbent-bench.sh --runs 5` on `numbers` (base at 1 thread against the spike at 8): REFUSED_CV, medians 460.6 → 190.2 ms, cv 18.1% / 10.0%, stdout sha identical in every sample
+- The ceiling, which is the reusable finding: 8 SEPARATE single-thread processes converted 8 copies of `canada` in 13.6 s wall, against 6.1 s for one process alone — about 3.6× of throughput from the same 8 cores — while ONE process at 8 threads reached 1.4× on that document. The hardware had the capacity; the runtime did not use it. The port's own profile says why (`perf/evidence/EXP-006.wall-profile.txt`): its time is BendRT memory management (`span_fade` 34.6% self, `term_drop` 37.0% self), which is refcount and free traffic on ONE shared heap, so more threads add contention rather than throughput on the documents whose numbers allocate most (canada and marine_ik carry 17-digit doubles)
+- Disposition: NOT admitted, NOT committed to `port/`. No law binds `pre` to the pass-free pipeline, and the capture was refused
+- Killing metric: wall on this host; and, before the stopwatch, the missing law
+- **Do-not-retry unless:** a quantified law `{encode(pre(f, j, …), opt) == encode(j, opt)}` is written and proved first (the pass is a reordering of the same function, so the law is the natural one, and `port-lint.py` PL-11 would demand it anyway); AND the capture runs on a quiet host (load below 1) with at least 15 pairs; AND the document's ORIGINAL arm reaches 100 ms (NE-006's predicate). A retry on the 17-digit-double documents (`canada`, `marine_ik`) also needs the allocation cost addressed first (bead `toon_bend-2t0`), because their scaling stops at two threads for a reason no thread count changes
+- Tally: W0/L0/N1
+- Agent: Claude (author session, 2026-09-22)
+
+### NE-009 — the GPU: a bang on that same pass, on two RTX 4090s   [2026-09-22 | NEGATIVE(reverted)]
+- Program / def: the EXP-007 spike with ONE character added, `pre!(…)` in `port/encode.bend` / `encode`, so the runtime may run the pass on a device. The emitted C carried the bang (`toon.gpu`, 1257816 bytes, built by `bend port/main.bend -o toon` with CUDA 12.4 present)
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, CUDA 12.4, driver 595.91.07, 2 × NVIDIA GeForce RTX 4090 (24564 MiB each), AMD Ryzen Threadripper PRO 5995WX, 64 cores, Linux; host `threadripperje`. SHARED HOST AT LOAD 17-100 (another agent's cross-build), single timed runs
+- Exact command: `./toon --gpu on --threads 8 -- --encode ../corpus/<doc>.json` against `./toon --gpu off --threads {1,8,64} -- …`
+- Correctness: every GPU run's stdout was byte-identical to the original `7c1d6e4` (`numbers`, `mesh`, `canada`). The device ran the work (device 0 at 100% utilisation, 681 MiB, during the `canada` run)
+- Measured (orientation; the SIGN is not in doubt at these magnitudes): `numbers` 0.20 s at 8 CPU threads → **1.46 s** on the GPU (7.3× slower); `mesh` 1.37 → **3.94 s** (2.9× slower); `canada` 5.05 s at 64 CPU threads → **357.84 s** on the GPU (71× slower)
+- Why, and this is the part that generalises: the pass is not uniform numeric work. Each number walks a software binary64 over big naturals whose limb count depends on its digits, so lanes diverge; and every step allocates and frees in the one shared corpus, which on a device is exactly the traffic a GPU cannot absorb. The skill's inherited priors say the same of divergent workloads (lexer 0.43 s CPU-parallel against 3.89 s GPU); this port's own numbers now confirm it on real hardware for THIS program
+- Disposition: reverted (the bang exists only in the spike copy). The parity board's `gpu` row stays MISSING, and its reason gains a measurement instead of a judgement: not merely "text with data-dependent structure", but 71× slower on the document that would have benefited most
+- Killing metric: wall against the CPU pool on the same binary and input
+- **Do-not-retry unless:** the number path stops allocating per digit (a limb-array representation with a bounded working set), AND a document is found whose per-item work is uniform and long enough to amortise a device round (the roofline in HARDWARE-PLAYBOOK), AND the CPU arm is itself scaling (NE-008's ceiling lifted). Re-running THIS bang on THIS pass is refused in advance
+- Tally: W0/L1/N0
+- Agent: Claude (author session, 2026-09-22)
+
 ---
 
 ## Inherited priors (re-confirm on THIS program's shape; not local evidence)

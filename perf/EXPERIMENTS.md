@@ -292,3 +292,32 @@ the twin is bound by closed laws on the DIGIT STEP alone (R, S pairs at the esti
 ```bash
 scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-006 --original <baseline binary> --threads 1 -- -e perf/inputs/doubles_20000.json --port <lever binary> --threads 1 -- -e perf/inputs/doubles_20000.json
 ```
+
+## EXP-007 — every number rendered by a parallel pre-pass (and the GPU question)
+
+| field | value |
+|---|---|
+| experiment_id | EXP-007 |
+| program / def | `port/encode.bend` / `pre`, `par.take`, `par.cat` (a pass over the value before emission) and `port/json.bend` / `num.defer`, `raw.f64` |
+| created (UTC) | 2026-09-22 |
+| agent | Claude (Claude Code session, author) |
+| graveyard sweep | `rg -i 'parallel\|thread\|gpu\|bang' perf/NEGATIVE-EVIDENCE.md` → the inherited priors (GPU wins on uniform numeric work, loses on divergent work) and now NE-008, NE-009, this card's own outcomes |
+| status | SPIKE MEASURED, NOT ADMITTED (NE-008 NO_EVIDENCE on the CPU pool, NE-009 NEGATIVE on the GPU). The spike is `perf/evidence/EXP-007.parallel-prerender.patch` against `3851a08`; `port/` is untouched |
+| precommitted | false (a spike to size the lever, run because the owner asked what Bend's parallelism is worth here) |
+
+### Hypothesis
+Every number's text depends on that number alone, so the conversions are independent: rendering them in a pass that forks long item chains with parallel lets should use the worker pool (and, under a bang, a device), and cut the wall time of the number-heavy documents of `perf/e2e/` by more than half.
+
+### What the spike does
+The reader keeps a token RAW when it cannot overflow (`num.safe`: a negative exponent, or an exponent ≤ 250 with ≤ 50 integer digits, so below 10^301); every other token is converted where it always was, so every `number out of range` keeps its position and its order. The pass then turns each raw token into its rendered text (`JTxt`), splitting an item chain of more than 64 items into halves with a parallel let. A value the pass does not reach keeps its `JNum`, which the emitter prints itself: **running out of fuel changes the speed and never the text.**
+
+### Outcome
+- Correct: 1071/1071 goldens on the c-1t lane at 8 threads, and 60 encodes of the 20 real documents byte-identical to the original; GPU runs byte-identical too
+- CPU pool: 3.6× on `numbers`, 2.6× on `mesh`, 1.8× on `flights_200k`, 1.3× on `canada`, nothing on the text-heavy documents — orientation, the one paired capture was REFUSED_CV (NE-008)
+- The ceiling: 8 separate processes reached 3.6× of throughput on `canada` where one process at 8 threads reached 1.4×. The limit is the single shared heap that `span_fade`/`term_drop` work on, not the cores (NE-008)
+- GPU (2 × RTX 4090, `pre!`): 7.3× slower on `numbers`, 2.9× on `mesh`, **71× on `canada`** (357.84 s against 5.05 s), outputs identical, device confirmed busy (NE-009)
+
+### What it would take to admit the CPU half
+1. A quantified law `{encode(pre(f, j, …), opt) == encode(j, opt) : List<&2, String>}` — the pass is a reordering of the same function, and `port-lint.py` PL-11 demands a law for anything that behaves like a twin
+2. A quiet host, ≥ 15 pairs, an A/A arm, and a document whose ORIGINAL arm reaches 100 ms (NE-006's predicate)
+3. The allocation cost first (bead `toon_bend-2t0`): on the 17-digit-double documents the scaling stops at two threads, and no thread count moves it

@@ -648,3 +648,72 @@ that made the wildcard swallow `XTLeaf` or `XBNode` would fail the explicit-arm 
 - Always: output byte-identical to the current binary AND to the oracle; `bend PROOF.bend` green with the
   new laws; conform 1076/1076 on c-1t, c-8t and js.
 - Per NE-019/NE-020: if the gate is missed the lever is reverted and ledgered, whatever the profile said.
+
+## EXP-023 — expansion builds a keyed map for objects that have nothing to expand
+
+| field | value |
+|---|---|
+| experiment_id | EXP-023 |
+| program / def | `port/decode.bend` / `expand`'s `XFields` path and the `XObj` arm of `x.norm` (S4.240, S3.28) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (Claude Code session) |
+| graveyard sweep | `rg -i 'expand\|x.norm\|map\|precheck' perf/` → **NE-027** (this card's direct predecessor: trimming `x.norm`'s pass-through rebuild is 0.11%, and its retry predicate names exactly this lever as the larger one worth doing), **NE-013/EXP-009** (the same precheck SHAPE won 17.2% counted on the header parser), NE-019/NE-020 as method |
+| status | CARDED 2026-09-23 with its evidence, LEVER NOT BUILT |
+| precommitted | true |
+
+### The measurements that motivate it (all counted, cachegrind, deterministic)
+
+Expansion's cost is not proportional to input size — it is proportional to KEY COUNT, because the `XV`
+map is built per object per key and then normalised back to `Json`:
+
+| document | size | unquoted dotted keys | plain decode | with expansion | expansion adds |
+|---|---|---|---|---|---|
+| `gsoc_2018.toon` | 3.0 MB | **0 of ~? ** | 7,356,972,432 | 7,821,379,865 | **464,407,433 (+6.3%)** |
+| `citm_catalog.fold.toon` | 650 KB | **1 of 23,143** | 2,077,027,910 | 2,682,287,179 | **605,259,269 (+29.1%)** |
+
+The smaller document pays MORE in absolute instructions. On `gsoc_2018.toon` the entire 464M is spent
+expanding a document with **nothing to expand**.
+
+Key statistics of the expand corpus, which is what the lever turns on:
+
+| document | keys | unquoted with a dot | share |
+|---|---|---|---|
+| `citm_catalog.fold.toon` | 23,143 | 1 | 0.0% |
+| `github_events.fold.toon` | 1,117 | 11 | 1.0% |
+| `openapi_github.fold.toon` | 193,136 | 15,407 | 8.0% |
+
+Where the expansion run's instructions go (`citm_catalog.fold.toon`): `term_drop` 29.4%, `rfc_wrap`
+18.1%, `span_fade` 6.1% — **53.6% allocate-and-drop** — against the expansion's own defs
+(`WL_FID_DECODE_X_NORM` and its continuations, plus `WL_FID_DECODE_EXPAND`) at about 97M, **16% of the
+extra cost**. The traffic is caused by the map building and the rebuild, not by the logic.
+
+### Hypothesis
+
+An object whose keys contain no dot **outside a quoted key** needs no expansion: its entries can be kept
+as they are instead of being inserted into an `XBNode` map and reassembled by `x.norm`'s `XObj` arm. A
+per-object precheck of the entry chain (no allocation, one scan, the `quoted` flag already carried by
+`J.JECons`) should remove most of the 464M on a dot-free document.
+
+### Why this is NOT NE-027 again
+
+NE-027 made an operation cheaper (a node reconstruction) and returned 0.11%. This removes a DATA
+STRUCTURE and the traversal that consumes it, for the common case, which is the shape that has actually
+paid in this repository (the header precheck, 17.2%; the peer's traversal-removing levers, 18.3% and
+11.6%). Per NE-027's own rule: eliminate a pass over the data, not an operation within one.
+
+### The trap this lever must not fall into
+
+**The depth cap must still be enforced.** `expansion_cap_on_values` and `expansion_cap_on_merges` say no
+expansion step runs at depth 256, and the budget decrements per level of the JSON structure, not per
+dot. A dotless object's VALUES may still nest arbitrarily deep, so the walk cannot be skipped — only the
+map building and the reassembly may be. A lever that skips the descent would accept a document the
+original rejects, and those two laws are what would catch it.
+
+### Precommitted gate
+
+- **Primary (counted):** ≥ 10% fewer instructions on
+  `--decode --expand-paths safe perf/e2e/corpus/citm_catalog.fold.toon`, AND ≥ 4% on the dot-free
+  `gsoc_2018.toon`, both at `--threads 1`.
+- Always: output byte-identical to the oracle on every `*.fold.toon` in the corpus and on a dot-free
+  document; `expansion_cap_on_values` and `expansion_cap_on_merges` unchanged and still proved; conform
+  1076/1076 on c-1t, c-8t and js.

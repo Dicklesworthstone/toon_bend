@@ -124,6 +124,53 @@ the median cell and 3.75× at the worst, and the worst-case figure is the number
 - One thread only. The port places one parallel let (EXP-007's number pre-pass), so `--threads 8` changes
   encode and nothing else; that is a separate measurement.
 
+## Counted comparison (2026-09-23, deterministic, load-independent)
+
+`results/` holds wall-clock runs; this section holds **instruction counts**, which this shared host
+can actually produce. Every cv-gated wall capture here has been refused for two days (the last full
+run had **28 of 612 arms within cv 5%**), while `valgrind --tool=cachegrind --cache-sim=no` is
+deterministic to about 1e-8 run to run and does not care about load at all.
+
+**This is a `counted` claim, not a `measured` one.** Cachegrind counts instructions, not stalls: it
+sees no cache miss and no memory latency. It answers "how much more WORK does the port do than the
+original", which is a real question with a defensible answer, and it does not answer "how much slower
+is it in seconds".
+
+Port built from `2c33e64` (571 laws, `All terms check.`); original `toon_rust` `694d73b` at
+`opt-level=z` and `opt-level=3`. **Each cell's stdout sha256 and exit code were compared with the
+oracle's and matched before it was counted** — a differing arm is skipped, never counted.
+
+| document | mode | input | port I-refs | original (`-Oz`) | port / `-Oz` | port / `-O3` |
+|---|---|---|---|---|---|---|
+| `github_events` | encode | 65 KB | 69,335,386 | 11,212,882 | **6.18×** | 9.94× |
+| `github_events` | decode | 65 KB | 91,108,288 | 15,325,631 | **5.94×** | 10.60× |
+| `apache_builds` | encode | 127 KB | 142,099,515 | 21,164,012 | **6.71×** | 10.09× |
+| `apache_builds` | decode | 127 KB | 127,031,577 | 32,985,081 | **3.85×** | 7.29× |
+| `twitter` | encode | 632 KB | 669,343,457 | 100,702,697 | **6.65×** | 10.09× |
+| `twitter` | decode | 632 KB | 855,650,214 | 152,175,306 | **5.62×** | 9.82× |
+| `citm_catalog` | encode | 1,727 KB | 1,837,261,188 | 216,214,935 | **8.50×** | 13.64× |
+| `citm_catalog` | decode | 1,727 KB | 1,649,954,763 | 379,392,083 | **4.35×** | 8.63× |
+| `gsoc_2018` | encode | 3,328 KB | 3,010,313,869 | 359,329,330 | **8.38×** | 15.70× |
+| `gsoc_2018` | decode | 3,328 KB | 4,125,614,132 | 424,313,564 | **9.72×** | 18.02× |
+| `canada` | encode | 2,251 KB | 11,014,963,483 | 826,582,787 | **13.33×** | 24.96× |
+| `canada` | decode | 2,251 KB | 13,543,103,834 | 1,874,185,975 | **7.23×** | 16.27× |
+
+**Geometric mean: 6.83× the pinned original's instructions, 12.15× against `-O3`.**
+Encode 8.00×, decode 5.83×. Range 3.85× to 13.33×.
+
+### What the spread says
+
+**`canada` is the worst cell in the suite by a wide margin** — 13.33× on encode, 4,893 instructions
+per input byte against the original's 367. It is the number-heavy document, and the port carries a
+software binary64 over big naturals because Bend has no `f64`. Every other document sits between 3.85×
+and 9.72×. The cost of not having hardware floats is concentrated almost entirely here, and it is
+larger than the cost of everything else the port does differently.
+
+**Read the instructions-per-byte column, not the ratio**, when choosing what to work on next: a ratio
+moves when either program moves (see the correction above, where `encode_tab` looked like the worst
+cell in the wall-clock run at 17.11x while the port took 711 ms there against 792 ms on plain encode,
+the ratio being worst because the ORACLE dropped from 59.9 ms to 41.6 ms).
+
 ## Earlier runs (2026-09-22, AMD EPYC-Milan, 8 cores, shared host, 1 thread)
 
 Two full runs of 140 cells each, in `results/`:

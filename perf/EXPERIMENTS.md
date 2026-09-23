@@ -595,7 +595,7 @@ case), so a fork-shape bug is a c-8t-only failure.
 - **No regression at scale:** `--threads 8` on the same input not worse than the current binary by more
   than 2%.
 - Always: conform 1076/1076 on c-1t, **c-8t** and js; byte-identical output on the e2e corpus;
-  `bend PROOF.bend` unchanged at 480 laws.
+  `bend PROOF.bend` unchanged at the law count of that commit (480 laws when written).
 - NE-019's lesson applies: a profile share is not a budget. If the gate is missed, the lever is reverted
   and ledgered, whatever the call counts say.
 
@@ -798,7 +798,7 @@ one walk that tracks the previous character and stops at the first quote-forcing
 `--encode` on `gsoc_2018.json` at 1 thread falls by at least 4% against the EXP-013 binary.
 
 ### Lever (one)
-`quote.scan(s, delim)` = `ends_ws(s) or has_bad(s, delim)` in one loop; `needs_quote` uses it with `head_is_ws` for the other edge.
+`quote.scan(s, delim)` = `ends_ws(s) or has_bad(s, delim)` in one loop; `needs_quote` uses it with `T.head_is_ws` for the other edge.
 Laws: closed instances of `quote.scan` against `ends_ws(s) or has_bad(s, delim)` written out (empty, a bad character only, a trailing
 space only, both, neither, the active delimiter tab), and a mutant that drops either half.
 

@@ -176,6 +176,19 @@ def facts():
     m = re.search(r'(?m)^version\s*=\s*"(\d+\.\d+\.\d+)"', pin)
     f["bend_version"] = m.group(1) if m else None
     f["ratios"] = {round(j["ratio"], d) for j in ev.values() if j.get("ratio") for d in (2, 3, 4)}
+    # COUNTED evidence (2026-09-23): instruction counts of two binaries on one input (cachegrind), a claim class of
+    # its own that no timed capture's fields describe. Its ratio is admitted only when the file carries both counts
+    # and the ratio IS their quotient, so a README ratio still has to be computed from counts on disk.
+    for name in sorted(os.listdir(evdir) if os.path.isdir(evdir) else []):
+        if not (name.startswith("COUNTED.") and name.endswith(".json")):
+            continue
+        try:
+            j = json.loads(read(os.path.join("perf", "evidence", name)))
+            before, after, ratio = j["before"]["instructions"], j["after"]["instructions"], j["ratio"]
+        except (ValueError, KeyError, TypeError):
+            continue
+        if j.get("kind") == "counted" and after and abs(before / after - ratio) < 1e-9:
+            f["ratios"] |= {round(ratio, d) for d in (2, 3, 4)}
     f["medians"] = {round(j[side]["median_ms"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1, 2)}
     f["cvs"] = {round(j[side]["cv_pct"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1)}
     f["reviews"] = {int(m.group(1)): p for p in sorted(os.listdir(reviews_dir) if os.path.isdir(reviews_dir) else [])

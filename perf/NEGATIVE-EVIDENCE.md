@@ -353,3 +353,38 @@ in this inherited table refers to advice for that workload, not a ban on
 new experiments. Reconfirm the mechanism, work size and target before
 using any row. Reported flat sweeps of leaf count, heavy tiles and early-out
 likewise do not establish universal performance rules.
+
+### NE-019 — the JSON reader's byte classifier as a lazy chain (EXP-016)   [2026-09-23 | MEASURED_LOSS(no gain), reverted]
+
+- **Lever:** `J.byte.cls` rewritten from a 15-deep strict `Bool.pick` chain into 15 typed helpers, each
+  matching a `Bool` parameter and recursing only on `False`, so only the arm taken is ever built.
+- **Why it looked promising:** `spin_6` (the emitted strict Bool-select: it evaluates both arms and
+  `term_sink`s the loser) was the **hottest single symbol** of `--encode` on a 3.2 MB string-heavy
+  document — 8.14% of samples, 79,183,977 calls. 63% of them came from one caller, `spin_443`, which is
+  `byte.cls`, called once per input byte (3,327,831 = exactly `WL_FID_JSON_STEP`) and making 15 selects each.
+  `NE-INH-9` ("generic `Bool.pick` in hot code") pointed the same way, with retry guidance "inspect and
+  compare typed helpers".
+- **Measured, load-independent (call counts are exact at any load):** the lever did what it was designed
+  to do. `spin_6` 79,183,977 → **29,266,512 (−63%)**, exactly `spin_443`'s contribution; `term_triv`
+  133,975,580 → 84,058,115 (−37%); `term_tag` 256,313,662 → 206,396,197 (−19%).
+- **Measured, wall/CPU (interleaved ABBA, 12 pairs, min and median of child CPU time, host load ~6):**
+  baseline min 0.828 s median 0.853 s (cv 3.6%); lever min 0.807 s median 0.848 s (cv 3.2%).
+  **Ratio 0.975 by min, 0.995 by median.** The precommitted gate was ≥ 10%. **MISSED.**
+- **Outcome:** removing 49.9 million Bool-selects and 50 million `term_triv` calls — 63% of the hottest
+  symbol in the profile — moved CPU time by about 2%. Those operations are far cheaper per call than
+  their rank in the profile suggests, so on this runtime **a gprof symbol's share is not a budget you can
+  spend**. This is the useful result: it retires "attack the top symbol" as a strategy for this port and
+  redirects the effort to the memory traffic (`heap_alloc` did not move AT ALL — the untaken `Nat` arms
+  were never heap-allocated, which also falsified the second half of the card's own hypothesis).
+- **Correctness:** output byte-identical to the oracle on the 3.2 MB document; the `byte_cls_*` laws
+  passed unchanged across the rewrite, which is what they were written for.
+- **Kept anyway:** the `byte_cls_*` closed laws pinning the classifier's table (commit `053554b`). `byte.cls` had no
+  law of any kind before this experiment; a wrong entry would have been caught only by whichever captured
+  case happened to contain that byte.
+- **Artifact:** the lever is `git stash` entry "EXP-016 lever: byte.cls as a lazy chain" and a copy in the
+  session scratch; nothing was deleted.
+- **Do-not-retry unless:** the runtime's strict Bool-select becomes expensive (a Bend release that boxes
+  or refcounts select arms — re-read the emitted `spin_6` first: today it is `if (c) {sink(a); return b}`,
+  two moves and a drop), OR a profile shows `spin_6` above 25% of samples rather than 8%, OR the same
+  rewrite is wanted for READABILITY rather than speed, in which case it must be argued on those terms and
+  not on this evidence.

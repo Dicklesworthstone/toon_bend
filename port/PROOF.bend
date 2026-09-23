@@ -1883,7 +1883,7 @@ def Laws.dgw_fits_mp_at_2p64():
 def Laws.dgw_fits_mm_at_2p64():
   {==}
 
-# ---- EXP-013: the byte classifier's table, computed ----
+# ---- EXP-016: the byte classifier's table, computed ----
 
 def Laws.byte_cls_32_is_1():
   {==}

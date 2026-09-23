@@ -2103,12 +2103,12 @@ law dgw_fits_mp_at_2p64:
 law dgw_fits_mm_at_2p64:
   {F.dgw.fits(F.Dg{[1], [1], [1], [0, 0, 0, 0, 1], Nil{}, False{}}) == False{} : Bool}
 
-# ---------------------------------------------------------------- EXP-013: the byte classifier's table
+# ---------------------------------------------------------------- EXP-016: the byte classifier's table
 #
 # S2.15 `J.byte.cls` maps an input byte to one of 16 class codes, and every branch of the JSON reader
 # dispatches on that code. Until this block it had NO law: a wrong entry would have been caught only by
 # whichever captured case happened to contain that byte. The table is pinned here class by class, plus
-# non-members on both sides of each run, so that any change to the classifier — including EXP-013's
+# non-members on both sides of each run, so that any change to the classifier — including EXP-016's
 # rewrite of it into a lazy chain — must reproduce it exactly. A universal law is not possible: the
 # checker cannot decide `U32.is_eq` on an abstract scalar, the same wall the escape tables hit.
 

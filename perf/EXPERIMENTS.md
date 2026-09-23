@@ -485,16 +485,16 @@ on states at each branch of the loop (low end, high end, both with the tie, the 
 ≥ 20% below the `31e46fd` binary on `canada.toon` (`--decode`, `--threads 1`), cv ≤ 5% on both arms; the 10^6-number differential
 0 differences; 1071/1071 on c-1t with `TOON_SPEC` unset and set; the proof green.
 
-## EXP-013 — the JSON reader's byte classifier as a lazy chain
+## EXP-016 — the JSON reader's byte classifier as a lazy chain
 
 | field | value |
 |---|---|
-| experiment_id | EXP-013 |
+| experiment_id | EXP-016 |
 | program / def | `port/json.bend` / `byte.cls` (and `esc.cls` if it carries) |
 | created (UTC) | 2026-09-23 |
 | agent | Claude (Claude Code session, author) |
 | graveyard sweep | `rg -i 'byte.cls\|classif\|Bool.pick\|lazy\|short.circuit' perf/` → **NE-INH-9** "generic `Bool.pick` in hot code — reported generic representation/sharing cost; scalar words need no heap box", whose retry guidance is "inspect and compare typed helpers". No do-not-retry applies. No other entry touches the classifier |
-| status | CARDED 2026-09-23, before the lever |
+| status | **CLOSED, NOT ADMITTED (2026-09-23)** — built, measured, reverted (stashed, recoverable); ledgered as `perf/NEGATIVE-EVIDENCE.md` NE-019. The load-independent half of the gate was MET (`spin_6` −63%); the wall/CPU half was MISSED by a wide margin (0.5–2.5% against a 10% gate). The `byte_cls_*` laws the card added (one per class member and non-member) are KEPT: they pin a table that had no law, and they are independent of the lever |
 | precommitted | true |
 
 ### Hypothesis
@@ -526,7 +526,7 @@ next level only in the `False` arm. Same order, same 16 classes, no change to an
 
 This is a REWRITE, not a fast twin, so there is no kill switch and no `fast == spec` law: a universal law
 is impossible here anyway, because the checker cannot decide `U32.is_eq` on an abstract scalar (the same
-wall the escape-table laws hit). Instead the classifier's whole TABLE is pinned by **28 closed laws** —
+wall the escape-table laws hit). Instead the classifier's whole TABLE is pinned by **one closed law per entry** —
 one per class member, plus non-members at 0, 31, 33, 47, 59, 97, 126 and 255 — added BEFORE the rewrite and
 required to pass unchanged after it. `byte.cls` had no law of any kind before this card; the laws are
 worth keeping whatever happens to the lever.
@@ -544,5 +544,5 @@ worth keeping whatever happens to the lever.
 ### One-line invocation
 
 ```bash
-scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-013 --original <current binary> -- --encode perf/e2e/corpus/gsoc_2018.json --port <lever binary> -- --encode perf/e2e/corpus/gsoc_2018.json
+scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-016 --original <current binary> -- --encode perf/e2e/corpus/gsoc_2018.json --port <lever binary> -- --encode perf/e2e/corpus/gsoc_2018.json
 ```

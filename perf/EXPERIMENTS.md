@@ -1156,3 +1156,18 @@ decimal→binary64 conversion is exact: `0.1` is not representable, and the fast
 the slow one does or the goldens will diverge on the first tie. The existing closed laws on the reader's
 boundary values are the floor, not the ceiling, and a new fast path needs its own boundary laws plus the
 million-number differential before it is believed.
+## Orientation of the allocation family in CPU time (2026-09-23 18:33, NOT a capture)
+
+Whether the counted levers (EXP-013 to 027) show up as time: `ab.py` (the author's interleaved ABBA, 8 rounds, `--threads 1`) of
+the `722991e` binary against the `cbdfba6` binary on a host at load 13-15. Every capture rule is not met (one arm's cv is above 5%
+on every input, and there is no A/A arm), so these are orientation, never a ratio a document may quote as MEASURED. CPU medians,
+stdout identical in every pair:
+
+| input | mode | before (CPU ms) | after (CPU ms) | CPU ratio | cv before / after | counted ratio (instructions) |
+|---|---|---|---|---|---|---|
+| `gsoc_2018` | `--encode` | 850.8 | 368.3 | 2.31 | 4.7% / 5.9% | 2.434 |
+| `gsoc_2018` | `--decode` | 799.4 | 556.2 | 1.44 | 4.0% / 4.6% | 1.783 |
+| `flights_200k` | `--encode` | 5811.6 | 4954.7 | 1.17 | 8.7% / 9.7% | 1.204 |
+
+Reading: on encode the time follows the count closely; on decode it follows it less (1.44 against 1.78), so part of what the decode
+levers removed was cheap instructions and part of what remains is memory traffic the count does not see.

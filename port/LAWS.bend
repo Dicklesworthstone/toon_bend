@@ -2475,8 +2475,9 @@ law is_like_long_text:
 law encode_numeric_like_items:
   {C.run_pure(["--encode"], T.ascii_bytes("[\"1\",\"1.\",\"007\",\"-0.5e+3\",\"1e\",\"abc\",\"+1\",\".5\",\"1E5\",\"-\"]", Nil{})) == C.Out{0n, "[10]: \"1\",1.,\"007\",\"-0.5e+3\",1e,abc,+1,.5,\"1E5\",\"-\"\n", ""} : C.Out}
 
-# S4.161 (EXP-026) a '0' right after the point, and zeros inside the fraction (the table's class-0 arms of phases 3
-# and 4, which the laws above never reach: a mutant that refused them survived them)
+# S4.161 (EXP-026) a '0' right after the point (the table's class-0 arm of phase 3, which the laws above never reach: a
+# mutant that refused it survived them). Corrected by round 19 (R19-1): '0.0' and '1.05' do NOT reach phase 4's class-0
+# arm (a '0' after a fraction digit); the laws of round 19 below do
 law is_like_zero_fraction:
   {F.is_like("0.0") == F.is_like.lex("0.0") : Bool}
 
@@ -2596,3 +2597,30 @@ law encode_repeated_key_nested_small_objects_repeat:
 
 law encode_repeated_key_ten_members_repeat_of_the_oldest:
   {C.run_pure(["--encode"], T.ascii_bytes("{\"k0\":0,\"k1\":1,\"k2\":2,\"k3\":3,\"k4\":4,\"k5\":5,\"k6\":6,\"k7\":7,\"k8\":8,\"k9\":9,\"k0\":99}", Nil{})) == C.Out{0n, "k0: 99\nk1: 1\nk2: 2\nk3: 3\nk4: 4\nk5: 5\nk6: 6\nk7: 7\nk8: 8\nk9: 9\n", ""} : C.Out}
+
+# Round 19 (R19-1..4): four behaviours whose hand mutants survived the whole 571-law proof and the corpus, pinned with
+# bytes from the pinned original (the first three are the other side of boundaries round 18 and EXP-025/026 pinned)
+# R19-1 (S4.161): a 0 after a fraction digit (the lexer's phase 4 on class 0) keeps a string numeric-like
+law encode_fraction_trailing_zeros_quoted:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"1.50\",\"1.500\"]", Nil{})) == C.Out{0n, "[2]: \"1.50\",\"1.500\"\n", ""} : C.Out}
+
+# R19-2 (S2.113): a CR at the very end of the text, no LF after it, is still the line's ending
+law decode_final_cr_without_lf:
+  {C.run_pure(["--decode"], T.ascii_bytes("x[1]:\n  -\r", Nil{})) == C.Out{0n, "{\n  \"x\": [\n    {}\n  ]\n}\n", ""} : C.Out}
+
+# R19-3 (S8.7): only the FIRST character of the text is a byte order mark
+law decode_bom_after_the_first_line_kept:
+  {C.run_pure(["--decode"], [97, 58, 32, 49, 10, 239, 187, 191, 98, 58, 32, 50]) == C.Out{0n, "{\n  \"a\": 1,\n  \"﻿b\": 2\n}\n", ""} : C.Out}
+
+# R19-4 (S2.121): a backslash inside quotes protects the next character in the colon search too
+law decode_escaped_quote_before_colon_in_cell:
+  {C.run_pure(["--decode"], T.ascii_bytes("t[1]{a,b}:\n  \"x\\\":y\",1\n", Nil{})) == C.Out{0n, "{\n  \"t\": [\n    {\n      \"a\": \"x\\\":y\",\n      \"b\": 1\n    }\n  ]\n}\n", ""} : C.Out}
+
+law is_like_zero_in_phase_4_1p50:
+  {F.is_like("1.50") == F.is_like.lex("1.50") : Bool}
+
+law is_like_zero_in_phase_4_0p00:
+  {F.is_like("0.00") == F.is_like.lex("0.00") : Bool}
+
+law is_like_zero_in_phase_4_1p05e5:
+  {F.is_like("1.05e5") == F.is_like.lex("1.05e5") : Bool}

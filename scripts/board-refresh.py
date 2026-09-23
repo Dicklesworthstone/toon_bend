@@ -85,6 +85,11 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(decode_literal_)", ["tokens, string literals"]),
  # EXP-025: the scanner over the reversed text: CR endings, blank lines, the TAB check, the first failure, the BOM
  (r"(decode_scan_)", ["TOON scanning"]),
+ # round 19 (R19-1..4): the numeric-like quoting of a trailing fraction zero, a final CR without LF, a byte order mark
+ # after the first line, an escaped quote before a colon in a quoted cell
+ (r"(encode_fraction_trailing_zeros_quoted|is_like_zero_in_phase_4_)", ["encoder primitives"]),
+ (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
+ (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
  # EXP-029: repeated keys in small and large JSON objects, around the member that builds the key set
  (r"(encode_repeated_key_)", ["JSON text input"]),
  # round 18 (R18-2..5): delimited values with an escaped quote, the first bad escape, FF before a quoted key,

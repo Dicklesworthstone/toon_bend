@@ -2403,3 +2403,31 @@ def Laws.encode_repeated_key_nested_small_objects_repeat():
 # S2.28 closed: the whole pure core computed (EXP-029)
 def Laws.encode_repeated_key_ten_members_repeat_of_the_oldest():
   {==}
+
+# closed: computed (round 19)
+def Laws.encode_fraction_trailing_zeros_quoted():
+  {==}
+
+# closed: computed (round 19)
+def Laws.decode_final_cr_without_lf():
+  {==}
+
+# closed: computed (round 19)
+def Laws.decode_bom_after_the_first_line_kept():
+  {==}
+
+# closed: computed (round 19)
+def Laws.decode_escaped_quote_before_colon_in_cell():
+  {==}
+
+# closed: computed (round 19)
+def Laws.is_like_zero_in_phase_4_1p50():
+  {==}
+
+# closed: computed (round 19)
+def Laws.is_like_zero_in_phase_4_0p00():
+  {==}
+
+# closed: computed (round 19)
+def Laws.is_like_zero_in_phase_4_1p05e5():
+  {==}

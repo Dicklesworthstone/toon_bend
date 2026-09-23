@@ -13,9 +13,10 @@
   "stdout_sha256_16": "7197f23bf0386944"
  },
  "after": {
-  "commit": "494ef82",
+  "commit": "706f00e",
   "instructions": 5449278356,
-  "stdout_sha256_16": "7197f23bf0386944"
+  "stdout_sha256_16": "7197f23bf0386944",
+  "note": "the published commit of the counted binary's code; the binary was built from its pre-rebase twin 494ef82, whose port/ code is byte-identical (round 19, R19-5)"
  },
  "ratio": 1.3500537908656616,
  "note": "instruction counts, not times: deterministic (two runs of one binary 80 apart in 7.3e9), blind to cache misses and allocation latency; never a MEASURED ratio"

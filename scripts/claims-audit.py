@@ -210,6 +210,14 @@ def facts():
             continue
         if j.get("kind") == "counted" and after and abs(before / after - ratio) < 1e-9:
             f["ratios"] |= {round(ratio, d) for d in (2, 3, 4)}
+        # Round 19 (R19-5): six evidence files named `494ef82`, a scratch commit a rebase replaced, as the tree
+        # their "after" binary came from; the "tree of" rule reads documents only, so nothing caught it. Every
+        # commit a COUNTED file names must be one a reader can check out.
+        if isinstance(j, dict) and j.get("kind") == "counted":
+            for side in ("before", "after"):
+                rev = (j.get(side) or {}).get("commit")
+                if rev and not reachable(rev):
+                    f.setdefault("counted_unreachable", []).append((name, side, rev))
     f["medians"] = {round(j[side]["median_ms"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1, 2)}
     f["cvs"] = {round(j[side]["cv_pct"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1)}
     f["reviews"] = {int(m.group(1)): p for p in sorted(os.listdir(reviews_dir) if os.path.isdir(reviews_dir) else [])
@@ -726,6 +734,10 @@ def audit(files, f, gates, verbose):
                     findings.append({"file": "docs/FEATURE_PARITY.md", "line": n, "text": line.strip()[:160],
                                      "finding": "the laws column names %s, which is not a law of port/LAWS.bend" % name})
 
+    for name, side, rev in f.get("counted_unreachable", []):
+        findings.append({"file": "perf/evidence/" + name, "line": 0, "text": "",
+                         "finding": "the %s binary's commit %s is not reachable from HEAD: a reader cannot check that tree out"
+                                    % (side, rev)})
     # every number of README's performance section must come from perf/evidence/
     readme = read("README.md")
     a = readme.find("## Performance")

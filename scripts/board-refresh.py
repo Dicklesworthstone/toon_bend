@@ -47,6 +47,8 @@ RULES = [  # (regex on the law name, rows) — first match wins
  # the pass's printer dispatch: which of the two number printers a rendered token was built with,
  # so the law belongs on both number-text rows (hand mutant M36 swaps them)
  (r"(num_text_)", ["TOON number text", "JSON number text"]),
+ # which printer the decode side tells the pass to use (hand mutant M37 lies about the flag)
+ (r"(dec_done_renders_with_the_json_printer)$", ["JSON number text"]),
  # R16-1/R16-3: the reader's deferral bounds. They govern which tokens the pre-pass may keep raw,
  # so they pin whether `number out of range` keeps its position — a JSON-input fact, not a TOON one
  (r"(num_safe_)", ["JSON text input", "TOON number text"]),

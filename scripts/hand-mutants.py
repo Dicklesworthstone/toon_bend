@@ -17,7 +17,7 @@ The set holds 34 mutants and the ids run M01..M12 and M14..M35: `M13` is a numbe
 defined (`git log -S M13 -- scripts/hand-mutants.py` is empty), NOT a mutant that was removed for being
 INVALID. Count the set with `len(MUTANTS)`, never by reading the highest id.
 """
-import json, os, re, shutil, subprocess, sys, tempfile, time
+import hashlib, json, os, re, shutil, subprocess, sys, tempfile, time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BEND = os.environ.get("BEND_CLI", "bun /tmp/bend/bend2/main.ts").split()
 ENV = dict(os.environ, BEND_NO_TELEMETRY="1")
@@ -167,7 +167,18 @@ def main():
         if mid == "BASE" and status != "GREEN":
             print(json.dumps({"verdict": "BASELINE_RED"})); return 2
     muts = [r for r in results if r["id"] != "BASE"]
-    summary = {"laws_in_proof": len(names), "reduced": not all_laws, "mutants": len(muts), "killed": sum(r["status"] == "KILLED" for r in muts),
+    # A SURVIVED verdict is only as good as the proof that the law was PRESENT when the mutant ran.
+    # On 2026-09-23 the external reset --hard loop on the working checkout wiped two uncommitted laws
+    # between writing and mutating them; M36 then reported SURVIVED with a GREEN baseline and a
+    # plausible law count, and the run was indistinguishable from a genuinely weak law set. The
+    # digest below is over the sorted law names actually compiled into the proof, so a verdict
+    # carries its own provenance: two runs that disagree can be told apart by comparing it, and the
+    # full list is written beside the copies for inspection. Commit laws before mutating them.
+    digest = hashlib.sha256("\n".join(sorted(names)).encode()).hexdigest()[:12]
+    with open(os.path.join(out_dir, "laws-in-proof.txt"), "w", encoding="utf-8") as fh:
+        fh.write("\n".join(sorted(names)) + "\n")
+    summary = {"laws_in_proof": len(names), "laws_sha256_12": digest, "laws_listed_in": out_dir + "/laws-in-proof.txt",
+               "reduced": not all_laws, "mutants": len(muts), "killed": sum(r["status"] == "KILLED" for r in muts),
                "survived": [r["id"] for r in muts if r["status"] == "SURVIVED"], "not_evidence": [r["id"] for r in muts if r["status"] not in ("KILLED", "SURVIVED")]}
     summary["verdict"] = "STRONG" if muts and summary["killed"] == len(muts) else "WEAK"
     print(json.dumps(summary), flush=True)

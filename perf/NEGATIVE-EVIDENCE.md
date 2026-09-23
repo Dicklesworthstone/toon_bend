@@ -360,7 +360,7 @@ Outcome taxonomy (closed set):
 
 ### NE-017 — a tabular array whose rows all matched the header in order skips the second lockstep walk (EXP-014)   [2026-09-23 | NEUTRAL, parked]
 - Program / def: `port/encode.bend` / a three-state `rows_st.go` replacing `rows_ok.go`, `VTab`/`CTab` carrying `lk`, `row.line.seq`
-- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, SHARED HOST AT LOAD 14-16 (a review round and other agents' jobs); base = the EXP-013 binary (tree of `208c0c2`), `--threads 1`
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, SHARED HOST AT LOAD 14-16 (a review round and other agents' jobs); base = the EXP-013 binary (tree of `3dac104`, the published EXP-013 commit; the binary was built from its pre-rebase twin, whose `port/` code is byte-identical), `--threads 1`
 - Mechanism: the writer's second `row.lock` per row (half of `spin_269`, 8.8% inclusive on `flights_200k --encode`) is skipped when every row was found in header order; about 4% expected
 - Correctness: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/diff-fuzz.py` seed 1414: docs, mutate, collide 1500 each and scale 20, 0 differences
 - Wall (interleaved ABBA, 6 rounds): `flights_200k --encode` 8283.3 → 8473.7 ms, 0.978× by median, 1.011× by minimum, 0.992× by CPU, cv 44.5% / 29.6%; `citm_catalog --encode` 1.002× / 1.004× / 1.004× (cv 35-88%). The expected 4% is far inside this noise: the gate is not shown
@@ -547,7 +547,7 @@ likewise do not establish universal performance rules.
   different and much larger lever than this one.
 ### NE-021 — one walk answers both "a character forces quotes" and "the last character is White_Space" (EXP-015)   [2026-09-23 | NEUTRAL, parked]
 - Program / def: `port/encode.bend` / `quote.scan(s, delim)` = `ends_ws(s) or has_bad(s, delim)` in one loop, used by `needs_quote`
-- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, shared host; base = the EXP-013 binary (tree of `208c0c2`), `--threads 1`
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, shared host; base = the EXP-013 binary (tree of `3dac104`, the published EXP-013 commit; the binary was built from its pre-rebase twin, whose `port/` code is byte-identical), `--threads 1`
 - Correctness: conform c-1t 1076/1076
 - Wall (24-round ABBA at load 14-16): `gsoc_2018 --encode` 1.029× by CPU median, 1.083× by minimum, cv 50-99%: the gate (≥ 4% of CPU) is not shown
 - Counted (cachegrind Ir, the recipe in NE-018): `gsoc_2018 --encode` 6,368,568,319 → 6,308,782,023 instructions, **0.94% fewer**, stdout sha identical. After EXP-013 the second walk left is cheap: the whole lever is under 1% of the work, a quarter of its gate
@@ -571,7 +571,7 @@ likewise do not establish universal performance rules.
 - Program / def: `port/main.bend` / `chunks.all`, `read.opened` (the first read's size), `read.loop`, `read.failed`
 - Provenance: as NE-022; base = the EXP-018 binary
 - Counted (cachegrind Ir): `gsoc_2018 --encode` 5,200,268,903 → 4,594,481,010, **11.6% fewer (1.132×)**, stdout identical; the gate was 5%. With EXP-018, against the tree without either: `gsoc_2018 --encode` 6,368,568,839 → 4,594,481,010 (**1.386×**), `flights_200k --encode` 39,443,902,183 → 34,186,157,328 (1.154×); `gsoc_2018.toon --decode` (this lever only: decode needs the text) 7,323,845,399 → 6,785,805,168 (1.079×); stdout identical in every pair
-- Binding: none by law (the shell is outside the proof book). Evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/stdio-probe.py` 27 rows, the same 13 SAME, 13 KNOWN and 1 FIXED as the base binary, 0 NEW; `diff-fuzz.py scale` seed 1919, 20 inputs, 0 differences; a 19 MB input (over the first read, so two chunk shapes) as a path and through a pipe, stdout sha identical to the original's
+- Binding: none by law (the shell is outside the proof book). Evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/stdio-probe.py` 27 rows, the same 13 SAME, 13 KNOWN and 1 FIXED as the base binary, 0 NEW; `diff-fuzz.py scale` seed 1919, 20 inputs, 0 differences; a 19 MB input (over the first read, so two chunk shapes) as a path and through a pipe, stdout sha identical to the original's. Round 18 (R18-1, R18-D2): of that evidence only the one-off 19 MB pipe run reaches a second chunk: the corpus (regular-file stdin, ONE read), the probe's 27 rows and scale seed 1919 (largest input 54,890 bytes) do not, and the reviewer's mutants K1 (only the newest chunk kept) and K2 (older chunks joined in reverse) pass all three. Since round 18 two `scripts/stdio-probe.py` rows pipe a 404,126-byte document fed in 32 KiB writes (encode and decode), and both mutants fail them (NEW rows, verdict FAIL)
 - Killing metric: none; promotion to MEASURED needs a cv-gated CPU capture on a quiet host
 - **Do-not-retry unless:** (a win, kept) — revisit the 16 MiB first read if a lane is found where allocating it costs more than the copy it saves (the JavaScript build zero-fills it once per run)
 - Tally: W1/L0/N0 (counted)

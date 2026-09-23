@@ -1084,7 +1084,7 @@ not LF). An arm that checks that condition and does exactly that skips the rest,
 `step.fast(st, b, spec)` = `step.fast.str(F.twin.on(spec, plain(b)), st, b, spec)`: the fast arm matches an `MStr` state and builds
 `St{MStr{SCon{Chr{b}, rev}, key, 0n, 0}, stack, depth, l, 1n+c, root}`, as `str.byte` does; every other state, and every state under
 `TOON_SPEC=1`, goes to `step`, unchanged (so `json_error_is_sticky` still speaks about the step `run` falls back to). Laws: the
-quantified `step_fast_is_step_under_switch` (for every state and byte, `step.fast(st, b, True) == step(st, b, True)`), closed instances
+quantified step_fast_is_step_under_switch (the carded law of the carded shape, superseded when the shape changed: the kept law is `step_in_str_slow_is_step`, see the status line; for every state and byte, `step.fast(st, b, True) == step(st, b, True)`), closed instances
 `step.fast(st, b, False) == step(st, b, False)` on plain bytes at both ends of the range, a key, a pending multi-byte `need`, and on
 `"`, `\`, a control byte, a non-ASCII byte and a non-string state; corpus with and without the switch, fuzz.
 

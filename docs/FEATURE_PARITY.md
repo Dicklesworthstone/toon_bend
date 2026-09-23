@@ -8,8 +8,8 @@
      its evidence. Statuses: present | partial | missing | excluded | n/a. -->
 
 Last gate run: 2026-09-22 on the tree of commit `8d32b6e` · `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` (alone or inside `scripts/port-doctor.sh`; the pasted line names the timeouts it ran with) → `{"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1071,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1071,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1071,"failed":0},{"lane":"js","verdict":"PASS","passed":1071,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":60.0,"compiled":5.0,"build":600},"verdict":"PASS"}` ·
-proofs: `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.` with 0 unsafe (0 `@unsafe` + 0 template instances, bend 2.0.16), 416 laws (21 quantified, 100 closed unit laws, 295 closed whole-pipeline `golden_<case>` laws) · `scripts/law-coverage.sh`: every law cited by a row below, 0 ghost citations ·
-a row is `present` when the goldens it names pass on EVERY lane of that run and the laws it names are proved; "laws" on a row are closed instances unless the row names one of the 21 quantified laws.
+proofs: `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.` with 0 unsafe (0 `@unsafe` + 0 template instances, bend 2.0.16), 417 laws (22 quantified, 100 closed unit laws, 295 closed whole-pipeline `golden_<case>` laws) · `scripts/law-coverage.sh`: every law cited by a row below, 0 ghost citations ·
+a row is `present` when the goldens it names pass on EVERY lane of that run and the laws it names are proved; "laws" on a row are closed instances unless the row names one of the 22 quantified laws.
 
 | feature | original ref | port def | goldens | laws | status | notes |
 |---|---|---|---|---|---|---|

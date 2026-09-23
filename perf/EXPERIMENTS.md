@@ -320,7 +320,7 @@ The reader keeps a token RAW when it cannot overflow (`num.safe`: a negative exp
 ### What it would take to admit the CPU half
 1. A quantified law `{encode(pre(f, j, …), opt) == encode(j, opt) : List<&2, String>}` — the pass is a reordering of the same function, and `port-lint.py` PL-11 demands a law for anything that behaves like a twin
 2. A quiet host, ≥ 15 pairs, an A/A arm, and a document whose ORIGINAL arm reaches 100 ms (NE-006's predicate)
-3. The allocation cost first (bead `toon_bend-2t0`): on the 17-digit-double documents the scaling stops at two threads, and no thread count moves it
+3. The allocation cost first (`toon_bend-2t0`, closed since): on the 17-digit-double documents the scaling stops at two threads, and no thread count moves it
 
 ## EXP-008 — a lean fold context: no path prefix grown while key folding is off
 

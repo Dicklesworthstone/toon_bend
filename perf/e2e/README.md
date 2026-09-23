@@ -45,7 +45,65 @@ Scenarios: `encode`, `encode_stdin`, `encode_fold` (`--key-folding safe`), `enco
   useless below about 30 MB); input MB/s. **Ratio** = arm median / reference median, with a 95% bootstrap interval (2000 resamples).
 - **cv gate 5%**, this repository's gate: a cell with any arm above it is `NOISY`, and its ratio is orientation, not evidence.
 
-## Results (2026-09-22, AMD EPYC-Milan, 8 cores, shared host, 1 thread)
+## Results (2026-09-23, AMD EPYC-Milan, 8 cores, 1 thread, QUIET host — the reference run)
+
+`results/2026-09-23-final-9ae2f2e/`. Arms: `toon_rust` `694d73b` at `opt-level=z` (the pinned oracle) and at
+`opt-level=3`; the port built from a clean `git archive` export of `9ae2f2e` (EXP-007 + EXP-012 + the R16-1
+fix; 1076 cases PASS on all four lanes, 450 laws `All terms check.`). 204 cells, host load 3.3 and 24 GB free.
+
+**This is the first run on an unloaded host, and it is the one to quote.** Every earlier run in this
+directory was taken while other agents' gates were running; their wall-clock cv ran 19–95% and almost no
+cell passed the 5% gate. Here 72 of 204 cells are MEASURED with cv 0.4–3%.
+
+### Correctness
+
+**204 of 204 cells byte-identical across all three arms** — stdout sha256, stderr sha256 and exit code.
+Every scenario of every document: encode, encode via stdin, `--key-folding`, `--delimiter tab`, `--stats`,
+decode and `--expand-paths`. This column does not depend on load and is the strongest result here.
+
+### Speed (geometric mean of the port's ratio; lower is better)
+
+| estimator | vs `-Oz` (the pinned oracle) | vs `-O3` |
+|---|---|---|
+| all 204 cells, median of N | 7.98× | 12.34× |
+| all 204 cells, min of N | 8.16× | 12.74× |
+| all 204 cells, median CPU | 8.06× | 12.53× |
+| **72 MEASURED cells only** (cv ≤ 5% on every arm) | **7.70×** | **12.53×** |
+
+The three estimators agree to within 2%, and the MEASURED subset agrees with the whole corpus, so the
+figure is not an artifact of which cells passed the gate. **The port is about 8× the pinned original's
+wall time, and about 12.5× the original built at `opt-level=3`.**
+
+By scenario (median geomean vs `-Oz`): `encode_fold` 9.71×, `encode` 9.61×, `encode_tab` 9.49×,
+`encode_stdin` 9.36×, `decode_expand` 6.96×, `encode_stats` 6.36×, **`decode` 5.73×** — decoding is the
+port's best path and encoding its worst. By size: S 6.73×, M 7.77×, L 9.46×, XL 9.13×; the gap widens with
+the document, so this is not a fixed startup cost. Best cell `flights_2k/decode` 2.69×; worst
+`gsoc_2018/encode_tab` 17.11×.
+
+### Memory and throughput
+
+| | `-Oz` | `-O3` | port |
+|---|---|---|---|
+| peak RSS, median cell | 11.5 MB | 11.7 MB | **47.0 MB** |
+| peak RSS, worst cell | 164.2 MB | 164.3 MB | **615.8 MB** |
+| encode of `openapi_github` (13.0 MB) | 295.6 ms, 44.0 MB/s | 223.4 ms, 58.2 MB/s | 2950.4 ms, **4.4 MB/s** |
+
+The port holds the whole document as a `Json` value of boxed constructors and carries every number as a
+software binary64 over big naturals, so a larger resident set is expected; the measured factors are 4.09× at
+the median cell and 3.75× at the worst, and the worst-case figure is the number to watch if the port is ever run on a document near memory.
+
+### What this run does NOT establish
+
+- It is **not** comparable cell-by-cell with the earlier runs in this directory: those were NOISY on a
+  loaded host, and comparing a clean run against a noisy baseline would manufacture a speedup or a
+  regression out of scheduling. No EXP-012 delta is claimed here for that reason; EXP-012's own evidence is
+  its card and NE-016.
+- The 132 NOISY cells are orientation only. They agree with the MEASURED ones, which is why the whole-corpus
+  geomean is quoted beside the gated one rather than instead of it.
+- One thread only. The port places one parallel let (EXP-007's number pre-pass), so `--threads 8` changes
+  encode and nothing else; that is a separate measurement.
+
+## Earlier runs (2026-09-22, AMD EPYC-Milan, 8 cores, shared host, 1 thread)
 
 Two full runs of 140 cells each, in `results/`:
 

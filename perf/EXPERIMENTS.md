@@ -402,7 +402,7 @@ corpus on every lane.
 | precommitted | true |
 
 ### Hypothesis
-`trim_end(s)` is `String.reverse(trim_start(String.reverse(s)))`: two full copies of the text, each taken apart later, even when
+`trim_end(s)` is `String.reverse(trim_start(String.reverse(s)))`: two full copies of the text, each taken apart afterwards, even when
 nothing trails. A value whose last character is not White_Space (almost every key and value) is its own trim; finding the last
 character is a walk that allocates nothing. Returning `s` in that case lowers the median wall of `--decode` on `gsoc_2018.toon` at
 1 thread by at least 5% against the EXP-009 binary.

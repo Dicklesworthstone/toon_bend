@@ -278,7 +278,7 @@ Outcome taxonomy (closed set):
 - Orientation (interleaved ABBA, 8 rounds): `openapi_github --encode` (13 MB, deep schemas) 4785.5 → 3858.4 ms, 1.240× by median, 1.329× by minimum, 1.269× by CPU, cv 1.6% / 4.4%; `vscode_lock` 1.305× / 1.275× / 1.26× (cv 8.9% / 6.5%); `twitter` 1.09× / 1.13× / 1.12×. The profile had given `fctx.child` 18.5% inclusive on the OpenAPI encode (`perf/e2e/results/2026-09-22-694d73b/profiles/openapi_encode.inclusive.txt`)
 - Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
 - **COUNTED 2026-09-23** (valgrind 3.26 cachegrind, `--cache-sim=no`, deterministic; `--encode` of
-  `perf/e2e/corpus/gsoc_2018.json`, 3.2 MB, at `--threads 1`, folding off, which is the case the lever is
+  the corpus document `gsoc_2018.json` (fetched into `perf/e2e/corpus/`, which is gitignored), 3.2 MB, at `--threads 1`, folding off, which is the case the lever is
   for): lever ON **7,325,873,584** I-refs, lever OFF (`fctx.lean` forced `False{}`) **7,457,489,302** —
   **the lever removes 1.8% of the instructions (1.018x)**. Output byte-identical between the arms.
   `TOON_SPEC=1` was NOT used as the off arm: it would also close the number twins and confound the count.

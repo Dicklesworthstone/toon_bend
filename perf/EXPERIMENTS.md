@@ -506,7 +506,7 @@ comparisons AND the construction of all 15 untaken arms. Rewriting it as a lazy 
 taken and builds only the one class code the byte has. This lowers `spin_6` calls per input byte by at
 least 50% and `heap_alloc` per input byte measurably, with byte-identical output.
 
-### Motivation (profile of 2026-09-23, `--encode` of `perf/e2e/corpus/gsoc_2018.json`, 3.2 MB, 1 thread)
+### Motivation (profile of 2026-09-23, `--encode` of the corpus document `gsoc_2018.json` in `perf/e2e/corpus/` (gitignored), 3.2 MB, 1 thread)
 
 `clang -std=c11 -O2 -pg -fno-inline-functions` over the emitted C. `spin_6` is the hottest single symbol
 (8.14% of samples, **79,183,977 calls**). Its callers: `spin_443` **49,917,465 (63%)**, `spin_125`
@@ -544,7 +544,7 @@ worth keeping whatever happens to the lever.
 ### One-line invocation
 
 ```bash
-scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-016 --original <current binary> -- --encode perf/e2e/corpus/gsoc_2018.json --port <lever binary> -- --encode perf/e2e/corpus/gsoc_2018.json
+scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-016 --original <current binary> -- --encode <corpus>/gsoc_2018.json --port <lever binary> -- --encode <corpus>/gsoc_2018.json
 ```
 
 ## EXP-017 — the number pre-pass splits far more often than any worker pool needs
@@ -625,7 +625,7 @@ the two pass-through cases and nothing else.
 
 `--expand-paths safe` is the most expensive path in the port per byte of input: **479.6 ms/MB** against
 plain `--decode` at 340.4 ms/MB across the 204-cell e2e reference run. Isolated on
-`perf/e2e/corpus/citm_catalog.fold.toon` (650 KB): plain decode **2,077,027,910** I-refs, with expansion
+the corpus document `citm_catalog.fold.toon` (in the gitignored `perf/e2e/corpus/`, 650 KB): plain decode **2,077,027,910** I-refs, with expansion
 **2,682,287,179** — expansion adds **605,259,269 instructions, +29.1%**. Of the expansion run,
 `term_drop` is 29.4%, `rfc_wrap` 18.1% and `span_fade` 6.1% — **53.6% is allocate-and-drop traffic**,
 while the expansion's own logic (`WL_FID_DECODE_X_NORM` plus `_K950`) is 2.7%. The cost is not the
@@ -644,7 +644,7 @@ that made the wildcard swallow `XTLeaf` or `XBNode` would fail the explicit-arm 
 ### Precommitted gate
 
 - **Primary (counted, deterministic):** ≥ 5% fewer instructions on
-  `--decode --expand-paths safe perf/e2e/corpus/citm_catalog.fold.toon` at `--threads 1`.
+  `--decode --expand-paths safe <corpus>/citm_catalog.fold.toon` at `--threads 1`.
 - Always: output byte-identical to the current binary AND to the oracle; `bend PROOF.bend` green with the
   new laws; conform 1076/1076 on c-1t, c-8t and js.
 - Per NE-019/NE-020: if the gate is missed the lever is reverted and ledgered, whatever the profile said.
@@ -712,7 +712,7 @@ original rejects, and those two laws are what would catch it.
 ### Precommitted gate
 
 - **Primary (counted):** ≥ 10% fewer instructions on
-  `--decode --expand-paths safe perf/e2e/corpus/citm_catalog.fold.toon`, AND ≥ 4% on the dot-free
+  `--decode --expand-paths safe <corpus>/citm_catalog.fold.toon`, AND ≥ 4% on the dot-free
   `gsoc_2018.toon`, both at `--threads 1`.
 - Always: output byte-identical to the oracle on every `*.fold.toon` in the corpus and on a dot-free
   document; `expansion_cap_on_values` and `expansion_cap_on_merges` unchanged and still proved; conform

@@ -351,7 +351,8 @@ Outcome taxonomy (closed set):
 - Binding (the weaker kind, as NE-010): seven closed laws `dgw_run_third`, `_asym`, `_half`, `_tie`, `_carry` (operands above 2^32), `_borrow` (a low-word borrow), `_edge64` (s just below 2^64), each `dg.run.words(True, st, …) == dg.run(DgK{st, …})` against the spec loop; three hand mutants (no low-word borrow, a wrong multiply carry, the tie's parity inverted) are each killed, by `_borrow`, `_carry` and `_tie`. The gate is pinned too, condition included: the quantified laws `dg_run_with_gate` (the word loop runs exactly when the switch is open AND `dgw.fits` holds) and `dg_run_words_spec_arm`, and five closed boundary laws `dgw_fits_*` (every operand at 2^64 - 1 fits; each of r, s, mp, mm at 2^64 does not); a mutant dropping `fits` and one moving the s bound to 65 bits are each killed. No quantified `fast == spec` law
 - Correctness evidence: `conform.sh` 1071/1071 on c-1t with `TOON_SPEC` unset and set; the seeded 1000000-number differential (original, fast twin, spec twin; seeds 12 and 1212) `{"diffs": 0, "verdict": "SAME"}` twice; an exponent sweep of 24562 doubles (every biased exponent 0-2046, six mantissas, both signs, subnormals included) encoded and decoded byte-identical to the original, exit 0, empty stderr. The loop never forms a value at or above 2^68, so no word exceeds 2^24 (the high word stays below 2^20)
 - Orientation (interleaved ABBA, 6 rounds, load 17-20; wall cv 23-53% so wall means nothing here, process CPU time is the steady estimator): CPU `canada --decode` 1.84×, `canada --encode` 2.24×, `citm_catalog --decode` 0.97×, `twitter --encode` 1.01× (neutral where numbers are few); stdout identical in every pair. An earlier single pair on a quieter host: `canada --decode` 5.60 → 2.80 s
-- Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
+- Counted (2026-09-23, cachegrind Ir, the recipe in NE-018; same two binaries, `--threads 1`): `canada --encode` 30,477,033,742 → 12,726,037,467 instructions (**2.39×, 58.2% fewer**), `canada --decode` 34,421,509,459 → 16,671,049,899 (**2.06×, 51.6% fewer**); stdout sha identical per mode. The count agrees with the CPU orientation; the gate is in CPU time, so the entry stays PROVISIONAL
+- Killing metric: none yet; promotion to MEASURED needs a cv-gated capture on a quiet host
 - **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
 - Tally: W0/L0/N1 (provisional)
 - Agent: Claude (session ef481f9c, 2026-09-23)
@@ -363,8 +364,9 @@ Outcome taxonomy (closed set):
 - Mechanism: the writer's second `row.lock` per row (half of `spin_269`, 8.8% inclusive on `flights_200k --encode`) is skipped when every row was found in header order; about 4% expected
 - Correctness: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/diff-fuzz.py` seed 1414: docs, mutate, collide 1500 each and scale 20, 0 differences
 - Wall (interleaved ABBA, 6 rounds): `flights_200k --encode` 8283.3 → 8473.7 ms, 0.978× by median, 1.011× by minimum, 0.992× by CPU, cv 44.5% / 29.6%; `citm_catalog --encode` 1.002× / 1.004× / 1.004× (cv 35-88%). The expected 4% is far inside this noise: the gate is not shown
+- Counted (2026-09-23, cachegrind Ir, the recipe in NE-018): `flights_200k --encode` 39,443,902,183 → 38,269,102,200 instructions, **2.98% fewer**, stdout sha identical. The card's gate was ≥ 3% of CPU: the instruction count alone does not meet it, so the load-independent evidence confirms NEUTRAL rather than rescuing it
 - Disposition: not merged; the code is parked as a git stash in the author's scratch clone
-- **Do-not-retry unless:** a quiet host (load below 1) is available for a cv-gated capture; the lever is then re-applied and measured, not re-argued
+- **Do-not-retry unless:** a quiet-host cv-gated CPU capture is wanted to test whether memory effects the count cannot see add the missing margin (unlikely: the count says the whole lever is about 3%), OR it is combined with another lever on `row.lock` whose own count clears a new card's gate
 - Tally: W0/L0/N1 (neutral)
 - Agent: Claude (session ef481f9c, 2026-09-23)
 
@@ -375,7 +377,8 @@ Outcome taxonomy (closed set):
 - Binding (the weaker kind): six closed laws `ends_ws_*` (the empty text, one space, a leading space only, a trailing space, a trailing U+3000, an inner space) against `head_is_ws(String.reverse(s))`; a mutant that never sees a trailing space is killed by `ends_ws_one_space`
 - Correctness evidence: conform c-1t 1076/1076; `scripts/diff-fuzz.py` seed 1313: docs and mutate 1500 each, 0 differences
 - Orientation (interleaved ABBA, 8 rounds): `gsoc_2018 --encode` 816.0 → 700.5 ms, 1.165× by median, 1.163× by minimum, 1.144× by CPU, cv 16.5% / 19.3%; `jobs --encode` 0.99-1.02×, `citm_catalog --encode` 1.01-1.27× (cv 21-84%): the gain appears where string values are long, as NE-014's retry predicate said
-- Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
+- Counted (2026-09-23, load-independent): `gsoc_2018 --encode` at `--threads 1`, 7,325,873,961 → 6,368,568,319 instructions, **13.1% fewer (1.150×)**, stdout sha `82d0b726…` identical in both arms; the orientation's 1.14-1.17× agrees. The count is deterministic: a second run of the base gave 7,325,873,881 (80 instructions apart in 7.3 billion). Recipe: `valgrind --tool=cachegrind --cache-sim=no --cachegrind-out-file=<f> <binary> --threads 1 -- <args>`, the `I refs` line on stderr (valgrind 3.26.0, installed on this host this day). A count is not a time: it sees no cache misses, stalls or allocation latency, so it is recorded as COUNTED, never as MEASURED, and a lever that trades instructions for memory traffic reads wrong on it
+- Killing metric: none yet; promotion to MEASURED needs a cv-gated capture on a quiet host
 - **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
 - Tally: W0/L0/N1 (provisional)
 - Agent: Claude (session ef481f9c, 2026-09-23)
@@ -542,3 +545,34 @@ likewise do not establish universal performance rules.
   the expand run) above 10%, OR the expansion tree stops being rebuilt wholesale — the 605M that
   expansion adds is worth attacking, but by not building the intermediate `XV` tree at all, which is a
   different and much larger lever than this one.
+### NE-021 — one walk answers both "a character forces quotes" and "the last character is White_Space" (EXP-015)   [2026-09-23 | NEUTRAL, parked]
+- Program / def: `port/encode.bend` / `quote.scan(s, delim)` = `ends_ws(s) or has_bad(s, delim)` in one loop, used by `needs_quote`
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, shared host; base = the EXP-013 binary (tree of `208c0c2`), `--threads 1`
+- Correctness: conform c-1t 1076/1076
+- Wall (24-round ABBA at load 14-16): `gsoc_2018 --encode` 1.029× by CPU median, 1.083× by minimum, cv 50-99%: the gate (≥ 4% of CPU) is not shown
+- Counted (cachegrind Ir, the recipe in NE-018): `gsoc_2018 --encode` 6,368,568,319 → 6,308,782,023 instructions, **0.94% fewer**, stdout sha identical. After EXP-013 the second walk left is cheap: the whole lever is under 1% of the work, a quarter of its gate
+- Disposition: not merged; the code stays a git stash in the author's scratch clone
+- **Do-not-retry unless:** the string representation stops being a cons list of characters (a walk then costs differently), OR a profile by instruction count puts `has_bad` plus `ends_ws` above 8% of the encoder's instructions
+- Tally: W0/L0/N1 (neutral)
+- Agent: Claude (session ef481f9c, 2026-09-23)
+
+### NE-022 — encoding without --stats validates UTF-8 without building the decoded text (EXP-018)   [2026-09-23 | COUNTED_WIN, kept]
+- Program / def: `port/text.bend` / the `Decoding` state's `keep` flag, `utf8.push`, `utf8.init.verdict`; `port/cli.bend` / `utf8.start.keep`, `o.reads_text`, `convert`. Not behind the switch: the verdict never reads the text, the same by construction
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, shared host; base = the same tree without the lever (the four rebased commits of session ef481f9c on `d851844`), `--threads 1`
+- Counted (cachegrind Ir, the recipe in NE-018): `gsoc_2018 --encode` 6,368,568,839 → 5,200,268,903 instructions, **18.3% fewer (1.225×)**, stdout sha `82d0b726…` identical; the gate was 8%
+- Binding: eight closed laws `utf8_verdict_*` (the empty input and ASCII accepted with NO text, a two- and a four-byte scalar, a surrogate, an overlong form, a cut-short sequence, a stray continuation byte) and three through the whole pure core (`encode_non_ascii_without_stats`, `encode_stats_reads_the_text`, `encode_invalid_utf8_refused`, bytes from the pinned original). Three hand mutants are each killed in a reduced proof of these laws: the text never kept (`encode_stats_reads_the_text`), the text always pushed (`utf8_verdict_ascii_keeps_no_text`), `--stats` forgotten in `o.reads_text` (`encode_stats_reads_the_text`)
+- Correctness evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/diff-fuzz.py` seed 1818: mutate, docs and argv 1500 inputs each, 0 differences
+- Killing metric: none; promotion to MEASURED needs a cv-gated CPU capture on a quiet host
+- **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain, which would mean an instruction count is not a proxy for this runtime's allocation cost
+- Tally: W1/L0/N0 (counted)
+- Agent: Claude (session ef481f9c, 2026-09-23)
+
+### NE-023 — the input bytes are not copied: one 16 MiB first read, and the newest chunk kept as the tail (EXP-019)   [2026-09-23 | COUNTED_WIN, kept]
+- Program / def: `port/main.bend` / `chunks.all`, `read.opened` (the first read's size), `read.loop`, `read.failed`
+- Provenance: as NE-022; base = the EXP-018 binary
+- Counted (cachegrind Ir): `gsoc_2018 --encode` 5,200,268,903 → 4,594,481,010, **11.6% fewer (1.132×)**, stdout identical; the gate was 5%. With EXP-018, against the tree without either: `gsoc_2018 --encode` 6,368,568,839 → 4,594,481,010 (**1.386×**), `flights_200k --encode` 39,443,902,183 → 34,186,157,328 (1.154×); `gsoc_2018.toon --decode` (this lever only: decode needs the text) 7,323,845,399 → 6,785,805,168 (1.079×); stdout identical in every pair
+- Binding: none by law (the shell is outside the proof book). Evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/stdio-probe.py` 27 rows, the same 13 SAME, 13 KNOWN and 1 FIXED as the base binary, 0 NEW; `diff-fuzz.py scale` seed 1919, 20 inputs, 0 differences; a 19 MB input (over the first read, so two chunk shapes) as a path and through a pipe, stdout sha identical to the original's
+- Killing metric: none; promotion to MEASURED needs a cv-gated CPU capture on a quiet host
+- **Do-not-retry unless:** (a win, kept) — revisit the 16 MiB first read if a lane is found where allocating it costs more than the copy it saves (the JavaScript build zero-fills it once per run)
+- Tally: W1/L0/N0 (counted)
+- Agent: Claude (session ef481f9c, 2026-09-23)

@@ -462,7 +462,7 @@ green.
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | `rg -i 'scalar\|limb\|u32 pair\|two words\|bitlen' perf/NEGATIVE-EVIDENCE.md` → NE-012 (BN.cmp cannot borrow; its retry predicate is "the number path stops carrying big naturals as lists"), NE-008 (its retry predicate is "the number path stops allocating per digit"), NE-INH-9 (generic `Bool.pick` in hot code: typed match helpers instead). This lever is the one both predicates name |
-| status | BUILT 2026-09-23, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-016). The card's "pair of packed Nat words" became three U32 words: the Nat version was right but its closed laws did not finish in the checker. Orientation (CPU estimator, load 17-20) 1.84× on `canada --decode`, above the gate; wall cv far above the capture's bound |
+| status | BUILT 2026-09-23, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-016). The card's "pair of packed Nat words" became three U32 words: the Nat version was right but its closed laws did not finish in the checker. Orientation (CPU estimator, load 17-20) 1.84× on `canada --decode`, above the gate; wall cv far above the capture's bound. COUNTED 2026-09-23 (cachegrind, deterministic): 2.39× fewer instructions on `canada --encode`, 2.06× on `canada --decode`; the gate is in CPU time, so it stays PROVISIONAL until a quiet-host capture |
 | precommitted | true |
 
 ### Hypothesis
@@ -726,7 +726,7 @@ original rejects, and those two laws are what would catch it.
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | `rg -i 'edge_ws\|has_edge\|ends_ws' perf/` → NE-014 (EXP-010: the same walk for `trim_end`, NEUTRAL on decode because the reversals there were short). Its retry predicate names "an input whose values are long texts" as the target; `gsoc_2018 --encode` (long project descriptions, 16.5-17.2x the original in the quiet-host reference run of `722991e`) is that input |
-| status | BUILT 2026-09-23, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-018): orientation 1.14-1.17× on `gsoc_2018 --encode` by every estimator at load 8-9, above the gate; cv above the capture's bound |
+| status | BUILT 2026-09-23, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-018): orientation 1.14-1.17× on `gsoc_2018 --encode` by every estimator at load 8-9, above the gate; cv above the capture's bound. COUNTED 2026-09-23 (cachegrind, deterministic): 13.1% fewer instructions (1.150×); the gate is in CPU time, so it stays PROVISIONAL until a quiet-host capture |
 | precommitted | true |
 
 ### Hypothesis
@@ -757,7 +757,7 @@ written out; beside them conform on c-1t and the docs/mutate lenses.
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | `rg -i 'row.lock\|rows_ok\|lockstep\|tabular check' perf/NEGATIVE-EVIDENCE.md` → NE-005 (EXP-004 introduced the lockstep walk as a win; no predicate against reusing its verdict) |
-| status | BUILT and PARKED 2026-09-23, NEUTRAL at load 14-16 (`perf/NEGATIVE-EVIDENCE.md` NE-017): the gate is not shown; the code is kept as a git stash in the author's scratch clone, not in the port |
+| status | BUILT and PARKED 2026-09-23, NEUTRAL at load 14-16 (`perf/NEGATIVE-EVIDENCE.md` NE-017): the gate is not shown; the code is kept as a git stash in the author's scratch clone, not in the port. COUNTED 2026-09-23 (cachegrind): 2.98% fewer instructions on `flights_200k --encode`, below the 3% gate |
 | precommitted | true |
 
 ### Hypothesis
@@ -788,7 +788,7 @@ row in another key order, and a non-uniform array, against the captured behaviou
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | `rg -i 'has_bad\|needs_quote\|fuse' perf/NEGATIVE-EVIDENCE.md` → no entry |
-| status | BUILT and PARKED 2026-09-23: conform c-1t 1076/1076; 24-round ABBA at load 14-16 on `gsoc_2018 --encode` 1.029× by CPU median (below the 4% gate), 1.083× by minimum, cv 50-99%: the gate is not shown, so the code is kept as a git stash in the author's scratch clone, not in the port; retry on a quiet host |
+| status | BUILT and PARKED 2026-09-23: conform c-1t 1076/1076; 24-round ABBA at load 14-16 on `gsoc_2018 --encode` 1.029× by CPU median (below the 4% gate), 1.083× by minimum, cv 50-99%: the gate is not shown, so the code is kept as a git stash in the author's scratch clone, not in the port. COUNTED 2026-09-23 (cachegrind): 0.94% fewer instructions, a quarter of the gate: NEUTRAL, `perf/NEGATIVE-EVIDENCE.md` NE-021 |
 | precommitted | true |
 
 ### Hypothesis
@@ -804,3 +804,87 @@ space only, both, neither, the active delimiter tab), and a mutant that drops ei
 
 ### Precommitted gate
 ≥ 4% below the EXP-013 binary on `gsoc_2018.json` (`--encode`, `--threads 1`), CPU median; conform c-1t 1076/1076; proof green.
+
+## Allocation profile (2026-09-23, before EXP-018 and EXP-019; the tree of `d851844` plus the four rebased commits of session ef481f9c)
+
+cachegrind (instruction counts, deterministic: two runs of one binary differ by 80 in 7.3×10⁹) of `gsoc_2018 --encode` at
+`--threads 1`: `rfc_wrap` 21.8% of all instructions, `term_drop` 14.9%, `spin_8` (`String.reverse`) 8.8%, `span_fade` 5.7%;
+on `flights_200k --encode`: `term_drop` 24.5%, `rfc_wrap` 15.6%, `span_fade` 9.1%. A scratch build of the emitted C with
+`rfc_wrap` counting its callers three frames deep (return addresses by frame pointer, resolved with `addr2line -i`): **35,607,642
+wraps on 3,327,831 input bytes, 10.7 per byte**. In the emitted C every constructor stored into a new node's field passes through
+`rfc_seal`, so each list cell built on top of another cell costs one `rfc_wrap` (and later its drop): the count is a count of list
+cells built. Per input byte: 1 in the runtime's `file_read_bytes_pack`, 2 in `chunks.join` (the chunk reversed, then pushed back),
+1 in the UTF-8 decoder's reversed text (`convert`'s loop), 1 in `String.reverse` of that text, about 2 in the JSON reader's string
+accumulation and its reversal, and the rest in line assembly.
+
+## EXP-018 — encoding without --stats validates UTF-8 without building the decoded text
+
+| field | value |
+|---|---|
+| experiment_id | EXP-018 |
+| program / def | `port/text.bend` / the UTF-8 decoder (`utf8.start`, `utf8.scalar`, `utf8.cont`, the `Decoding` state) and `port/cli.bend` / `convert` (S2.2, S8.7) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'utf8\|utf-8\|decoded text\|chunk' perf/NEGATIVE-EVIDENCE.md` → no entry |
+| status | COUNTED_WIN 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-022): 18.3% fewer instructions on `gsoc_2018 --encode` (gate 8%); CPU confirmation on a quiet host pending |
+| precommitted | true |
+
+### Hypothesis
+In encode mode the JSON reader reads the BYTES; the decoded text `convert` builds (a reversed character list, then its reverse) is
+used only by `--stats`. Without `--stats` both lists are built and dropped: two list cells per character. A decoder that keeps the
+same verdict but does not accumulate the text when it is not needed removes them, and the instruction count of `--encode` on
+`gsoc_2018.json` at 1 thread falls by at least 8% against the binary of the same tree without the lever.
+
+### Evidence before the lever
+The allocation profile above: 3,327,830 wraps inside `CLI_CONVERT` (the decoder's `SCon{Chr{c}, rev}`) and 3,327,830 in
+`String.reverse` called from it, 18.7% of all wraps, one each per input byte.
+
+### Lever (one)
+The `Decoding` state carries a `keep` flag; `utf8.init()` keeps the text (every existing use and law unchanged), `utf8.init.verdict()`
+does not, and a scalar is pushed onto the text only when `keep` holds. `convert` asks for the text only in decode mode or with
+`--stats`. The verdict does not read the text, so it is the same by construction. Laws: closed instances of the verdict decoder
+against the keeping one on the empty input, ASCII, a two-, three- and four-byte scalar, a surrogate, an overlong form, a cut-short
+sequence and a stray continuation byte; and `run_pure` on `--encode` with and without `--stats`, and on invalid UTF-8 in encode mode.
+
+### Precommitted gate
+The gate is in INSTRUCTIONS (a counted claim, never called measured): ≥ 8% fewer instructions than the same tree without the lever on
+`gsoc_2018.json` (`--encode`, `--threads 1`), cachegrind `--cache-sim=no`, stdout identical; conform c-1t on every case with and
+without `TOON_SPEC=1`; the proof green. A CPU-time capture on a quiet host is the confirmation, recorded when it exists.
+
+### One-line invocation
+```bash
+valgrind --tool=cachegrind --cache-sim=no --cachegrind-out-file=/dev/null <binary> --threads 1 -- --encode perf/e2e/corpus/gsoc_2018.json
+```
+
+## EXP-019 — the input bytes are not copied: one 16 MiB first read, and the newest chunk kept as the tail
+
+| field | value |
+|---|---|
+| experiment_id | EXP-019 |
+| program / def | `port/main.bend` / `read.opened`, `chunks.all`, `read.loop`, `read.failed` (S8.5, S8.6) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'utf8\|utf-8\|decoded text\|chunk' perf/NEGATIVE-EVIDENCE.md` → no entry |
+| status | COUNTED_WIN 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-023): 11.6% fewer instructions on `gsoc_2018 --encode` against EXP-018 (gate 5%). The card was written after EXP-018 was counted and while this lever was being written, not before it: stated here rather than back-dated |
+| precommitted | true |
+
+### Hypothesis
+`chunks.join(chunks, Nil)` rebuilds even a single chunk (`List.reverse`, then pushed back onto `Nil`): two list cells per input
+byte, which is exactly `chunk.onto(List.reverse(c), Nil) == c`. Keeping the newest chunk as the tail removes the copy of that chunk,
+and a first read of 16 MiB makes every regular file up to that size one chunk, so the input is never copied. The instruction count of
+`--encode` on `gsoc_2018.json` (3.2 MB: four 1 MiB chunks today) at 1 thread falls by at least 5% against the EXP-018 binary.
+
+### Evidence before the lever
+The allocation profile above EXP-018: 3,327,830 and 3,327,827 wraps in the read loop's two helpers, one each per input byte.
+
+### Lever (one mechanism, two code points)
+`chunks.all` starts the join from the newest chunk instead of from `Nil`; the first `File.read_bytes` asks for 16777216 bytes, the
+later ones for 1048576 as before (a pipe returns at most its buffer per read, so a larger size on every read would allocate 16 MiB per
+64 KiB on the JavaScript lane). Neither changes a byte of the input: the same list by construction. `main.bend` is the shell, which the
+proof book does not import, so there is no law; the evidence is the corpus on every lane, `scripts/stdio-probe.py` (inherited offsets,
+pipes, sockets, closed streams) with the same rows as before, and a 19 MB input (two chunks of the new shape) as a path and through a
+pipe against the original.
+
+### Precommitted gate
+In INSTRUCTIONS (counted, never called measured): ≥ 5% fewer than the EXP-018 binary on `gsoc_2018.json` (`--encode`, `--threads 1`),
+stdout identical; conform c-1t with and without `TOON_SPEC=1`; stdio-probe rows unchanged. CPU on a quiet host is the confirmation.

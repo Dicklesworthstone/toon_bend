@@ -192,6 +192,8 @@ jsonout_expand_deep_limit	["--decode", "--expand-paths", "safe"]	cases/inputs/ha
 jsonout_duplicate_keys	["--decode"]	cases/inputs/hand/jsonout_duplicate_keys.toon	json-out	streaming writer repeats the key
 jsonout_duplicate_keys_expand	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/jsonout_duplicate_keys_expand.toon	json-out	
 jsonout_duplicate_keys_expand_lenient	["--decode", "--expand-paths", "safe", "--no-strict"]	cases/inputs/hand/jsonout_duplicate_keys_expand_lenient.toon	json-out	
+toonerr_dup_first_of_two_wins	["--decode"]	cases/inputs/hand/toonerr_dup_first_of_two_wins.toon	toon-error	R16-2: the nested duplicate comes first and wins
+toonerr_dup_first_of_two_wins_expand	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_dup_first_of_two_wins_expand.toon	toon-error	R16-2 with expansion: the same first failure
 jsonerr_empty	["--encode"]	cases/inputs/hand/jsonerr_empty.json	json-error	
 jsonerr_whitespace	["--encode"]	cases/inputs/hand/jsonerr_whitespace.json	json-error	
 jsonerr_open_brace	["--encode"]	cases/inputs/hand/jsonerr_open_brace.json	json-error	

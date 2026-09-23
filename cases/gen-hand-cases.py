@@ -265,6 +265,10 @@ dec("jsonout_expand_deep_limit", ".".join(["k"] * 300) + ": 1\n", ["--expand-pat
 dec("jsonout_duplicate_keys", "a: 1\na: 2\nb: 3\n", cls="json-out", note="streaming writer repeats the key")
 dec("jsonout_duplicate_keys_expand", "a: 1\na: 2\nb: 3\n", ["--expand-paths", "safe"], cls="json-out")
 dec("jsonout_duplicate_keys_expand_lenient", "a: 1\na: 2\nb: 3\n", ["--expand-paths", "safe", "--no-strict"], cls="json-out")
+# S9.151 (round 16, R16-2): TWO repeated-key failures in one document. The FIRST is reported, so a decoder
+# that keeps the last pending failure (port: D.dup.keep) prints `"a"` where the original prints `"b"`.
+dec("toonerr_dup_first_of_two_wins", "x:\n  b: 1\n  b: 2\na: 1\na: 2\n", cls="toon-error", note="R16-2: the nested duplicate comes first and wins")
+dec("toonerr_dup_first_of_two_wins_expand", "x:\n  b: 1\n  b: 2\na: 1\na: 2\n", ["--expand-paths", "safe"], cls="toon-error", note="R16-2 with expansion: the same first failure")
 
 # ---------------------------------------------------------------- JSON parse errors
 JERR = {

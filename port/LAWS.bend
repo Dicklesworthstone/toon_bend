@@ -2028,3 +2028,11 @@ law pre_txt_is_num_json:
   for spec: Bool
   for acc: String
   {J.w(J.JTxt{F.show_json_fast(f, spec)}, first, n, depth, spec, acc) == J.w(J.JNum{f}, first, n, depth, spec, acc) : String}
+
+# S3.26 (round 16, R16-2) the FIRST repeated-key failure is the one reported: once a failure is pending, no
+# later one replaces it. A decoder that kept the last one printed `"a"` where the original prints `"b"`
+# (case toonerr_dup_first_of_two_wins); that mutant passed every case and the whole proof before this law
+law dup_keep_is_first:
+  for m: String
+  for new: Maybe<&2, String>
+  {D.dup.keep(Some{m}, new) == Some{m} : Maybe<&2, String>}

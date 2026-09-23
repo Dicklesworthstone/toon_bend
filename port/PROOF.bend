@@ -1822,3 +1822,7 @@ def Laws.hot_dups_lenient_overwrite():
 # S5.30 a rendered number prints the writer's own JSON text
 def Laws.pre_txt_is_num_json(f, first, n, depth, spec, acc):
   {==}
+
+# S3.26 the first pending failure stands (R16-2)
+def Laws.dup_keep_is_first(m, new):
+  {==}

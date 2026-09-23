@@ -484,3 +484,65 @@ on states at each branch of the loop (low end, high end, both with the tie, the 
 ### Precommitted gate
 ≥ 20% below the `31e46fd` binary on `canada.toon` (`--decode`, `--threads 1`), cv ≤ 5% on both arms; the 10^6-number differential
 0 differences; 1071/1071 on c-1t with `TOON_SPEC` unset and set; the proof green.
+
+## EXP-013 — the JSON reader's byte classifier as a lazy chain
+
+| field | value |
+|---|---|
+| experiment_id | EXP-013 |
+| program / def | `port/json.bend` / `byte.cls` (and `esc.cls` if it carries) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (Claude Code session, author) |
+| graveyard sweep | `rg -i 'byte.cls\|classif\|Bool.pick\|lazy\|short.circuit' perf/` → **NE-INH-9** "generic `Bool.pick` in hot code — reported generic representation/sharing cost; scalar words need no heap box", whose retry guidance is "inspect and compare typed helpers". No do-not-retry applies. No other entry touches the classifier |
+| status | CARDED 2026-09-23, before the lever |
+| precommitted | true |
+
+### Hypothesis
+
+`byte.cls` is a 15-deep `Bool.pick(Nat, …)` chain. `Bool.pick` is STRICT: the emitted `spin_6` takes two
+already-built `Term`s and `term_sink`s the one it does not return, so every input byte pays all 15
+comparisons AND the construction of all 15 untaken arms. Rewriting it as a lazy nested `match` over `Bool`
+— one helper per level, the scrutinee a parameter, per the project's match rule — evaluates only the arm
+taken and builds only the one class code the byte has. This lowers `spin_6` calls per input byte by at
+least 50% and `heap_alloc` per input byte measurably, with byte-identical output.
+
+### Motivation (profile of 2026-09-23, `--encode` of `perf/e2e/corpus/gsoc_2018.json`, 3.2 MB, 1 thread)
+
+`clang -std=c11 -O2 -pg -fno-inline-functions` over the emitted C. `spin_6` is the hottest single symbol
+(8.14% of samples, **79,183,977 calls**). Its callers: `spin_443` **49,917,465 (63%)**, `spin_125`
+16,864,440, `spin_276` 12,266,955. `spin_443` is `byte.cls` — it is called **3,327,831** times, exactly the
+count of `WL_FID_JSON_STEP`, i.e. once per input byte, and it makes **15 `spin_6` calls each**. Per input
+byte the run also does `term_triv` 40×, `term_tag` 77×, `heap_alloc` 16×, `rfc_wrap` 11.5×. The e2e
+reference run puts `--encode` at 9.61× the original against `--decode` at 5.73×, so the read path is where
+the port is furthest behind, and no lever so far has targeted it (EXP-001/002/003/006/012 are all number
+and digit work).
+
+### Lever (one)
+
+`byte.cls` rewritten as a chain of small typed helpers, each `match`ing a `Bool` parameter and calling the
+next level only in the `False` arm. Same order, same 16 classes, no change to any caller.
+
+### Correctness binding
+
+This is a REWRITE, not a fast twin, so there is no kill switch and no `fast == spec` law: a universal law
+is impossible here anyway, because the checker cannot decide `U32.is_eq` on an abstract scalar (the same
+wall the escape-table laws hit). Instead the classifier's whole TABLE is pinned by **28 closed laws** —
+one per class member, plus non-members at 0, 31, 33, 47, 59, 97, 126 and 255 — added BEFORE the rewrite and
+required to pass unchanged after it. `byte.cls` had no law of any kind before this card; the laws are
+worth keeping whatever happens to the lever.
+
+### Precommitted gate
+
+- **Primary, load-independent:** `spin_6` calls per input byte fall by ≥ 50% on the same input and the same
+  build flags, and `heap_alloc` per input byte falls. Call counts are exact regardless of host load, which
+  is why they are the primary gate: every wall-clock capture on this host has been REFUSED_CV.
+- **Secondary, needs a quiet host (load < 1):** ≥ 10% below the current binary on `--encode` of a
+  string-heavy document at `--threads 1`; cv ≤ 5% both arms; A/A null ratio in [1/1.05, 1.05].
+- Always: the 28 `byte_cls_*` laws unchanged, `bend PROOF.bend` → `All terms check.`, conform 1076/1076 on
+  c-1t, c-8t and js, and byte-identical output on the e2e corpus.
+
+### One-line invocation
+
+```bash
+scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-013 --original <current binary> -- --encode perf/e2e/corpus/gsoc_2018.json --port <lever binary> -- --encode perf/e2e/corpus/gsoc_2018.json
+```

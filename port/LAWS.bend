@@ -2102,3 +2102,96 @@ law dgw_fits_mp_at_2p64:
 # S4.131 (EXP-012)
 law dgw_fits_mm_at_2p64:
   {F.dgw.fits(F.Dg{[1], [1], [1], [0, 0, 0, 0, 1], Nil{}, False{}}) == False{} : Bool}
+
+# ---------------------------------------------------------------- EXP-013: the byte classifier's table
+#
+# S2.15 `J.byte.cls` maps an input byte to one of 16 class codes, and every branch of the JSON reader
+# dispatches on that code. Until this block it had NO law: a wrong entry would have been caught only by
+# whichever captured case happened to contain that byte. The table is pinned here class by class, plus
+# non-members on both sides of each run, so that any change to the classifier — including EXP-013's
+# rewrite of it into a lazy chain — must reproduce it exactly. A universal law is not possible: the
+# checker cannot decide `U32.is_eq` on an abstract scalar, the same wall the escape tables hit.
+
+law byte_cls_32_is_1:
+  {J.byte.cls(32) == 1n : Nat}
+
+law byte_cls_10_is_1:
+  {J.byte.cls(10) == 1n : Nat}
+
+law byte_cls_13_is_1:
+  {J.byte.cls(13) == 1n : Nat}
+
+law byte_cls_9_is_1:
+  {J.byte.cls(9) == 1n : Nat}
+
+law byte_cls_44_is_2:
+  {J.byte.cls(44) == 2n : Nat}
+
+law byte_cls_93_is_3:
+  {J.byte.cls(93) == 3n : Nat}
+
+law byte_cls_125_is_4:
+  {J.byte.cls(125) == 4n : Nat}
+
+law byte_cls_58_is_5:
+  {J.byte.cls(58) == 5n : Nat}
+
+law byte_cls_34_is_6:
+  {J.byte.cls(34) == 6n : Nat}
+
+law byte_cls_91_is_7:
+  {J.byte.cls(91) == 7n : Nat}
+
+law byte_cls_123_is_8:
+  {J.byte.cls(123) == 8n : Nat}
+
+law byte_cls_45_is_9:
+  {J.byte.cls(45) == 9n : Nat}
+
+law byte_cls_48_is_10:
+  {J.byte.cls(48) == 10n : Nat}
+
+law byte_cls_49_is_11:
+  {J.byte.cls(49) == 11n : Nat}
+
+law byte_cls_53_is_11:
+  {J.byte.cls(53) == 11n : Nat}
+
+law byte_cls_57_is_11:
+  {J.byte.cls(57) == 11n : Nat}
+
+law byte_cls_110_is_12:
+  {J.byte.cls(110) == 12n : Nat}
+
+law byte_cls_116_is_13:
+  {J.byte.cls(116) == 13n : Nat}
+
+law byte_cls_102_is_14:
+  {J.byte.cls(102) == 14n : Nat}
+
+law byte_cls_92_is_15:
+  {J.byte.cls(92) == 15n : Nat}
+
+law byte_cls_0_is_0:
+  {J.byte.cls(0) == 0n : Nat}
+
+law byte_cls_31_is_0:
+  {J.byte.cls(31) == 0n : Nat}
+
+law byte_cls_33_is_0:
+  {J.byte.cls(33) == 0n : Nat}
+
+law byte_cls_47_is_0:
+  {J.byte.cls(47) == 0n : Nat}
+
+law byte_cls_59_is_0:
+  {J.byte.cls(59) == 0n : Nat}
+
+law byte_cls_97_is_0:
+  {J.byte.cls(97) == 0n : Nat}
+
+law byte_cls_126_is_0:
+  {J.byte.cls(126) == 0n : Nat}
+
+law byte_cls_255_is_0:
+  {J.byte.cls(255) == 0n : Nat}

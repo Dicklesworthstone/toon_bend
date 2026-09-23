@@ -2573,3 +2573,26 @@ law decode_form_feed_before_quoted_key:
 # R18-5 (S2.132): a backslash outside quotes in a header field segment escapes nothing
 law decode_backslash_outside_quotes_in_fields:
   {C.run_pure(["--decode"], T.ascii_bytes("k[1]{a\\},b}:\n  1,2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Missing colon after key"} : C.Out}
+
+# S2.28, S2.29 (EXP-029) repeated keys in objects small and large: a repeat before, at and after the member that
+# builds the key set (the 8th), a repeat of the oldest key after it, nested small objects; bytes from the pinned original
+law encode_repeated_key_two_members_repeat_last:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"k0\":0,\"k1\":1,\"k0\":99}", Nil{})) == C.Out{0n, "k0: 99\nk1: 1\n", ""} : C.Out}
+
+law encode_repeated_key_seven_members_repeat_first:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"k0\":0,\"k0\":99,\"k1\":1,\"k2\":2,\"k3\":3,\"k4\":4,\"k5\":5,\"k6\":6}", Nil{})) == C.Out{0n, "k0: 99\nk1: 1\nk2: 2\nk3: 3\nk4: 4\nk5: 5\nk6: 6\n", ""} : C.Out}
+
+law encode_repeated_key_eight_members_repeat_at_the_switch:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"k0\":0,\"k1\":1,\"k2\":2,\"k3\":3,\"k4\":4,\"k5\":5,\"k6\":6,\"k3\":99}", Nil{})) == C.Out{0n, "k0: 0\nk1: 1\nk2: 2\nk3: 99\nk4: 4\nk5: 5\nk6: 6\n", ""} : C.Out}
+
+law encode_repeated_key_nine_members_repeat_after_the_switch:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"k0\":0,\"k1\":1,\"k2\":2,\"k3\":3,\"k4\":4,\"k5\":5,\"k6\":6,\"k7\":7,\"k8\":8,\"k1\":99}", Nil{})) == C.Out{0n, "k0: 0\nk1: 99\nk2: 2\nk3: 3\nk4: 4\nk5: 5\nk6: 6\nk7: 7\nk8: 8\n", ""} : C.Out}
+
+law encode_repeated_key_twelve_members_repeat_of_an_early_key:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"k0\":0,\"k1\":1,\"k2\":2,\"k3\":3,\"k4\":4,\"k5\":5,\"k6\":6,\"k7\":7,\"k8\":8,\"k9\":9,\"k10\":10,\"k11\":11,\"k2\":99}", Nil{})) == C.Out{0n, "k0: 0\nk1: 1\nk2: 99\nk3: 3\nk4: 4\nk5: 5\nk6: 6\nk7: 7\nk8: 8\nk9: 9\nk10: 10\nk11: 11\n", ""} : C.Out}
+
+law encode_repeated_key_nested_small_objects_repeat:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":{\"x\":1,\"x\":2},\"b\":{\"y\":1,\"z\":2,\"y\":3},\"a\":{\"w\":0}}", Nil{})) == C.Out{0n, "a:\n  w: 0\nb:\n  y: 3\n  z: 2\n", ""} : C.Out}
+
+law encode_repeated_key_ten_members_repeat_of_the_oldest:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"k0\":0,\"k1\":1,\"k2\":2,\"k3\":3,\"k4\":4,\"k5\":5,\"k6\":6,\"k7\":7,\"k8\":8,\"k9\":9,\"k0\":99}", Nil{})) == C.Out{0n, "k0: 99\nk1: 1\nk2: 2\nk3: 3\nk4: 4\nk5: 5\nk6: 6\nk7: 7\nk8: 8\nk9: 9\n", ""} : C.Out}

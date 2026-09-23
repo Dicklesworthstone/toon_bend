@@ -85,6 +85,8 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(decode_literal_)", ["tokens, string literals"]),
  # EXP-025: the scanner over the reversed text: CR endings, blank lines, the TAB check, the first failure, the BOM
  (r"(decode_scan_)", ["TOON scanning"]),
+ # EXP-029: repeated keys in small and large JSON objects, around the member that builds the key set
+ (r"(encode_repeated_key_)", ["JSON text input"]),
  # round 18 (R18-2..5): delimited values with an escaped quote, the first bad escape, FF before a quoted key,
  # a backslash outside quotes in a header's field segment
  (r"(decode_(inline|tabular|pipe)_escaped_quote_before_delimiter|decode_literal_first_of_two_bad_escapes|decode_form_feed_before_quoted_key|decode_backslash_outside_quotes_in_fields)$", ["tokens, string literals"]),

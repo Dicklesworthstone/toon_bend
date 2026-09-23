@@ -481,6 +481,14 @@ type KT is Data:
 def kt.empty() -> KT:
   KLeaf{KSNil{}}
 
+# S6.10 whether the set is the empty one (a small JSON object keeps it empty, EXP-029)
+def kt.is_empty(t: KT) -> Bool:
+  match t:
+    case KLeaf{KSNil{}}:
+      True{}
+    case _:
+      False{}
+
 # S6.10 whether the lowest bit of a hash is set
 def kt.odd(h: U32) -> Bool:
   U32.is_eq((h .&. 1 : U32), 1)

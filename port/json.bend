@@ -345,6 +345,54 @@ def obj.member(dup: Bool, rev: Json, +key: String, v: Json, idx: T.KT, over: KM)
     case True{}:
       FObj{rev, SNil{}, idx, km.put(over, key, v)}
 
+# S2.28 whether an entry chain has fewer than n entries (a walk of at most n steps)
+def obj.shorter(c: Json, n: Nat) -> Bool:
+  match c n:
+    case JECons{k, q, v, t} 1n+p:
+      obj.shorter(t, p)
+    case JECons{k, q, v, t} 0n:
+      False{}
+    case _ _:
+      True{}
+
+# S2.28 the key set of a chain, built once when an object stops being small (EXP-029)
+def kt.of_chain(c: Json, acc: T.KT) -> T.KT:
+  match c:
+    case JECons{+k, q, v, t}:
+      kt.of_chain(t, T.kt.put(acc, k))
+    case _:
+      acc
+
+# S2.28 the object stops being small: its chain gets its key set, built once
+def obj.member.grown(+chain: Json, over: KM) -> Frame:
+  FObj{chain, SNil{}, kt.of_chain(chain, T.kt.empty()), over}
+
+# S2.28, S2.29 a new key joins a SMALL object (EXP-029): no key set while the chain is shorter than 8; the
+# member that makes it 8 long builds the set from the whole chain, and later members use it as before
+def obj.member.small(short: Bool, key: String, v: Json, rev: Json, over: KM) -> Frame:
+  match short:
+    case True{}:
+      FObj{JECons{key, False{}, v, rev}, SNil{}, T.kt.empty(), over}
+    case False{}:
+      obj.member.grown(JECons{key, False{}, v, rev}, over)
+
+# S2.28, S2.29 a member of an object whose key set is still empty: the chain itself says whether the key
+# repeats (it holds each key once, the set the table would hold); a repeat goes to the map of last values
+def obj.member.chain(dup: Bool, +rev: Json, +key: String, v: Json, over: KM) -> Frame:
+  match dup:
+    case True{}:
+      FObj{rev, SNil{}, T.kt.empty(), km.put(over, key, v)}
+    case False{}:
+      obj.member.small(obj.shorter(rev, 7n), key, v, rev, over)
+
+# S2.28, S2.29 a member joins its object: by the chain while the object is small, by the key set after
+def obj.member.at(small: Bool, +rev: Json, +key: String, v: Json, +idx: T.KT, over: KM) -> Frame:
+  match small:
+    case True{}:
+      obj.member.chain(obj.has(rev, key), rev, key, v, over)
+    case False{}:
+      obj.member(T.kt.has(idx, key), rev, key, v, idx, over)
+
 # S2.25, S2.27 a finished value goes to the root, to the open array, or under the pending key
 def push(v: Json, stack: List<&2, Frame>, depth: Nat, l: Nat, c: Nat, root: Maybe<&2, Json>) -> St:
   match stack:
@@ -353,7 +401,7 @@ def push(v: Json, stack: List<&2, Frame>, depth: Nat, l: Nat, c: Nat, root: Mayb
     case Con{FArr{rev, n}, rest}:
       St{MAfter{}, FArr{JCons{v, rev}, 1n+n} <> rest, depth, l, c, root}
     case Con{FObj{rev, +key, +idx, over}, rest}:
-      St{MAfter{}, obj.member(T.kt.has(idx, key), rev, key, v, idx, over) <> rest, depth, l, c, root}
+      St{MAfter{}, obj.member.at(T.kt.is_empty(idx), rev, key, v, idx, over) <> rest, depth, l, c, root}
 
 # S2.25 ']' closes the innermost array (the caller has seen that it is an array)
 def close_arr(stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>) -> St:

@@ -712,3 +712,14 @@ likewise do not establish universal performance rules.
 - **Do-not-retry unless:** the printer's decimal path stops being the dominant cost of a number-heavy
   document (re-measure with the EXP-012 on/off split above first), OR the reader's big-natural route is
   shown by that same split to exceed 10% of a number-heavy run.
+### NE-032 — a small JSON object detects repeated keys by walking its own chain, not the key table (EXP-029)   [2026-09-23 | COUNTED_WIN, kept]
+- Program / def: `port/json.bend` / `obj.member.at`, `obj.member.chain`, `obj.member.small`, `obj.member.grown`, `obj.shorter`, `kt.of_chain`, `push`'s object arm; `port/text.bend` / `kt.is_empty`. Not behind the switch: the chain and the key set answer the same membership question (the chain holds each key once); a mutant that leaves the object small for ever, or never builds the set, is only slower, so no law can see it and none is asked to
+- Provenance: as NE-022; base = the binary of `3a6f7f6` (the EXP-027 code)
+- Counted (cachegrind Ir): `flights_200k --encode` 32,764,310,573 → 28,679,609,596, **12.5% fewer (1.142×)**; `gsoc_2018 --encode` 3,010,314,246 → 2,913,445,152 (3.2% fewer); `canada --encode` 11,014,963,424 → 11,015,737,694 (+0.007%, inside the card's 0.5% allowance); stdout identical in all three; the gate was 5% on flights
+- NE-004's protection kept: one object of 16000 keys encodes in 0.06 s (0.07 s before), output identical to the original's
+- Binding: seven closed goldens `encode_repeated_key_*` through the whole pure core (bytes from the pinned original): a repeat in objects of 2 and 7 members, at the 8th member (the one that builds the set), after it, of an early key and of the OLDEST key after it, and in nested small objects. Hand mutants in a reduced proof: a repeat in a small object taken as a new key (killed by `_two_members_repeat_last`), the set built with the newest key only (killed by `_nine_members_repeat_after_the_switch`)
+- Correctness evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/diff-fuzz.py` seed 2929: collide, docs and mutate 1500 inputs each, scale seed 2930 20 inputs, 0 differences
+- Killing metric: none; promotion to MEASURED needs a cv-gated CPU capture on a quiet host
+- **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain; the threshold 8 is not tuned (a count at 4 and 16 would say whether it matters)
+- Tally: W1/L0/N0 (counted)
+- Agent: Claude (session ef481f9c, 2026-09-23)

@@ -2375,3 +2375,31 @@ def Laws.decode_form_feed_before_quoted_key():
 # S2.132 closed
 def Laws.decode_backslash_outside_quotes_in_fields():
   {==}
+
+# S2.28 closed: the whole pure core computed (EXP-029)
+def Laws.encode_repeated_key_two_members_repeat_last():
+  {==}
+
+# S2.28 closed: the whole pure core computed (EXP-029)
+def Laws.encode_repeated_key_seven_members_repeat_first():
+  {==}
+
+# S2.28 closed: the whole pure core computed (EXP-029)
+def Laws.encode_repeated_key_eight_members_repeat_at_the_switch():
+  {==}
+
+# S2.28 closed: the whole pure core computed (EXP-029)
+def Laws.encode_repeated_key_nine_members_repeat_after_the_switch():
+  {==}
+
+# S2.28 closed: the whole pure core computed (EXP-029)
+def Laws.encode_repeated_key_twelve_members_repeat_of_an_early_key():
+  {==}
+
+# S2.28 closed: the whole pure core computed (EXP-029)
+def Laws.encode_repeated_key_nested_small_objects_repeat():
+  {==}
+
+# S2.28 closed: the whole pure core computed (EXP-029)
+def Laws.encode_repeated_key_ten_members_repeat_of_the_oldest():
+  {==}

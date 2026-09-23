@@ -1803,6 +1803,15 @@ law dec_done_renders_with_the_json_printer:
 # survive both the corpus and the proof, because the corpus only samples inputs and the fast twin
 # agrees with the spec twin on most of them — the difference hides outside the captured cases.
 #
+# The VALIDITY gates were deliberately left unpinned — `literal.value`, `int.digits.if`, `utf8.scalar`,
+# `on.neg`, `vk.tab.if` — on the reasoning that a swap there changes behaviour on many captured cases,
+# so the goldens already refute it, and a law would add proof weight for no evidence. That reasoning is
+# now MEASURED on the two of the five it was least obvious for (2026-09-23, arms swapped, conform on
+# c-1t against the 1076-case corpus):
+#     vk.tab.if     swapped -> 67 of 1076 cases FAIL
+#     utf8.scalar   swapped -> 47 of 1076 cases FAIL   (it then accepts surrogates and rejects valid text)
+# The other three remain a judgement, not a measurement, and are labelled as such.
+#
 # This block pins every fast/spec gate in the port that no law named, both arms where the checker can
 # take it. Each law is a QUANTIFIED restatement of one arm, which is the cheap form: it names no
 # number, so it never routes the checker through the decimal->binary64 conversion or the

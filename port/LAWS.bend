@@ -2547,3 +2547,29 @@ law step_in_str_fast_key_pending:
 # range (a space, '~', DEL) and the refused ones in a key and a value, escapes included
 law encode_plain_string_bytes:
   {C.run_pure(["--encode"], [123, 34, 97, 32, 98, 34, 58, 34, 120, 32, 121, 126, 127, 33, 35, 91, 93, 34, 44, 34, 107, 34, 58, 34, 113, 92, 34, 114, 92, 92, 115, 34, 125]) == C.Out{0n, "\"a b\": \"x y~" ++ SCon{Chr{127}, "!#[]\"\nk: \"q\\\"r\\\\s\"\n"}, ""} : C.Out}
+
+# Round 18 (R18-2..5): four behaviours whose hand mutants survived the whole 518-law proof and the corpus, now
+# pinned through the whole pure core with bytes from the pinned original. Each law names its finding.
+# R18-2 (S2.125): a backslash inside quotes protects the next character when a line is split
+law decode_inline_escaped_quote_before_delimiter:
+  {C.run_pure(["--decode"], T.ascii_bytes("[2]: \"a\\\",b\",c\n", Nil{})) == C.Out{0n, "[\n  \"a\\\",b\",\n  \"c\"\n]\n", ""} : C.Out}
+
+# R18-2 (S2.125): the same in a tabular cell
+law decode_tabular_escaped_quote_before_delimiter:
+  {C.run_pure(["--decode"], T.ascii_bytes("t[1]{a,b}:\n  \"x\\\",y\",z\n", Nil{})) == C.Out{0n, "{\n  \"t\": [\n    {\n      \"a\": \"x\\\",y\",\n      \"b\": \"z\"\n    }\n  ]\n}\n", ""} : C.Out}
+
+# R18-2 (S2.125): the same under the | delimiter
+law decode_pipe_escaped_quote_before_delimiter:
+  {C.run_pure(["--decode"], T.ascii_bytes("[2|]: \"a\\\"|b\"|c\n", Nil{})) == C.Out{0n, "[\n  \"a\\\"|b\",\n  \"c\"\n]\n", ""} : C.Out}
+
+# R18-3 (S9.105): after a bad escape the FIRST one is reported
+law decode_literal_first_of_two_bad_escapes:
+  {C.run_pure(["--decode"], T.ascii_bytes("k: \"\\q\\z\"\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Invalid escape sequence: \\q"} : C.Out}
+
+# R18-4 (S2.126): FF is skipped before a quoted key
+law decode_form_feed_before_quoted_key:
+  {C.run_pure(["--decode"], [12, 34, 107, 34, 58, 32, 49, 10]) == C.Out{0n, "{\n  \"k\": 1\n}\n", ""} : C.Out}
+
+# R18-5 (S2.132): a backslash outside quotes in a header field segment escapes nothing
+law decode_backslash_outside_quotes_in_fields:
+  {C.run_pure(["--decode"], T.ascii_bytes("k[1]{a\\},b}:\n  1,2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Missing colon after key"} : C.Out}

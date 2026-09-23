@@ -44,6 +44,27 @@ import subprocess
 import sys
 
 _IGNORED = {}
+_REACH = {}
+
+
+def reachable(rev):
+    """True when `rev` names a commit that HEAD contains (so a clone of the published branch has it). A git
+    failure (no git, not a work tree) answers True: this check may add findings, never remove the ability
+    to run the audit."""
+    if rev in _REACH:
+        return _REACH[rev]
+    try:
+        r = subprocess.run(["git", "-C", ROOT, "merge-base", "--is-ancestor", rev, "HEAD"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)
+        ok = r.returncode == 0
+        if r.returncode not in (0, 1):
+            probe = subprocess.run(["git", "-C", ROOT, "rev-parse", "--is-inside-work-tree"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)
+            ok = probe.returncode != 0
+        _REACH[rev] = ok
+    except Exception:
+        _REACH[rev] = True
+    return _REACH[rev]
 
 
 def gitignored(rel):
@@ -650,6 +671,15 @@ def audit(files, f, gates, verbose):
                     # paths a copy of the port is MEANT to lack (oracle/, legacy/, build outputs).
                     hit(path, n, "names the path %s, which is gitignored: it exists here but not in a "
                                  "clean clone, so this citation cannot be checked by a reviewer" % ident, line)
+            # A gate line's tree must be one a reader can check out: reachable from HEAD. Round 18 (R18-D1)
+            # found the lanes and proof rows citing `494ef82` and `9eb07dc`, commits of the author's scratch
+            # clone that a rebase replaced before the push; they resolved in that clone (its object store
+            # kept them), so an existence test would have passed. Only "tree of" citations are held to this:
+            # other hashes in the documents name the original's history (toon_rust) or binaries.
+            for ident in re.findall(r"tree of (?:commit )?`([0-9a-f]{7,40})`", line):
+                if not reachable(ident):
+                    hit(path, n, "cites the tree of %s, which is not reachable from HEAD: a reader of this "
+                                 "repository cannot check that tree out" % ident, line)
     # The board's proof-coverage table splits the closed unit laws over two rows. Round 14 (R14-4) found the
     # split six short, it was repaired by hand -- and the very next law added drifted it again, nine short,
     # because the gate's `(\d+) closed unit laws` never matches `| other closed unit laws | N |`. Both rows

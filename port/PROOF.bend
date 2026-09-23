@@ -2316,3 +2316,27 @@ def Laws.step_in_str_fast_key_pending():
 # S2.15 closed: both sides computed (EXP-027)
 def Laws.encode_plain_string_bytes():
   {==}
+
+# closed: the whole pure core computed (round 18)
+def Laws.decode_inline_escaped_quote_before_delimiter():
+  {==}
+
+# closed: the whole pure core computed (round 18)
+def Laws.decode_tabular_escaped_quote_before_delimiter():
+  {==}
+
+# closed: the whole pure core computed (round 18)
+def Laws.decode_pipe_escaped_quote_before_delimiter():
+  {==}
+
+# closed: the whole pure core computed (round 18)
+def Laws.decode_literal_first_of_two_bad_escapes():
+  {==}
+
+# closed: the whole pure core computed (round 18)
+def Laws.decode_form_feed_before_quoted_key():
+  {==}
+
+# closed: the whole pure core computed (round 18)
+def Laws.decode_backslash_outside_quotes_in_fields():
+  {==}

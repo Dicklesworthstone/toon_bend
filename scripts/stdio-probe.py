@@ -185,6 +185,23 @@ def main():
 
     row("INPUT is /dev/fd/9 and the caller DID open descriptor 9", "", caller_fd9)
     row("-o /dev/fd/3, which the caller did not open", "DISC-014", lambda cmd: run(cmd, ["-e", small, "-o", "/dev/fd/3"], stdin=subprocess.DEVNULL))
+    def piped(data, args):
+        """stdin is a pipe fed while the program reads: each read returns at most the pipe's buffer, so the
+        input arrives in many chunks and the port's chunk join (S8.6, EXP-019) is exercised. A regular-file
+        stdin, which every corpus case uses, arrives in ONE read and never reaches it (round 18, R18-1)."""
+        def f(cmd):
+            def feed(p):
+                for i in range(0, len(data), 32768):
+                    p.stdin.write(data[i:i + 32768])
+                    p.stdin.flush()
+                p.stdin.close()
+                p.stdin = None
+            return run(cmd, args, stdin=subprocess.PIPE, feed=feed)
+        return f
+
+    many = ("[" + ",".join(str(i * 7) for i in range(60000)) + "]").encode()
+    row("stdin is a pipe of %d bytes, read in many chunks, encode" % len(many), "", piped(many, ["-e"]))
+    row("stdin is a pipe of %d bytes, read in many chunks, decode" % len(many), "", piped(b"a[60000]: " + many[1:-1] + b"\n", ["-d"]))
     row("stdin is a regular file at offset 11", "", offset(11, ["-d"]))
     row("stdin is a regular file at its end", "", offset(len(doc), ["-d"]))
     row("stdin offset is left alone when INPUT is a file", "", offset(11, ["-e", small]))

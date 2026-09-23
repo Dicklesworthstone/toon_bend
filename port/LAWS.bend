@@ -1780,6 +1780,22 @@ law num_text_toon_is_show_toon:
   for spec: Bool
   {E.num.text(False{}, f, spec) == F.show_toon_fast(f, spec) : String}
 
+# S5.101 the other half of the same question: the two laws above pin the dispatch GIVEN the side flag,
+# and `dec.done` is what TELLS the pass which side it is on. Hand mutant M37 lies about the flag, and
+# it survived the 179-law reduced proof in the same run that killed M36: `--decode` then prints
+# 1000000000000000000000 for 1e+21 and 0.0000001 for 1e-7, exit 0, with no law objecting. This law
+# restates the body so that the `True{}` is refutable, which is exactly what it is for. It is stated
+# by quantification and NOT as a closed law over a concrete number: computing one would route the
+# checker through the decimal->binary64 conversion and the shortest-digit generator, which do not
+# normalize (ARCH §11 A7) and which cost 19.9 GB when tried.
+law dec_done_renders_with_the_json_printer:
+  for v: J.Json
+  for indent: Nat
+  for spec: Bool
+  for stats: Bool
+  for text: String
+  {C.dec.done(D.DOk{v}, indent, spec, stats, text) == C.dec.ok(stats, J.write_ln(E.pre.if(spec, True{}, v), indent, spec), text) : C.CR}
+
 # S2.51, EXP-007 (R16-1, R16-3) the two bounds num.safe rests on, pinned as closed facts so that
 # moving either constant is a red proof and not a surviving mutant. A deferred token's `number out of
 # range` would be lost: the reader defers before the kill-switch is read, so TOON_SPEC=1 does not

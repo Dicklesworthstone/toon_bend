@@ -1673,6 +1673,10 @@ def Laws.num_text_json_is_show_json(f, spec):
 def Laws.num_text_toon_is_show_toon(f, spec):
   {==}
 
+# S5.101 dec.done's DOk arm is this call: the equality is the body
+def Laws.dec_done_renders_with_the_json_printer(v, indent, spec, stats, text):
+  {==}
+
 # S2.51 (R16-1) computed: 51 integer digits outrun any negative exponent
 def Laws.num_safe_wide_ints_refused_when_eneg():
   {==}

@@ -193,6 +193,16 @@ Outcome taxonomy (closed set):
   7% slower than base. Gates: `All terms check.`; conform 1071/1071 on c-1t, c-8t and js; 72 decode runs
   (6 documents × 6 thread counts × the kill-switch both ways) byte-identical to the original; diff-fuzz
   docs and expand, 1500 inputs each, 0 differences
+- **A thread-count default was chased and REFUSED, 2026-09-22.** A first sweep (best of 3) suggested the
+  parallel gain saturates at 2 to 4 threads while the tax keeps growing, with encode of twitter at 156 ms
+  on 4 threads against 275 ms on 8 — which would have made the binary's default (the CPU count) the worst
+  setting, and `bin/toon` already has the knob (`TOON_BEND_THREADS`). Re-measured INTERLEAVED, min of 5,
+  the claim did not survive: the best thread count is different per document and mostly noise (encode
+  twitter 220 / 217 / 204 ms at 2 / 4 / 8 threads, semanticscholar 3005 / 2724 / 3013, canada 5448 / 5118
+  / 6137, decode gsoc_2018 1192 / 1238 / 1216, decode flights_200k 7256 / 5423 / 5163, encode numbers 207
+  / 128 / 109). **No default is changed.** Do-not-retry unless a quiet host (load below 1) gives a
+  consistent optimum across at least five documents of different shapes, and a second machine with a
+  different core count agrees
 - **Thread-count determinism, the risk this lever actually carries** (2026-09-22, on the wired build):
   8 documents (numbers, canada, mesh, flights_20k, twitter, citm_catalog, jobs, us_10m) encoded at
   `--threads` 1, 2, 3, 8, 16, 64 and 128 — 56 runs, every one byte-identical to the original. A fork-order

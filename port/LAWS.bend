@@ -2422,3 +2422,63 @@ law decode_scan_bare_dash_cr_cr:
 
 law decode_scan_bare_dash_crlf:
   {C.run_pure(["--decode"], T.ascii_bytes("x[1]:\r\n  -\r\n", Nil{})) == C.Out{0n, "{\n  \"x\": [\n    {}\n  ]\n}\n", ""} : C.Out}
+
+# S4.161 (EXP-026) the recognizer gives the lexer's verdict: every accepting phase (1 "0", 2 "007", 4 "1.5",
+# 7 "-12.5e-3" and "1E+5"), every refusal (the empty text, "-" alone, "1." phase 3, "1e" phase 5, "1e-" phase 6,
+# "+1" and ".5" from phase 0, "1.5x" and "1e5.5" into the sink) and a long text that sinks at once
+law is_like_zero:
+  {F.is_like("0") == F.is_like.lex("0") : Bool}
+
+law is_like_leading_zeros:
+  {F.is_like("007") == F.is_like.lex("007") : Bool}
+
+law is_like_fraction:
+  {F.is_like("1.5") == F.is_like.lex("1.5") : Bool}
+
+law is_like_signed_exponent:
+  {F.is_like("-12.5e-3") == F.is_like.lex("-12.5e-3") : Bool}
+
+law is_like_upper_exponent:
+  {F.is_like("1E+5") == F.is_like.lex("1E+5") : Bool}
+
+law is_like_empty:
+  {F.is_like("") == F.is_like.lex("") : Bool}
+
+law is_like_dash_alone:
+  {F.is_like("-") == F.is_like.lex("-") : Bool}
+
+law is_like_dot_end:
+  {F.is_like("1.") == F.is_like.lex("1.") : Bool}
+
+law is_like_e_end:
+  {F.is_like("1e") == F.is_like.lex("1e") : Bool}
+
+law is_like_e_sign_end:
+  {F.is_like("1e-") == F.is_like.lex("1e-") : Bool}
+
+law is_like_plus_first:
+  {F.is_like("+1") == F.is_like.lex("+1") : Bool}
+
+law is_like_dot_first:
+  {F.is_like(".5") == F.is_like.lex(".5") : Bool}
+
+law is_like_trailing_letter:
+  {F.is_like("1.5x") == F.is_like.lex("1.5x") : Bool}
+
+law is_like_fraction_in_exponent:
+  {F.is_like("1e5.5") == F.is_like.lex("1e5.5") : Bool}
+
+law is_like_long_text:
+  {F.is_like("hello world 123 and more") == F.is_like.lex("hello world 123 and more") : Bool}
+
+# S4.160, S4.161 (EXP-026) the pinned original's quoting of numeric-like items, through the whole pure core
+law encode_numeric_like_items:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"1\",\"1.\",\"007\",\"-0.5e+3\",\"1e\",\"abc\",\"+1\",\".5\",\"1E5\",\"-\"]", Nil{})) == C.Out{0n, "[10]: \"1\",1.,\"007\",\"-0.5e+3\",1e,abc,+1,.5,\"1E5\",\"-\"\n", ""} : C.Out}
+
+# S4.161 (EXP-026) a '0' right after the point, and zeros inside the fraction (the table's class-0 arms of phases 3
+# and 4, which the laws above never reach: a mutant that refused them survived them)
+law is_like_zero_fraction:
+  {F.is_like("0.0") == F.is_like.lex("0.0") : Bool}
+
+law is_like_inner_zero_fraction:
+  {F.is_like("1.05") == F.is_like.lex("1.05") : Bool}

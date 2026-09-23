@@ -1173,13 +1173,93 @@ def lex.run(dash: Bool, c: U32, rest: String, like: Bool) -> Lex:
     case False{}:
       lex.go(SCon{Chr{c}, rest}, Lex{0n, SNil{}, SNil{}, False{}, 0n}, like)
 
+# S4.161 whether a string is numeric-like, by the lexer itself: the specification of `is_like`, which the
+# laws compare it with (EXP-026)
+def is_like.lex(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{Chr{+c}, rest}:
+      is_like.body(lex.run(U32.is_eq(c, 45), c, rest, True{}))
+
+# S4.141, S4.161 the lexer's phase table with `like` set, phases only: 8 is the sink (EXP-026)
+def like.ph(ph: Nat, k: Nat) -> Nat:
+  match ph k:
+    case 0n 0n:
+      1n
+    case 0n 1n:
+      2n
+    case 1n 0n:
+      2n
+    case 1n 1n:
+      2n
+    case 1n 2n:
+      3n
+    case 1n 3n:
+      5n
+    case 2n 0n:
+      2n
+    case 2n 1n:
+      2n
+    case 2n 2n:
+      3n
+    case 2n 3n:
+      5n
+    case 3n 0n:
+      4n
+    case 3n 1n:
+      4n
+    case 4n 0n:
+      4n
+    case 4n 1n:
+      4n
+    case 4n 3n:
+      5n
+    case 5n 4n:
+      6n
+    case 5n 5n:
+      6n
+    case 5n 0n:
+      7n
+    case 5n 1n:
+      7n
+    case 6n 0n:
+      7n
+    case 6n 1n:
+      7n
+    case 7n 0n:
+      7n
+    case 7n 1n:
+      7n
+    case _ _:
+      8n
+
+# S4.161 the recognizer: it only reads the text (the compiler borrows it, so the caller keeps no copy) and
+# stops at the sink, where the lexer would walk on to the end (EXP-026)
+def like.go(s: String, ph: Nat) -> Bool:
+  match s ph:
+    case _ 8n:
+      False{}
+    case SNil{} p:
+      lex.ok(p)
+    case SCon{Chr{c}, rest} p:
+      like.go(rest, like.ph(p, lex.cls(c)))
+
+# S4.141 a leading '-' is outside the lexer: skipped, or the first character's transition from phase 0
+def like.first(dash: Bool, c: U32) -> Nat:
+  match dash:
+    case True{}:
+      0n
+    case False{}:
+      like.ph(0n, lex.cls(c))
+
 # S4.161 whether a string is numeric-like (the encoder then quotes it, S4.160)
 def is_like(s: String) -> Bool:
   match s:
     case SNil{}:
       False{}
     case SCon{Chr{+c}, rest}:
-      is_like.body(lex.run(U32.is_eq(c, 45), c, rest, True{}))
+      like.go(rest, like.first(U32.is_eq(c, 45), c))
 
 # S4.109 the written exponent as an Int
 def lex.exp(eneg: Bool, x: Nat) -> Int:

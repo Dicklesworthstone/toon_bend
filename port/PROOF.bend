@@ -2183,3 +2183,75 @@ def Laws.decode_scan_bare_dash_cr_cr():
 # S2.113 closed: the whole pure core computed (EXP-025)
 def Laws.decode_scan_bare_dash_crlf():
   {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_zero():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_leading_zeros():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_fraction():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_signed_exponent():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_upper_exponent():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_empty():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_dash_alone():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_dot_end():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_e_end():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_e_sign_end():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_plus_first():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_dot_first():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_trailing_letter():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_fraction_in_exponent():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_long_text():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.encode_numeric_like_items():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_zero_fraction():
+  {==}
+
+# S4.161 closed: both sides computed (EXP-026)
+def Laws.is_like_inner_zero_fraction():
+  {==}

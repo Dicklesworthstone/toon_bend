@@ -1024,3 +1024,39 @@ CRLF endings, a lone CR, CR CR, blank and whitespace-only lines, a TAB in the in
 ### Precommitted gate
 In INSTRUCTIONS (counted): ≥ 8% fewer than the EXP-024 binary on `gsoc_2018.toon` (`--decode`, `--threads 1`), stdout identical;
 conform c-1t with and without `TOON_SPEC=1`; the proof green.
+
+## EXP-026 — the encoder's numeric-like test borrows the string and stops at the lexer's sink
+
+| field | value |
+|---|---|
+| experiment_id | EXP-026 |
+| program / def | `port/f64.bend` / `is_like` (S4.161), called by `E.needs_quote` for every string value the encoder writes |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'is_like\|numeric-like\|lexer' perf/NEGATIVE-EVIDENCE.md` → no entry |
+| status | COUNTED_WIN 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-030): 13.5% fewer instructions on `gsoc_2018 --encode` against EXP-025 (gate 5%); CPU confirmation on a quiet host pending |
+| precommitted | true |
+
+### Hypothesis
+`is_like(s)` runs the number lexer (`lex.run` → `lex.go`) over the WHOLE string, building a `Lex` record per character even after
+phase 8 (the sink) is reached, and it rebuilds the head cell, so it owns `s`. It is the only one of `needs_quote`'s six checks that owns
+its argument (a probe's keep audit: the other five borrow), so every string value is kept, and the writer then takes a shared text
+apart: one `span_fade` per character. A recognizer over the same phase table that only matches characters (so the compiler borrows the
+string) and returns at the sink gives the same verdict, keeps no string, and allocates nothing. The instruction count of `--encode` on
+`gsoc_2018.json` at 1 thread falls by at least 5% against the EXP-025 binary.
+
+### Evidence before the lever
+`span_fade` tallied by caller on the EXP-025 binary, `gsoc_2018 --encode`: 6,271,545 calls, 2,795,574 of them under `PUT_PRIM`'s
+string writer (one per character of the string values); the rest is the byte list (NE-012: a `List` is never borrowed).
+
+### Lever (one)
+`like.ph(ph, k)`: the lexer's phase table with `like = True`, phases only; `like.go(s, ph)`: walks `s` by matching, returns
+`False` at phase 8 and `lex.ok(ph)` at the end; `is_like` drops a leading '-' and starts it. The lexer stays for the readers
+(`F.literal`, `like = False`) and as `is_like.lex`, the specification the laws compare against. Laws: closed instances
+`is_like(x) == is_like.lex(x)` covering every accepting phase (1, 2, 4, 7), every refusal path, a leading '-', '-' alone, the empty
+text, a long non-numeric text; beside them the pinned original on EVERY string up to length 6 over the alphabet `0 5 . e E + - a`
+(one representative per lexer class), each as the value of a one-key object through `--encode`, and the corpus.
+
+### Precommitted gate
+In INSTRUCTIONS (counted): ≥ 5% fewer than the EXP-025 binary on `gsoc_2018.json` (`--encode`, `--threads 1`), stdout identical;
+conform c-1t with and without `TOON_SPEC=1`; the exhaustive comparison 0 differences; the proof green.

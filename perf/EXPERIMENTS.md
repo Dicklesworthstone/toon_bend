@@ -778,3 +778,29 @@ row in another key order, and a non-uniform array, against the captured behaviou
 
 ### Precommitted gate
 ≥ 3% below the EXP-013 binary on `flights_200k.json` (`--encode`, `--threads 1`), CPU median; conform c-1t 1076/1076; proof green.
+
+## EXP-015 — one walk answers both "a character forces quotes" and "the last character is White_Space"
+
+| field | value |
+|---|---|
+| experiment_id | EXP-015 |
+| program / def | `port/encode.bend` / `needs_quote` (S4.6–S4.17): `T.has_edge_ws` and `has_bad` each walk the whole string value |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'has_bad\|needs_quote\|fuse' perf/NEGATIVE-EVIDENCE.md` → no entry |
+| status | BUILT and PARKED 2026-09-23: conform c-1t 1076/1076; 24-round ABBA at load 14-16 on `gsoc_2018 --encode` 1.029× by CPU median (below the 4% gate), 1.083× by minimum, cv 50-99%: the gate is not shown, so the code is kept as a git stash in the author's scratch clone, not in the port; retry on a quiet host |
+| precommitted | true |
+
+### Hypothesis
+After EXP-013 the value rule still walks every string value twice before writing it: `ends_ws` to its last character and
+`has_bad` over every character, both over a shared string (each node taken apart). The two answers only ever meet in an OR, so
+one walk that tracks the previous character and stops at the first quote-forcing character answers both. The median CPU time of
+`--encode` on `gsoc_2018.json` at 1 thread falls by at least 4% against the EXP-013 binary.
+
+### Lever (one)
+`quote.scan(s, delim)` = `ends_ws(s) or has_bad(s, delim)` in one loop; `needs_quote` uses it with `head_is_ws` for the other edge.
+Laws: closed instances of `quote.scan` against `ends_ws(s) or has_bad(s, delim)` written out (empty, a bad character only, a trailing
+space only, both, neither, the active delimiter tab), and a mutant that drops either half.
+
+### Precommitted gate
+≥ 4% below the EXP-013 binary on `gsoc_2018.json` (`--encode`, `--threads 1`), CPU median; conform c-1t 1076/1076; proof green.

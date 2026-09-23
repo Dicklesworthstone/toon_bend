@@ -43,6 +43,24 @@ import re
 import subprocess
 import sys
 
+_IGNORED = {}
+
+
+def gitignored(rel):
+    """True when a cited path is excluded by .gitignore. Cached; one subprocess per distinct path.
+    A git failure (no git, not a work tree) answers False: this check may add findings, never remove
+    the ability to run the audit."""
+    if rel in _IGNORED:
+        return _IGNORED[rel]
+    try:
+        r = subprocess.run(["git", "-C", ROOT, "check-ignore", "-q", "--", rel],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)
+        _IGNORED[rel] = (r.returncode == 0)
+    except Exception:
+        _IGNORED[rel] = False
+    return _IGNORED[rel]
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # CURRENT: documents that describe the port as it is now — counts and references are both checked.
 CURRENT = ["README.md", "CONTRIBUTING.md", "AGENTS.md", "docs/PORT_STATE.md", "docs/PORT_REPORT.md",
@@ -610,6 +628,15 @@ def audit(files, f, gates, verbose):
                     continue
                 if not os.path.exists(os.path.join(ROOT, ident)):
                     hit(path, n, "names the path %s, which does not exist" % ident, line)
+                elif gitignored(ident):
+                    # The existence check above reads the WORKING TREE, so a citation of a gitignored
+                    # file passes for whoever fetched it and fails only on a clean clone. Observed
+                    # 2026-09-23: five citations of documents under the gitignored perf/e2e/corpus/
+                    # sat in the ledger through a whole session of `0 findings`, and were caught by a
+                    # reviewer whose tree lacked them, not by this gate. ABSENT_OK still exempts the
+                    # paths a copy of the port is MEANT to lack (oracle/, legacy/, build outputs).
+                    hit(path, n, "names the path %s, which is gitignored: it exists here but not in a "
+                                 "clean clone, so this citation cannot be checked by a reviewer" % ident, line)
     # The board's proof-coverage table splits the closed unit laws over two rows. Round 14 (R14-4) found the
     # split six short, it was repaired by hand -- and the very next law added drifted it again, nine short,
     # because the gate's `(\d+) closed unit laws` never matches `| other closed unit laws | N |`. Both rows

@@ -284,10 +284,19 @@ def num_text(rnd):
     return sign + m + rnd.choice(["e", "E"]) + rnd.choice(["", "+", "-"]) + str(rnd.choice([0, 1, 5, 15, 16, 21, 22, 23, 24, 30, 100, 200, 300, 307, 308]))
 
 
+# LITERALS_GENERATED is reported in the scorecard because `inputs` counts DOCUMENTS here, not numbers:
+# this lens batches `per` literals into each document, so `--runs 400` tests 400 numbers and yields TWO
+# inputs. A scorecard whose denominator means something other than the reader assumes is green either
+# way, which is how a 400-number run came to be read as evidence about the number twins (2026-09-23).
+LITERALS_GENERATED = 0
+
+
 def lens_numbers(rnd, n, original):
+    global LITERALS_GENERATED
     per = 400
     for _ in range(max(1, n // per)):
         lits = [num_text(rnd) for _ in range(per)]
+        LITERALS_GENERATED += len(lits)
         ok = [l for l in lits if run([original, "--encode"], ("[" + l + "]").encode())[0][0] == 0] if run([original, "--encode"], ("[" + ",".join(lits) + "]").encode())[0][0] != 0 else lits
         yield ["--encode"], ("[" + ",".join(ok) + "]").encode("utf-8"), None
         yield ["--decode"], ("l[%d]:\n" % len(ok) + "".join("  - %s\n" % l for l in ok)).encode("utf-8"), None
@@ -463,7 +472,10 @@ def main():
         print("scale", json.dumps(row))
     too_slow = [r for r in slow if r["slow"]]
     ok = not found and not too_slow
-    print(json.dumps({"lens": lens, "seed": opts["seed"], "inputs": total, "differences": len(found), "too_slow": len(too_slow), "switch": opts["switch"], "verdict": "PASS" if ok else "FAIL"}))
+    card = {"lens": lens, "seed": opts["seed"], "inputs": total, "differences": len(found), "too_slow": len(too_slow), "switch": opts["switch"], "verdict": "PASS" if ok else "FAIL"}
+    if LITERALS_GENERATED:
+        card["number_literals"] = LITERALS_GENERATED
+    print(json.dumps(card))
     return 0 if ok else 1
 
 

@@ -793,6 +793,15 @@ def emit(j: J.Json, cx: Ctx, +opt: Opts, acc: List<&2, String>) -> List<&2, Stri
 # parallel let, so the renderings run on the worker pool. A value the pass does not reach keeps its own
 # node, which put.prim renders exactly as before: running out of fuel changes the speed, never the text.
 
+# S4.130, S5.30, EXP-007 the text a number takes in the output being built: the TOON text when the pass
+# runs before the encoder's emitter, the JSON text when it runs before the writer on the decode side
+def num.text(js: Bool, f: F.F64, spec: Bool) -> String:
+  match js:
+    case True{}:
+      F.show_json_fast(f, spec)
+    case False{}:
+      F.show_toon_fast(f, spec)
+
 # S4.60, EXP-007 the pass's mode: a value; the rest of a chain, walked and collected onto acc; an item chain of
 # n items; a chain cut in two, split when it is long
 type PM is Data:
@@ -835,29 +844,29 @@ def par.cut(+n: Nat, s: PS) -> PM:
 
 # S4.60, S4.130, EXP-007 one def over (fuel, value): a cut and a split each spend one unit of fuel, every other step
 # descends into j
-def pre(+fuel: Nat, j: J.Json, m: PM, acc: J.Json, +spec: Bool) -> J.Json:
+def pre(+fuel: Nat, j: J.Json, m: PM, acc: J.Json, +js: Bool, +spec: Bool) -> J.Json:
   match fuel j m:
     case f J.JNum{x} PVal{}:
-      J.JTxt{F.show_toon_fast(x, spec)}
+      J.JTxt{num.text(js, x, spec)}
     case f J.JRaw{neg, ints, fracs, eneg, x} PVal{}:
-      J.JTxt{F.show_toon_fast(J.raw.f64(neg, ints, fracs, eneg, x, spec), spec)}
+      J.JTxt{num.text(js, J.raw.f64(neg, ints, fracs, eneg, x, spec), spec)}
     case f J.JArr{+n, items} PVal{}:
-      J.JArr{n, pre(f, items, PPar{n}, J.JNil{}, spec)}
+      J.JArr{n, pre(f, items, PPar{n}, J.JNil{}, js, spec)}
     case f J.JObj{e} PVal{}:
-      J.JObj{pre(f, e, PSeq{}, J.JNil{}, spec)}
+      J.JObj{pre(f, e, PSeq{}, J.JNil{}, js, spec)}
     case f J.JCons{h, t} PSeq{}:
-      pre(f, t, PSeq{}, J.JCons{pre(f, h, PVal{}, J.JNil{}, spec), acc}, spec)
+      pre(f, t, PSeq{}, J.JCons{pre(f, h, PVal{}, J.JNil{}, js, spec), acc}, js, spec)
     case f J.JECons{k, q, v, t} PSeq{}:
-      pre(f, t, PSeq{}, J.JECons{k, q, pre(f, v, PVal{}, J.JNil{}, spec), acc}, spec)
+      pre(f, t, PSeq{}, J.JECons{k, q, pre(f, v, PVal{}, J.JNil{}, js, spec), acc}, js, spec)
     case f J.JNil{} PSeq{}:
       par.back(acc)
     case 1n++p c PPar{+n}:
-      pre(p, J.JNil{}, par.cut(n, par.take(Nat.div(n, 2n), c, J.JNil{})), acc, spec)
+      pre(p, J.JNil{}, par.cut(n, par.take(Nat.div(n, 2n), c, J.JNil{})), acc, js, spec)
     case 1n++p z PCut{True{}, +n, l, r}:
-      a b = pre(p, l, PPar{Nat.div(n, 2n)}, J.JNil{}, spec) pre(p, r, PPar{Nat.sub(n, Nat.div(n, 2n))}, J.JNil{}, spec)
+      a b = pre(p, l, PPar{Nat.div(n, 2n)}, J.JNil{}, js, spec) pre(p, r, PPar{Nat.sub(n, Nat.div(n, 2n))}, J.JNil{}, js, spec)
       par.cat(a, b)
     case 1n++p z PCut{False{}, n, l, r}:
-      pre(p, par.cat(l, r), PSeq{}, J.JNil{}, spec)
+      pre(p, par.cat(l, r), PSeq{}, J.JNil{}, js, spec)
     case 0n z PCut{long, n, l, r}:
       par.cat(l, r)
     case f v m:
@@ -865,12 +874,12 @@ def pre(+fuel: Nat, j: J.Json, m: PM, acc: J.Json, +spec: Bool) -> J.Json:
 
 # S8.2, EXP-007 the kill-switch: with TOON_SPEC=1 the value goes to the emitter untouched and every
 # number takes its spec twin inside put.prim, exactly as before this pass existed
-def pre.if(spec: Bool, j: J.Json) -> J.Json:
+def pre.if(spec: Bool, js: Bool, j: J.Json) -> J.Json:
   match spec:
     case True{}:
       j
     case False{}:
-      pre(64n, j, PVal{}, J.JNil{}, False{})
+      pre(64n, j, PVal{}, J.JNil{}, js, False{})
 
 # S4.60 the TOON lines of a value, in order (an empty root object gives no line)
 def encode.go(+j: J.Json, +opt: Opts) -> List<&2, String>:
@@ -878,4 +887,4 @@ def encode.go(+j: J.Json, +opt: Opts) -> List<&2, String>:
 
 # S4.60, EXP-007 the numbers are rendered first (in parallel), then the lines are emitted
 def encode(j: J.Json, +opt: Opts) -> List<&2, String>:
-  encode.go(pre.if(opt.spec(opt), j), opt)
+  encode.go(pre.if(opt.spec(opt), False{}, j), opt)

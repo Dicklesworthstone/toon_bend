@@ -1654,7 +1654,7 @@ def Laws.golden_usage_unknown_digit_cluster_after_value_option():
   {==}
 
 # S8.2 the kill-switch closes the pass
-def Laws.pre_gate_switch(j):
+def Laws.pre_gate_switch(js, j):
   {==}
 
 # S4.130 a rendered number prints the emitter's own text
@@ -1743,4 +1743,8 @@ def Laws.hdr_precheck_unclosed():
 
 # S3.26 closed
 def Laws.hot_dups_lenient_overwrite():
+  {==}
+
+# S5.30 a rendered number prints the writer's own JSON text
+def Laws.pre_txt_is_num_json(f, first, n, depth, spec, acc):
   {==}

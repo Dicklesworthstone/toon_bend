@@ -1189,12 +1189,12 @@ def dec.ok(stats: Bool, +out: String, text: String) -> CR:
 
 # S9.3 every TOON failure is the decoder's message after the prefix `Failed to decode TOON: `;
 # S5.101 otherwise the JSON text and one LF, from the one JSON writer (S3.24)
-def dec.done(r: D.DR, indent: Nat, spec: Bool, stats: Bool, text: String) -> CR:
+def dec.done(r: D.DR, indent: Nat, +spec: Bool, stats: Bool, text: String) -> CR:
   match r:
     case D.DErr{msg}:
       CErr{"Failed to decode TOON: " ++ msg}
     case D.DOk{v}:
-      dec.ok(stats, J.write_ln(v, indent, spec), text)
+      dec.ok(stats, J.write_ln(E.pre.if(spec, True{}, v), indent, spec), text)
 
 # S8.7 a leading U+FEFF (the UTF-8 byte order mark EF BB BF) is dropped from the input: it is an
 # encoding signature, never data

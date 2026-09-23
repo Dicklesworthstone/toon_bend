@@ -1736,8 +1736,9 @@ law golden_usage_unknown_digit_cluster_after_value_option:
 # S8.2 the kill-switch closes the pass: with TOON_SPEC=1 the value reaches the emitter untouched, so
 # every number takes its spec twin inside put.prim exactly as it did before the pass existed
 law pre_gate_switch:
+  for js: Bool
   for j: J.Json
-  {E.pre.if(True{}, j) == j : J.Json}
+  {E.pre.if(True{}, js, j) == j : J.Json}
 
 # S4.130, EXP-007 a rendered number prints the text the emitter would have produced for it: the pass
 # moves WHEN show_toon_fast runs, never WHAT it returns
@@ -1856,3 +1857,14 @@ law hdr_precheck_unclosed:
 # S3.26 (toon_bend-zgb) lenient mode: the later value takes the earlier one's position, no failure
 law hot_dups_lenient_overwrite:
   {(D.hr.entries(D.hot.dups(J.JECons{"a", True{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JObj{J.JNil{}}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, False{})), D.hr.err(D.hot.dups(J.JECons{"a", True{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JObj{J.JNil{}}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, False{}))) == (D.mr.entries(D.dups(J.JECons{"a", True{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JObj{J.JNil{}}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, False{})), D.mr.err(D.dups(J.JECons{"a", True{}, J.JStr{"s"}, J.JECons{"b", False{}, J.JObj{J.JNil{}}, J.JNil{}}}, J.JECons{"a", False{}, J.JObj{J.JNil{}}, J.JECons{"b", False{}, J.JStr{"x"}, J.JNil{}}}, False{}))) : J.Json & Maybe<&2, String>}
+
+# S5.30, EXP-007 a rendered number prints the JSON text the writer would have produced for it: the pass on
+# the decode side moves WHEN show_json_fast runs, never WHAT it returns
+law pre_txt_is_num_json:
+  for f: F.F64
+  for first: Bool
+  for n: Nat
+  for depth: Nat
+  for spec: Bool
+  for acc: String
+  {J.w(J.JTxt{F.show_json_fast(f, spec)}, first, n, depth, spec, acc) == J.w(J.JNum{f}, first, n, depth, spec, acc) : String}

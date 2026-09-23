@@ -42,6 +42,8 @@ RULES = [  # (regex on the law name, rows) — first match wins
  # EXP-007: the pre-pass renders numbers before emission; its laws pin the kill-switch and the two
  # ways a number reaches put.prim (rendered text, or a token whose conversion was deferred)
  (r"(pre_gate_switch|pre_txt_is_num|pre_raw_is_num)$", ["TOON number text"]),
+ # the decode-side half of the same pass renders the JSON number text before the writer
+ (r"(pre_txt_is_num_json)$", ["JSON number text"]),
  (r"(kt_collision_)", ["JSON text input", "safe key folding"]),
  (r"(str_cmp_orders|ks_bucket_)", ["JSON text input", "safe key folding", "safe path expansion"]),
  (r"golden_encstr_fold_hash_collision$", ["safe key folding"]),

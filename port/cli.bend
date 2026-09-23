@@ -1146,21 +1146,22 @@ type CR is Data:
   COk{out: String, stats: String}
   CErr{msg: String}
 
-# S5.100 each TOON line followed by one LF, accumulated reversed; zero lines give the single LF
-def lines.join(ls: List<&2, String>, acc: String) -> String:
-  match ls:
+# S5.100 each TOON line followed by one LF. The encoder hands the lines over last first, each reversed
+# (EXP-021), so the text is built forward: rev_onto(reversed line, LF ++ acc) is line ++ LF ++ acc
+def lines.join(rls: List<&2, String>, acc: String) -> String:
+  match rls:
     case Nil{}:
       acc
-    case Con{l, rest}:
-      lines.join(rest, SCon{Chr{10}, T.rev_onto(l, acc)})
+    case Con{r, rest}:
+      lines.join(rest, T.rev_onto(r, SCon{Chr{10}, acc}))
 
-# S5.100 the TOON output text
-def toon.text(ls: List<&2, String>) -> String:
-  match ls:
+# S5.100 the TOON output text; zero lines give the single LF
+def toon.text(rls: List<&2, String>) -> String:
+  match rls:
     case Nil{}:
       "\n"
-    case Con{l, rest}:
-      String.reverse(lines.join(l <> rest, SNil{}))
+    case Con{r, rest}:
+      lines.join(r <> rest, SNil{})
 
 # S4.318 statistics only with --stats; S4.313 J measures the input text exactly as read, T the TOON
 # output (its final LF is whitespace and cannot change T)

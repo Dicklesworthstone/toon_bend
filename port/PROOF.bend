@@ -2051,3 +2051,23 @@ def Laws.encode_stats_reads_the_text():
 # S2.2, S8.7 closed: computed (EXP-018)
 def Laws.encode_invalid_utf8_refused():
   {==}
+
+# S5.100 closed: the whole pure core computed (EXP-021)
+def Laws.encode_text_zero_lines():
+  {==}
+
+# S5.100 closed: the whole pure core computed (EXP-021)
+def Laws.encode_text_one_line():
+  {==}
+
+# S5.100 closed: the whole pure core computed (EXP-021)
+def Laws.encode_text_three_depths():
+  {==}
+
+# S5.100 closed: the whole pure core computed (EXP-021)
+def Laws.encode_text_tabular_rows():
+  {==}
+
+# S5.100 closed: the whole pure core computed (EXP-021)
+def Laws.encode_text_list_items():
+  {==}

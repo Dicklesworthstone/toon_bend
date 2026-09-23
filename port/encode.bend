@@ -438,11 +438,12 @@ def put.row(lock: Nat, hdr: List<&2, String>, entries: J.Json, delim: U32, spec:
     case _:
       put.cells.seq(entries, delim, spec, True{}, acc)
 
-# S4.37 one row line at depth d: no marker, no keys
+# S4.37 one row line at depth d: no marker, no keys. Every line builder returns its line REVERSED: the
+# text is built forward from reversed lines, one copy per character (S5.100, EXP-021)
 def row.line(row: J.Json, +hdr: List<&2, String>, d: Nat, +opt: Opts) -> String:
   match row opt:
     case J.JObj{+entries} Opts{indent, delim, fo, budget, spec}:
-      String.reverse(put.row(row.lock(hdr, entries, True{}, True{}), hdr, entries, delim, spec, ln(d, False{}, opt)))
+      put.row(row.lock(hdr, entries, True{}, True{}), hdr, entries, delim, spec, ln(d, False{}, opt))
     case _ _:
       SNil{}
 
@@ -727,21 +728,21 @@ def put.keycolon(hk: Bool, key: String, acc: String) -> String:
     case False{}:
       acc
 
-# S4.40, S4.45, S4.56, S4.60 a primitive's line
+# S4.40, S4.45, S4.56, S4.60 a primitive's line, reversed
 def line.prim(hk: Bool, key: String, d: Nat, hy: Bool, v: J.Json, +opt: Opts) -> String:
-  String.reverse(put.prim(v, opt.delim(opt), opt.spec(opt), put.keycolon(hk, key, ln(d, hy, opt))))
+  put.prim(v, opt.delim(opt), opt.spec(opt), put.keycolon(hk, key, ln(d, hy, opt)))
 
-# S4.24 a header line (empty array, tabular header, list header)
+# S4.24 a header line (empty array, tabular header, list header), reversed
 def line.hdr(hk: Bool, key: String, n: Nat, hdr: List<&2, String>, d: Nat, hy: Bool, +opt: Opts) -> String:
-  String.reverse(put.header(hk, key, n, hdr, opt.delim(opt), ln(d, hy, opt)))
+  put.header(hk, key, n, hdr, opt.delim(opt), ln(d, hy, opt))
 
-# S4.29 an inline array line: the header, ONE space, the join
+# S4.29 an inline array line: the header, ONE space, the join; reversed
 def line.inline(hk: Bool, key: String, n: Nat, items: J.Json, d: Nat, hy: Bool, +opt: Opts) -> String:
-  String.reverse(put.join(items, opt.delim(opt), opt.spec(opt), True{}, SCon{Chr{32}, put.header(hk, key, n, Nil{}, opt.delim(opt), ln(d, hy, opt))}))
+  put.join(items, opt.delim(opt), opt.spec(opt), True{}, SCon{Chr{32}, put.header(hk, key, n, Nil{}, opt.delim(opt), ln(d, hy, opt))})
 
-# S4.58, S4.59, S4.50, S4.51 `key:` alone
+# S4.58, S4.59, S4.50, S4.51 `key:` alone, reversed
 def line.key(key: String, d: Nat, hy: Bool, opt: Opts) -> String:
-  String.reverse(SCon{Chr{58}, put.key(key, ln(d, hy, opt))})
+  SCon{Chr{58}, put.key(key, ln(d, hy, opt))}
 
 # S4.59 an empty object: `key:` when keyed; S4.43 `-` alone as a list item; S4.60 no line at the root
 def lines.obj0(hk: Bool, hy: Bool, key: String, d: Nat, opt: Opts, acc: List<&2, String>) -> List<&2, String>:
@@ -749,7 +750,7 @@ def lines.obj0(hk: Bool, hy: Bool, key: String, d: Nat, opt: Opts, acc: List<&2,
     case True{} _:
       line.key(key, d, hy, opt) <> acc
     case False{} True{}:
-      String.reverse(SCon{Chr{45}, ln(d, False{}, opt)}) <> acc
+      SCon{Chr{45}, ln(d, False{}, opt)} <> acc
     case False{} False{}:
       acc
 
@@ -885,10 +886,12 @@ def pre.if(spec: Bool, js: Bool, j: J.Json) -> J.Json:
     case False{}:
       pre(64n, j, PVal{}, J.JNil{}, js, False{})
 
-# S4.60 the TOON lines of a value, in order (an empty root object gives no line)
+# S4.60 the TOON lines of a value, LAST first and each reversed, as emit collects them (an empty root
+# object gives no line); S5.100's join builds the text forward from them (EXP-021)
 def encode.go(+j: J.Json, +opt: Opts) -> List<&2, String>:
-  List.reverse(&2, String, emit(j, ctx.root(j, opt), opt, Nil{}))
+  emit(j, ctx.root(j, opt), opt, Nil{})
 
-# S4.60, EXP-007 the numbers are rendered first (in parallel), then the lines are emitted
+# S4.60, EXP-007 the numbers are rendered first (in parallel), then the lines are emitted: last first,
+# each reversed (EXP-021)
 def encode(j: J.Json, +opt: Opts) -> List<&2, String>:
   encode.go(pre.if(opt.spec(opt), False{}, j), opt)

@@ -2304,3 +2304,22 @@ law encode_stats_reads_the_text:
 
 law encode_invalid_utf8_refused:
   {C.run_pure(["--encode"], [123, 34, 97, 34, 58, 34, 255, 34, 125]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
+
+# S5.100, S4.30-S4.62 (EXP-021) the text is built forward from lines handed over last first and reversed:
+# through the whole pure core, bytes from the pinned original. Zero lines give the single LF; one line;
+# lines at three depths; a tabular header and its rows; list items with a nested field, a primitive and
+# an empty array (a join that took the lines in the wrong order, or one unreversed, fails these)
+law encode_text_zero_lines:
+  {C.run_pure(["--encode"], T.ascii_bytes("{}", Nil{})) == C.Out{0n, "\n", ""} : C.Out}
+
+law encode_text_one_line:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":1}", Nil{})) == C.Out{0n, "a: 1\n", ""} : C.Out}
+
+law encode_text_three_depths:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":{\"b\":{\"c\":\"x\"}},\"d\":true}", Nil{})) == C.Out{0n, "a:\n  b:\n    c: x\nd: true\n", ""} : C.Out}
+
+law encode_text_tabular_rows:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"t\":[{\"x\":1,\"y\":2},{\"x\":3,\"y\":4}]}", Nil{})) == C.Out{0n, "t[2]{x,y}:\n  1,2\n  3,4\n", ""} : C.Out}
+
+law encode_text_list_items:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"l\":[{\"a\":1,\"b\":[1,2]},\"s\",[]]}", Nil{})) == C.Out{0n, "l[3]:\n  - a: 1\n    b[2]: 1,2\n  - s\n  - [0]:\n", ""} : C.Out}

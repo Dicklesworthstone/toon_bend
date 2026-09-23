@@ -576,3 +576,14 @@ likewise do not establish universal performance rules.
 - **Do-not-retry unless:** (a win, kept) — revisit the 16 MiB first read if a lane is found where allocating it costs more than the copy it saves (the JavaScript build zero-fills it once per run)
 - Tally: W1/L0/N0 (counted)
 - Agent: Claude (session ef481f9c, 2026-09-23)
+
+### NE-024 — the TOON text is built forward from reversed lines: one copy per output character instead of three (EXP-021)   [2026-09-23 | COUNTED_WIN, kept]
+- Program / def: `port/encode.bend` / the six line builders (`line.prim`, `line.hdr`, `line.inline`, `line.key`, `lines.obj0`, `row.line`) return their line reversed; `encode.go` returns the lines last first; `port/cli.bend` / `lines.join`, `toon.text` build the text forward
+- Provenance: as NE-022; base = the EXP-019 binary
+- Counted (cachegrind Ir): `gsoc_2018 --encode` 4,594,481,010 → 4,075,715,463, **11.3% fewer (1.127×)**; `flights_200k --encode` 34,186,157,328 → 33,403,287,482 (2.3% fewer: its lines are short rows of numbers); stdout identical in both; the gate was 8% on gsoc
+- Binding: five closed goldens through the whole pure core (`encode_text_zero_lines`, `_one_line`, `_three_depths`, `_tabular_rows`, `_list_items`; bytes from the pinned original), the first laws on the board's "output framing" row. Three hand mutants each killed in a reduced proof: the lines joined in the wrong order (`_three_depths`), one builder left unreversed (`_three_depths`), the LF put on the wrong side of the line (`_one_line`)
+- Correctness evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/diff-fuzz.py` seed 2121: docs, mutate and argv 1500 inputs each, collide 1200, 0 differences
+- Killing metric: none; promotion to MEASURED needs a cv-gated CPU capture on a quiet host
+- **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain
+- Tally: W1/L0/N0 (counted)
+- Agent: Claude (session ef481f9c, 2026-09-23)

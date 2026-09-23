@@ -77,6 +77,8 @@ RULES = [  # (regex on the law name, rows) — first match wins
  # EXP-018: the decoder that only validates, and the conversion that asks for the text only when it reads it
  (r"(utf8_verdict_|encode_invalid_utf8_refused$)", ["strict UTF-8"]),
  (r"(encode_non_ascii_without_stats|encode_stats_reads_the_text)$", ["strict UTF-8", "--stats"]),
+ # EXP-021: the TOON text built forward from reversed lines (the final LF, line order, every line shape)
+ (r"(encode_text_)", ["output framing"]),
  (r"(writer_b_keeps_)", ["JSON writer B"]),
  (r"(writer_a_keeps_del_raw)$", ["JSON writer A"]),
  (r"(tab_in_value_forces_quotes)$", ["encoder primitives", "delimiters comma, tab, pipe on encode"]),

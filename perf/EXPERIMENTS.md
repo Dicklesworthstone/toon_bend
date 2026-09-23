@@ -888,3 +888,37 @@ pipe against the original.
 ### Precommitted gate
 In INSTRUCTIONS (counted, never called measured): ≥ 5% fewer than the EXP-018 binary on `gsoc_2018.json` (`--encode`, `--threads 1`),
 stdout identical; conform c-1t with and without `TOON_SPEC=1`; stdio-probe rows unchanged. CPU on a quiet host is the confirmation.
+
+## EXP-021 — the TOON text is built forward from reversed lines: one copy per output character instead of three
+
+| field | value |
+|---|---|
+| experiment_id | EXP-021 |
+| program / def | `port/encode.bend` / `line.prim`, `line.hdr`, `line.inline`, `line.key`, `lines.obj0`, `row.line`, `encode.go`; `port/cli.bend` / `lines.join`, `toon.text` (S4.30–S4.62, S5.100) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'lines.join\|toon.text\|output text\|line assembly' perf/NEGATIVE-EVIDENCE.md` → no entry |
+| status | COUNTED_WIN 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-024): 11.3% fewer instructions on `gsoc_2018 --encode` against EXP-019 (gate 8%); CPU confirmation on a quiet host pending |
+| precommitted | true |
+
+### Hypothesis
+Every output character is copied three times after it is first written: each line is built reversed and reversed back
+(`String.reverse` in six line builders), `lines.join` pushes it reversed onto a reversed whole text, and `toon.text` reverses that.
+Lines handed over still reversed and last first let `lines.join` build the text forward, `rev_onto(line, SCon{LF, acc})`, one copy per
+character. The instruction count of `--encode` on `gsoc_2018.json` at 1 thread falls by at least 8% against the EXP-019 binary.
+
+### Evidence before the lever
+Re-profile of the EXP-019 tree (the allocation profile's method): 22,296,321 wraps on `gsoc_2018 --encode`; `String.reverse` under
+`CLI_CONVERT` 3,089,196, `rev_onto` under it 3,070,236, `String.reverse` in `line.prim` 3,023,315: 41% of the wraps, one each per
+output character.
+
+### Lever (one)
+The six line builders drop their `String.reverse`; `encode.go` drops its `List.reverse`: `E.encode` returns the lines LAST first, each
+REVERSED (no law names `E.encode` or a line builder; the only caller is `enc.read`). `lines.join` then pushes each onto the text
+forward. Same bytes by construction: `rev_onto(rev(L), LF ++ acc) = L ++ LF ++ acc`, taken from the last line to the first. Laws:
+closed `run_pure` goldens (bytes from the pinned original) on zero lines (an empty root object), one line, several lines at several
+depths, a tabular array and a list item, all through the whole pure core; corpus and fuzz.
+
+### Precommitted gate
+In INSTRUCTIONS (counted): ≥ 8% fewer than the EXP-019 binary on `gsoc_2018.json` (`--encode`, `--threads 1`), stdout identical;
+conform c-1t with and without `TOON_SPEC=1`; the proof green.

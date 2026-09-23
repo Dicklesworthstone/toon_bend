@@ -388,3 +388,44 @@ likewise do not establish universal performance rules.
   two moves and a drop), OR a profile shows `spin_6` above 25% of samples rather than 8%, OR the same
   rewrite is wanted for READABILITY rather than speed, in which case it must be argued on those terms and
   not on this evidence.
+
+### NE-020 — the number pre-pass's split threshold (EXP-017)   [2026-09-23 | NEUTRAL, reverted]
+
+- **Lever:** the literal `64n` in `E.par.cut`, which decides while a chain keeps forking, raised to `2048n`
+  (and, as a second point on the curve, `256n`).
+- **Why it looked promising:** the peer session's gprof of `--encode` on `flights_200k.json` at one thread
+  put `spin_164` at **6.6% self time over only 28,670 calls**, all under `WL_FID_ENCODE_PRE`, with
+  `spin_418`/`spin_420` (~2%) beside it — the split machinery, not the rendering. Each split costs three
+  traversals of the left half (`par.take`'s accumulator and its `rev_items`, then `par.cat`'s
+  `rev_items(rev_items(a, JNil{}), b)`), and 64 gives about 3000 leaves on a 200k-item chain where a pool
+  of at most 128 threads can use dozens. The arithmetic for a ~40% cut in copying was sound.
+- **Measured** (interleaved, both orders, 6 rounds per arm, child CPU time, `--encode flights_200k.json`
+  at `--threads 1`):
+
+  | threshold | min | median | cv | ratio (min) |
+  |---|---|---|---|---|
+  | 64 (current) | 5.299 s | 5.489 s | 2.3% | 1.000 |
+  | 256 | 5.302 s | 5.414 s | 3.1% | 1.001 |
+  | 2048 | 5.241 s | 5.394 s | 5.0% | 0.989 |
+
+  At `--threads 8`, 2048 against 64 was 0.979 by min and 1.025 by median — inside the noise in both
+  directions. The precommitted gate was ≥ 8% at one thread. **MISSED; there is no effect to gate.**
+- **Outcome:** changing the split granularity by a factor of 32 moves CPU time by at most 1.1%. The
+  copying the splits do is real and the count of it falls as designed, but it is not where the time goes.
+- **A correction on the record:** an earlier two-arm run of this same comparison reported 2048 as **7%
+  SLOWER** (ratio 1.072 by min). That run's baseline cv was 10.1% and it was wrong. It was not acted on;
+  the three-arm run above, with cv 2.3–5.0%, replaced it. A two-arm capture on a loaded host can invent a
+  7% effect in either direction, which is the whole reason this repository gates on cv.
+- **This is the SECOND independent confirmation of NE-019's finding**, from a different def, a different
+  input and a different profile: on this runtime **a symbol's share of a gprof profile is not a budget you
+  can spend**. NE-019 removed 63% of the hottest symbol for ~2%; NE-020 removed most of the split work for
+  ~1%. Both times the arithmetic was right and the conclusion was wrong. Profile-guided lever choice needs
+  a measured A/B before the work, not after.
+- **Bearing on the untried option:** the peer's alternative was to have `pre` return each half reversed so
+  `par.cat` becomes one `rev_items` instead of two — i.e. remove two of the three traversals per split.
+  NE-020 says the whole of that cost is worth about 1%, so that lever cannot pay for its contract change
+  and the law it would need. Recommend NOT building it.
+- **Do-not-retry unless:** a profile shows `WL_FID_ENCODE_PRE`'s split machinery above 20% of self time
+  rather than 6.6%, OR the chain representation stops being a cons list (an array or rope would change
+  what a split costs), OR a >= 64-thread run is the target, where leaf count rather than copying bounds
+  the pool.

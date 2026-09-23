@@ -546,3 +546,55 @@ worth keeping whatever happens to the lever.
 ```bash
 scripts/incumbent-bench.sh --runs 9 --max-cv 5 --tag EXP-016 --original <current binary> -- --encode perf/e2e/corpus/gsoc_2018.json --port <lever binary> -- --encode perf/e2e/corpus/gsoc_2018.json
 ```
+
+## EXP-017 — the number pre-pass splits far more often than any worker pool needs
+
+| field | value |
+|---|---|
+| experiment_id | EXP-017 |
+| program / def | `port/encode.bend` / `par.cut`'s threshold (the literal `64n`) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (Claude Code session, author of EXP-007) |
+| graveyard sweep | `rg -i 'threshold\|fork\|split\|leaf\|granularity' perf/` → NE-008 (EXP-007's own entry: ratios NO_EVIDENCE, the pass ADMITTED on correctness), NE-INH-11 ("split heavy tiles; 32-px cells" — neutral, retry on "a tail-bound profile"). No do-not-retry applies to the threshold itself |
+| status | **CLOSED, NOT ADMITTED (2026-09-23)** — built at 2048 and at 256, measured, reverted to 64; ledgered as `perf/NEGATIVE-EVIDENCE.md` NE-020. Between 64 and 2048 the CPU time moves by at most 1.1%, so the split granularity is not a lever at all |
+| precommitted | true |
+| credit | the hotspot was found by the peer session (toon-bend-92) profiling `flights_200k.json`; the code is mine |
+
+### Hypothesis
+
+`par.cut` splits a chain while it is longer than **64** items. Each split costs three traversals of the
+left half: `par.take` walks `k` items into a reversed accumulator and then `J.rev_items` it back, and
+`par.cat(a, b)` is `rev_items(rev_items(a, JNil{}), b)` — two more. Total copying is therefore
+O(levels x n), and with 200k items a threshold of 64 gives about 11.6 levels and ~3000 leaves. Eight
+workers need dozens of leaves, not thousands, and at `--threads 1` every one of those splits is pure
+overhead on top of the rendering. Raising the threshold to 2048 cuts the levels to about 6.6 — about
+40% less copying — and changes NOTHING about what the pass returns, only where it forks.
+
+### Motivation
+
+Peer profile of `--encode` on `flights_200k.json` at `--threads 1`: `spin_164` at **6.6% self time over
+only 28,670 calls**, all under `WL_FID_ENCODE_PRE` / `ENCODE_PRE_J1353`, with `spin_418`/`spin_420` (~2%)
+beside it — the split machinery, not the rendering. The e2e reference run has `--encode` at 9.61x the
+original against `--decode` at 5.73x.
+
+### Lever (one)
+
+The literal `64n` in `par.cut` becomes `2048n`. No other change.
+
+### Correctness binding
+
+The threshold decides only WHERE the chain forks, never what the pass returns, so no new law is needed
+and none of the existing `pre_*` laws changes. The claim rests on the goldens: the fork shape is exactly
+what `c-8t` exists to exercise (since EXP-007 the pass is a genuine parallel lane on every `--encode`
+case), so a fork-shape bug is a c-8t-only failure.
+
+### Precommitted gate
+
+- **Primary:** ≥ 8% below the current binary on `--encode` of `flights_200k.json` at `--threads 1`,
+  by interleaved ABBA child-CPU time, min and median agreeing in sign.
+- **No regression at scale:** `--threads 8` on the same input not worse than the current binary by more
+  than 2%.
+- Always: conform 1076/1076 on c-1t, **c-8t** and js; byte-identical output on the e2e corpus;
+  `bend PROOF.bend` unchanged at 478 laws.
+- NE-019's lesson applies: a profile share is not a budget. If the gate is missed, the lever is reverted
+  and ledgered, whatever the call counts say.

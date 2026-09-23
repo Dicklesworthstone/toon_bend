@@ -767,12 +767,15 @@ def num.wrap(m: Maybe<&2, F.F64>) -> Maybe<&2, Json>:
 # S4.101 the value of a finished token: the correctly rounded binary64 of the whole literal (every
 # digit counts), None when that is infinite; phase 8 is the harmless exponent overflow, whose value
 # is zero
-# S2.51, EXP-007 a token that CANNOT overflow: a negative exponent (underflow is not an error), or an
-# exponent of at most 250 with at most 50 integer digits, so below 10^301 against a limit of 1.8e308.
-# Such a token is kept raw and converted by the pre-pass, in parallel; every other token is converted
-# HERE, so `number out of range` keeps its position and its precedence over later failures.
+# S2.51, EXP-007 a token that CANNOT overflow. The integer digits alone decide the magnitude's floor,
+# so their count is bounded on BOTH arms: a 401-digit integer is above 1.8e308 whatever the exponent,
+# and `1<400 zeros>e-1` is out of range in the original (R16-1). With at most 50 integer digits the
+# value is below 10^50 once the exponent is negative (underflow is not an error), and below 10^300
+# when the exponent is at most 250 — both under the 1.8e308 limit. Such a token is kept raw and
+# converted by the pre-pass, in parallel; every other token is converted HERE, so `number out of
+# range` keeps its position and its precedence over later failures.
 def num.safe(+eneg: Bool, +x: Nat, +ints: String) -> Bool:
-  Bool.or(eneg, Bool.and(Nat.is_le(x, 250n), Nat.is_le(T.str_len(ints, 0n), 50n)))
+  Bool.and(Nat.is_le(T.str_len(ints, 0n), 50n), Bool.or(eneg, Nat.is_le(x, 250n)))
 
 # S2.51, EXP-007 the token kept raw, or converted now
 def num.defer(safe: Bool, neg: Bool, ints: String, fracs: String, +eneg: Bool, +x: Nat, spec: Bool) -> Maybe<&2, Json>:
@@ -792,7 +795,9 @@ def num.value(num: Num, spec: Bool) -> Maybe<&2, Json>:
       num.defer(num.safe(eneg, x, ints), neg, ints, fracs, eneg, x, spec)
 
 # S2.51, EXP-007 the binary64 of a deferred token. num.safe excluded overflow, so F.token_value
-# answers Some; the zero of the None arm is unreachable and is there because the type demands it
+# answers Some; the zero of the None arm is unreachable and is there because the type demands it.
+# That "unreachable" is exactly as true as num.safe's bounds: when they were wrong the None arm WAS
+# reached and answered zero for an out-of-range number (R16-1). The num_safe_* laws pin the bounds.
 def raw.unwrap(m: Maybe<&2, F.F64>) -> F.F64:
   match m:
     case Some{f}:

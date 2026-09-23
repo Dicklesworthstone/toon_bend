@@ -106,6 +106,9 @@ encnum_overflow_negative	["--encode"]	cases/inputs/hand/encnum_overflow_negative
 encnum_overflow_huge_exponent	["--encode"]	cases/inputs/hand/encnum_overflow_huge_exponent.json	enc-number	
 encnum_zero_huge_exponent	["--encode"]	cases/inputs/hand/encnum_zero_huge_exponent.json	enc-number	
 encnum_tiny_huge_exponent	["--encode"]	cases/inputs/hand/encnum_tiny_huge_exponent.json	enc-number	
+encnum_overflow_wide_ints_neg_exponent	["--encode"]	cases/inputs/hand/encnum_overflow_wide_ints_neg_exponent.json	enc-number	R16-1: out of range despite e-1
+encnum_overflow_wide_ints_then_syntax	["--encode"]	cases/inputs/hand/encnum_overflow_wide_ints_then_syntax.json	enc-number	R16-1: out-of-range precedes the syntax error
+encnum_overflow_exponent_just_past_bound	["--encode"]	cases/inputs/hand/encnum_overflow_exponent_just_past_bound.json	enc-number	R16-3: 1e311 is out of range
 decnum_ints	["--decode"]	cases/inputs/hand/decnum_ints.toon	dec-number	
 decnum_decimals	["--decode"]	cases/inputs/hand/decnum_decimals.toon	dec-number	
 decnum_exponents	["--decode"]	cases/inputs/hand/decnum_exponents.toon	dec-number	

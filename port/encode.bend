@@ -873,7 +873,11 @@ def pre(+fuel: Nat, j: J.Json, m: PM, acc: J.Json, +js: Bool, +spec: Bool) -> J.
       v
 
 # S8.2, EXP-007 the kill-switch: with TOON_SPEC=1 the value goes to the emitter untouched and every
-# number takes its spec twin inside put.prim, exactly as before this pass existed
+# number takes its spec twin inside put.prim. This closes the EMITTER half of the pass only. The
+# reader's half is not switchable: num.safe defers a token before any option is read, so the switch
+# cannot restore an eager conversion, and the deferral must therefore be correct on its own rather
+# than merely recoverable (R16-1, R16-5). num.safe's bounds carry that weight and are pinned by the
+# five closed num_safe_* laws.
 def pre.if(spec: Bool, js: Bool, j: J.Json) -> J.Json:
   match spec:
     case True{}:

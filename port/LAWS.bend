@@ -1733,8 +1733,10 @@ law golden_usage_unknown_digit_cluster_after_value_option:
 
 # ---------------------------------------------------------------- EXP-007: numbers rendered before emission
 
-# S8.2 the kill-switch closes the pass: with TOON_SPEC=1 the value reaches the emitter untouched, so
-# every number takes its spec twin inside put.prim exactly as it did before the pass existed
+# S8.2 the kill-switch closes the EMITTER half of the pass: with TOON_SPEC=1 the value reaches the
+# emitter untouched, so every number takes its spec twin inside put.prim. It does not close the
+# reader's half, which defers before any option is read (R16-1, R16-5); the num_safe_* laws below
+# are what make that half correct without a switch.
 law pre_gate_switch:
   for js: Bool
   for j: J.Json
@@ -1761,6 +1763,34 @@ law pre_raw_is_num:
   for delim: U32
   for acc: String
   {E.put.prim(J.JRaw{neg, ints, fracs, eneg, x}, delim, spec, acc) == E.put.prim(J.JNum{J.raw.f64(neg, ints, fracs, eneg, x, spec)}, delim, spec, acc) : String}
+
+# S2.51, EXP-007 (R16-1, R16-3) the two bounds num.safe rests on, pinned as closed facts so that
+# moving either constant is a red proof and not a surviving mutant. A deferred token's `number out of
+# range` would be lost: the reader defers before the kill-switch is read, so TOON_SPEC=1 does not
+# restore it, and raw.unwrap's None arm would answer zero for a value the original rejects.
+
+# 51 integer digits are refused even with a negative exponent. This is the fact R16-1 found missing:
+# the old disjunction returned True for every negative exponent, so `1<400 zeros>e-1` was deferred
+# and printed 0 with exit 0 where the original exits 1.
+law num_safe_wide_ints_refused_when_eneg:
+  {J.num.safe(True{}, 1n, "100000000000000000000000000000000000000000000000000") == False{} : Bool}
+
+# 51 integer digits are refused with a positive exponent too.
+law num_safe_wide_ints_refused_when_epos:
+  {J.num.safe(False{}, 0n, "100000000000000000000000000000000000000000000000000") == False{} : Bool}
+
+# An exponent of 251 is refused. This is the fact R16-3 found missing: a mutant moving the bound to
+# 300 survived the corpus and the proof, though `1000000000000e299` is out of range in the original.
+law num_safe_big_exponent_refused:
+  {J.num.safe(False{}, 251n, "1") == False{} : Bool}
+
+# The pass is not silently disabled: the two shapes it exists for are still deferred. Without these,
+# a mutant answering False everywhere would satisfy the three refusals above and cost the speedup.
+law num_safe_small_exponent_deferred:
+  {J.num.safe(False{}, 250n, "1") == True{} : Bool}
+
+law num_safe_deep_underflow_deferred:
+  {J.num.safe(True{}, 400n, "1") == True{} : Bool}
 
 # S4.131 (EXP-006) one limb: nothing is dropped, the estimate is the digit (45 = 6 * 7 + 3)
 law dg_digit_fast_1limb:

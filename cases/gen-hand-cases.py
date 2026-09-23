@@ -162,6 +162,15 @@ enc("encnum_overflow_negative", '{"a":-1e309}\n', cls="enc-number")
 enc("encnum_overflow_huge_exponent", '{"a":1e99999999999999999999}\n', cls="enc-number")
 enc("encnum_zero_huge_exponent", '{"a":0e99999999999999999999}\n', cls="enc-number")
 enc("encnum_tiny_huge_exponent", '{"a":1e-99999999999999999999}\n', cls="enc-number")
+# S2.51 (R16-1): integer digits alone exceed 1.8e308, so a NEGATIVE exponent does not make the token
+# safe. EXP-007's first num.safe deferred on `eneg` alone and printed 0 with exit 0 here.
+enc("encnum_overflow_wide_ints_neg_exponent", '{"a":1' + "0" * 400 + 'e-1}\n', cls="enc-number", note="R16-1: out of range despite e-1")
+# S2.51 (R16-1): the same shape where a later syntax error must NOT win — the original reports the
+# out-of-range at the number's column, not the comma's.
+enc("encnum_overflow_wide_ints_then_syntax", '{"a":2' + "0" * 309 + 'e-1 x}\n', cls="enc-number", note="R16-1: out-of-range precedes the syntax error")
+# S2.51 (R16-3): pins num.safe's exponent bound at 250. A mutant moving it to 300 defers this token
+# and prints a number where the original exits 1.
+enc("encnum_overflow_exponent_just_past_bound", '{"a":1000000000000e299}\n', cls="enc-number", note="R16-3: 1e311 is out of range")
 
 # ---------------------------------------------------------------- numbers, TOON -> JSON
 def toonnums(toks):

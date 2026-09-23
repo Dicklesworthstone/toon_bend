@@ -1665,6 +1665,26 @@ def Laws.pre_txt_is_num(f, spec, delim, acc):
 def Laws.pre_raw_is_num(neg, ints, fracs, eneg, x, spec, delim, acc):
   {==}
 
+# S2.51 (R16-1) computed: 51 integer digits outrun any negative exponent
+def Laws.num_safe_wide_ints_refused_when_eneg():
+  {==}
+
+# S2.51 (R16-1) computed
+def Laws.num_safe_wide_ints_refused_when_epos():
+  {==}
+
+# S2.51 (R16-3) computed: the exponent bound is 250, not 300
+def Laws.num_safe_big_exponent_refused():
+  {==}
+
+# S2.51 computed: the pass still fires on the shapes it exists for
+def Laws.num_safe_small_exponent_deferred():
+  {==}
+
+# S2.51 computed
+def Laws.num_safe_deep_underflow_deferred():
+  {==}
+
 # S4.131 computed
 def Laws.dg_digit_fast_1limb():
   {==}

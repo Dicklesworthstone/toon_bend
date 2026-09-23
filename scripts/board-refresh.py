@@ -87,6 +87,8 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(decode_scan_)", ["TOON scanning"]),
  # EXP-026: the numeric-like recognizer against the lexer, and the quoting it decides
  (r"(is_like_|encode_numeric_like_items$)", ["encoder primitives"]),
+ # EXP-027: the JSON reader's string arm, its guard's edges, and plain bytes through the whole core
+ (r"(step_in_str_|plain_\d+_|encode_plain_string_bytes$)", ["JSON text input"]),
  (r"(writer_b_keeps_)", ["JSON writer B"]),
  (r"(writer_a_keeps_del_raw)$", ["JSON writer A"]),
  (r"(tab_in_value_forces_quotes)$", ["encoder primitives", "delimiters comma, tab, pipe on encode"]),

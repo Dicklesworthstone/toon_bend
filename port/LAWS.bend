@@ -2482,3 +2482,68 @@ law is_like_zero_fraction:
 
 law is_like_inner_zero_fraction:
   {F.is_like("1.05") == F.is_like.lex("1.05") : Bool}
+
+# S2.15, S8.2 (EXP-027) the reader's string arm with the fast path closed (the kill-switch, or a byte that is
+# not plain) IS the step of that string state, for every state and byte
+law step_in_str_slow_is_step:
+  for rev: String
+  for key: Bool
+  for need: Nat
+  for part: U32
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for b: U32
+  {J.step.in_str(False{}, rev, key, need, part, stack, depth, l, c, root, b) == J.step(J.St{J.MStr{rev, key, need, part}, stack, depth, l, c, root}, b, True{}) : J.St}
+
+# S2.15 (EXP-027) the fast arm's guard on both sides of every edge (a guard whose refusals are unpinned admits a
+# mutant that widens it; one whose admissions are unpinned admits a mutant that switches the lever off): the
+# control byte below the range and the first byte in it, the quote and its two neighbours, the backslash and its
+# two neighbours, the last ASCII byte and the first byte past it
+law plain_31_refused:
+  {J.plain(31) == False{} : Bool}
+
+law plain_32_accepted:
+  {J.plain(32) == True{} : Bool}
+
+law plain_33_accepted:
+  {J.plain(33) == True{} : Bool}
+
+law plain_34_refused:
+  {J.plain(34) == False{} : Bool}
+
+law plain_35_accepted:
+  {J.plain(35) == True{} : Bool}
+
+law plain_91_accepted:
+  {J.plain(91) == True{} : Bool}
+
+law plain_92_refused:
+  {J.plain(92) == False{} : Bool}
+
+law plain_93_accepted:
+  {J.plain(93) == True{} : Bool}
+
+law plain_127_accepted:
+  {J.plain(127) == True{} : Bool}
+
+law plain_128_refused:
+  {J.plain(128) == False{} : Bool}
+
+# S2.15, S2.40 (EXP-027) the fast arm IS the step of a string state on a plain byte: in a value string, at both
+# ends of the plain range, and in a key with a multi-byte character pending (the ASCII arm clears it)
+law step_in_str_fast_value:
+  {J.step.in_str(True{}, "ba", False{}, 0n, 0, Nil{}, 0n, 1n, 5n, None{}, 99) == J.step(J.St{J.MStr{"ba", False{}, 0n, 0}, Nil{}, 0n, 1n, 5n, None{}}, 99, False{}) : J.St}
+
+law step_in_str_fast_space:
+  {J.step.in_str(True{}, "ba", False{}, 0n, 0, Nil{}, 0n, 1n, 5n, None{}, 32) == J.step(J.St{J.MStr{"ba", False{}, 0n, 0}, Nil{}, 0n, 1n, 5n, None{}}, 32, False{}) : J.St}
+
+law step_in_str_fast_key_pending:
+  {J.step.in_str(True{}, "k", True{}, 1n, 3, Nil{}, 1n, 2n, 7n, None{}, 127) == J.step(J.St{J.MStr{"k", True{}, 1n, 3}, Nil{}, 1n, 2n, 7n, None{}}, 127, False{}) : J.St}
+
+# S2.15 (EXP-027) through the whole pure core, bytes from the pinned original: plain bytes at both ends of the
+# range (a space, '~', DEL) and the refused ones in a key and a value, escapes included
+law encode_plain_string_bytes:
+  {C.run_pure(["--encode"], [123, 34, 97, 32, 98, 34, 58, 34, 120, 32, 121, 126, 127, 33, 35, 91, 93, 34, 44, 34, 107, 34, 58, 34, 113, 92, 34, 114, 92, 92, 115, 34, 125]) == C.Out{0n, "\"a b\": \"x y~" ++ SCon{Chr{127}, "!#[]\"\nk: \"q\\\"r\\\\s\"\n"}, ""} : C.Out}

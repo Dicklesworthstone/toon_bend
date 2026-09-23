@@ -2255,3 +2255,64 @@ def Laws.is_like_zero_fraction():
 # S4.161 closed: both sides computed (EXP-026)
 def Laws.is_like_inner_zero_fraction():
   {==}
+
+# S2.15 the slow arm and step's path for a string state compute the same term (step's first arm cannot match a
+# string state)
+def Laws.step_in_str_slow_is_step(rev, key, need, part, stack, depth, l, c, root, b):
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.plain_31_refused():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.plain_32_accepted():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.plain_33_accepted():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.plain_34_refused():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.plain_35_accepted():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.plain_91_accepted():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.plain_92_refused():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.plain_93_accepted():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.plain_127_accepted():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.plain_128_refused():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.step_in_str_fast_value():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.step_in_str_fast_space():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.step_in_str_fast_key_pending():
+  {==}
+
+# S2.15 closed: both sides computed (EXP-027)
+def Laws.encode_plain_string_bytes():
+  {==}

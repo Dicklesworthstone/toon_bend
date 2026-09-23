@@ -633,3 +633,14 @@ likewise do not establish universal performance rules.
 - **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain
 - Tally: W1/L0/N0 (counted)
 - Agent: Claude (session ef481f9c, 2026-09-23)
+
+### NE-031 — the JSON reader takes a plain ASCII byte inside a string without the per-byte dispatch (EXP-027)   [2026-09-23 | COUNTED_WIN, kept]
+- Program / def: `port/json.bend` / `run` matches the byte and the state together: a string state goes to `step.in_str` (its fast arm, behind `F.twin.on`, when the byte is `plain`; else step's own path for a string state), any other state to `step`, unchanged; `plain`
+- Provenance: as NE-022; base = the EXP-026 binary
+- Counted (cachegrind Ir), three shapes, stdout identical in every cell: (1) the carded wrapper `step.fast` around `step`: `gsoc_2018 --encode` 3,520,909,254 → 3,101,385,374 (-11.9%) but `canada --encode` 11,032,092,303 → 11,160,383,918 (**+1.2%**, the byte test paid outside strings) and `flights_200k` -0.4%; (2) the mode tested first through a borrowed `in_str`: gsoc 3,144,543,145 (-10.7%), canada 11,128,872,394 (**+0.9%**: `+st` kept the state every byte), flights -0.5%; (3) KEPT, the arm inside `run`'s match: gsoc **3,010,314,170 (-14.5%, 1.170×)**, `flights_200k` 32,764,310,271 (-1.9%), `canada` 11,014,963,054 (-0.16%); the gate was 5% on gsoc
+- Binding: the quantified law `step_in_str_slow_is_step` (for every string state and byte, the arm with the fast path closed IS `step`: the kill-switch and every refused byte take it); ten closed laws on `plain`'s edges on both sides (31/32, 33/34/35, 91/92/93, 127/128); three closed laws `step_in_str_fast_*` (the fast arm equals `step` on a plain byte in a value, a space, DEL in a key with a character pending); `encode_plain_string_bytes` through the whole pure core (bytes from the pinned original). Hand mutants in a reduced proof: the range widened to 128 (killed by `plain_128_refused`), the guard off (`plain_32_accepted`), the quote admitted (`plain_34_refused`), the column not moved (`step_in_str_fast_value`), the slow arm losing the line (`step_in_str_slow_is_step`)
+- Correctness evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/diff-fuzz.py` seed 2729: docs, mutate and collide 1500 inputs each, and mutate seed 2730 with `TOON_SPEC=1`, 0 differences
+- Killing metric: none; promotion to MEASURED needs a cv-gated CPU capture on a quiet host
+- **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain; a future fast arm in `run` is judged on a string-poor input too (canada), because a per-byte test costs every byte
+- Tally: W1/L0/N0 (counted)
+- Agent: Claude (session ef481f9c, 2026-09-23)

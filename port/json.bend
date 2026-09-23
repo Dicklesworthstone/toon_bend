@@ -901,13 +901,31 @@ def step(st: St, +b: U32, spec: Bool) -> St:
       +lf = U32.is_eq(b, 10)
       step.mode(mode, stack, depth, l, c, pos.line(lf, l), pos.col(lf, c), root, byte.cls(b), b, spec)
 
-# S2.45 one pass over the bytes, first error wins. Measure: the byte list.
+# S2.15 plain string content: 20-7F other than '"' and '\' is itself, one column, never a line (EXP-027)
+def plain(+b: U32) -> Bool:
+  Bool.and(U32.is_ge(b, 32), Bool.and(U32.is_lt(b, 128), Bool.and(Bool.not(U32.is_eq(b, 34)), Bool.not(U32.is_eq(b, 92)))))
+
+# S2.15, S2.40 one byte inside a string, the state's fields already taken apart by `run` (EXP-027). The fast
+# arm: a plain byte joins the text and moves the column, which is what str.byte's ASCII arm does after the
+# whole dispatch. The other arm is step's own path for a string state (a string state is never an error)
+def step.in_str(fast: Bool, rev: String, key: Bool, need: Nat, part: U32, stack: List<&2, Frame>, depth: Nat, +l: Nat, +c: Nat, root: Maybe<&2, Json>, +b: U32) -> St:
+  match fast:
+    case True{}:
+      St{MStr{SCon{Chr{b}, rev}, key, 0n, 0}, stack, depth, l, 1n+c, root}
+    case False{}:
+      +lf = U32.is_eq(b, 10)
+      str(rev, key, need, part, stack, depth, pos.line(lf, l), pos.col(lf, c), root, byte.cls(b), b)
+
+# S2.45 one pass over the bytes, first error wins. Measure: the byte list. Inside a string the byte goes to
+# step.in_str, through the fast arm when the kill-switch is open and the byte is plain (EXP-027)
 def run(bytes: List<&2, U32>, st: St, +spec: Bool) -> St:
-  match bytes:
-    case Nil{}:
-      st
-    case Con{b, rest}:
-      run(rest, step(st, b, spec), spec)
+  match bytes st:
+    case Nil{} s:
+      s
+    case Con{+b, rest} St{MStr{rev, key, need, part}, stack, depth, l, c, root}:
+      run(rest, step.in_str(F.twin.on(spec, plain(b)), rev, key, need, part, stack, depth, l, c, root, b), spec)
+    case Con{b, rest} s:
+      run(rest, step(s, b, spec), spec)
 
 # S2.4 the result of reading: a value, or the serde_json message with its line and column
 type Parsed is Data:

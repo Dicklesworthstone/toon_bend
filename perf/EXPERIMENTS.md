@@ -1060,3 +1060,34 @@ text, a long non-numeric text; beside them the pinned original on EVERY string u
 ### Precommitted gate
 In INSTRUCTIONS (counted): ≥ 5% fewer than the EXP-025 binary on `gsoc_2018.json` (`--encode`, `--threads 1`), stdout identical;
 conform c-1t with and without `TOON_SPEC=1`; the exhaustive comparison 0 differences; the proof green.
+
+## EXP-027 — the JSON reader takes a plain ASCII byte inside a string without the per-byte dispatch
+
+| field | value |
+|---|---|
+| experiment_id | EXP-027 |
+| program / def | `port/json.bend` / `run` (S2.15, S2.40): a fast arm `step.fast` beside `step`, behind `F.twin.on` |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'json reader\|J.step\|byte.cls\|string byte' perf/NEGATIVE-EVIDENCE.md` → NE-019 (EXP-016: `byte.cls` alone made cheaper bought 1.4% of the instructions, because its selects are cheap). This lever is a different one: it skips the WHOLE dispatch of a string byte (`byte.cls`, both position helpers, `step.mode`, `str`, `str.byte`), and its gate is an instruction count, which is what showed NE-019's selects to be cheap |
+| status | COUNTED_WIN 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-031): 14.5% fewer instructions on `gsoc_2018 --encode` against EXP-026 (gate 5%). The SHAPE changed after this card: the carded `step.fast` wrapper met the gate on gsoc (-11.9%) but ADDED 1.2% on `canada --encode` (a byte test paid by every byte outside strings); a mode-first variant still added 0.9% (a keep of the state per byte); the arm inside `run`'s own match (`step.in_str`) is what is kept: gsoc -14.5%, flights -1.9%, canada -0.16%. The laws are those of the kept shape |
+| precommitted | true |
+
+### Hypothesis
+`JSON_STEP` and `JSON_RUN` are 26% of the instructions of `gsoc_2018 --encode` on the EXP-026 binary (920 million for 3.3 million
+bytes, about 280 per byte), and most bytes of that input are string content. A byte 20-7F other than `"` and `\` inside a string
+does one thing: the character joins the text and the column moves by one (`str.byte`'s ASCII arm; the line cannot move, the byte is
+not LF). An arm that checks that condition and does exactly that skips the rest, and the instruction count of `--encode` on
+`gsoc_2018.json` at 1 thread falls by at least 5% against the EXP-026 binary.
+
+### Lever (one)
+`step.fast(st, b, spec)` = `step.fast.str(F.twin.on(spec, plain(b)), st, b, spec)`: the fast arm matches an `MStr` state and builds
+`St{MStr{SCon{Chr{b}, rev}, key, 0n, 0}, stack, depth, l, 1n+c, root}`, as `str.byte` does; every other state, and every state under
+`TOON_SPEC=1`, goes to `step`, unchanged (so `json_error_is_sticky` still speaks about the step `run` falls back to). Laws: the
+quantified `step_fast_is_step_under_switch` (for every state and byte, `step.fast(st, b, True) == step(st, b, True)`), closed instances
+`step.fast(st, b, False) == step(st, b, False)` on plain bytes at both ends of the range, a key, a pending multi-byte `need`, and on
+`"`, `\`, a control byte, a non-ASCII byte and a non-string state; corpus with and without the switch, fuzz.
+
+### Precommitted gate
+In INSTRUCTIONS (counted): ≥ 5% fewer than the EXP-026 binary on `gsoc_2018.json` (`--encode`, `--threads 1`), stdout identical;
+conform c-1t with and without `TOON_SPEC=1`; the proof green.

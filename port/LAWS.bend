@@ -2323,3 +2323,28 @@ law encode_text_tabular_rows:
 
 law encode_text_list_items:
   {C.run_pure(["--encode"], T.ascii_bytes("{\"l\":[{\"a\":1,\"b\":[1,2]},\"s\",[]]}", Nil{})) == C.Out{0n, "l[3]:\n  - a: 1\n    b[2]: 1,2\n  - s\n  - [0]:\n", ""} : C.Out}
+
+# S2.106 (EXP-022) trim_end is the old double reversal on every shape: nothing trailing (returned as it is),
+# one trailing space, trailing space and tab after an inner space, a trailing U+3000, only White_Space, empty
+law trim_end_nothing_trailing:
+  {T.trim_end("abc") == String.reverse(T.trim_start(String.reverse("abc"))) : String}
+
+law trim_end_one_space:
+  {T.trim_end("ab ") == String.reverse(T.trim_start(String.reverse("ab "))) : String}
+
+law trim_end_inner_kept:
+  {T.trim_end("y z \t") == String.reverse(T.trim_start(String.reverse("y z \t"))) : String}
+
+law trim_end_ideographic:
+  {T.trim_end(SCon{Chr{97}, SCon{Chr{12288}, SNil{}}}) == SCon{Chr{97}, SNil{}} : String}
+
+law trim_end_all_space:
+  {T.trim_end("   ") == "" : String}
+
+law trim_end_empty:
+  {T.trim_end("") == "" : String}
+
+# S2.106 (EXP-022) through the whole pure core, bytes from the pinned original: values with trailing spaces
+# and a tab are trimmed, a value with none is kept whole
+law decode_values_trimmed_at_the_end:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: x  \nb:  y z \t\nc: w\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"x\",\n  \"b\": \"y z\",\n  \"c\": \"w\"\n}\n", ""} : C.Out}

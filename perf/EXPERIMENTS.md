@@ -922,3 +922,35 @@ depths, a tabular array and a list item, all through the whole pure core; corpus
 ### Precommitted gate
 In INSTRUCTIONS (counted): ≥ 8% fewer than the EXP-019 binary on `gsoc_2018.json` (`--encode`, `--threads 1`), stdout identical;
 conform c-1t with and without `TOON_SPEC=1`; the proof green.
+
+## EXP-022 — trim_end returns a text whose last character is not White_Space as it is (EXP-010 retried, counted)
+
+| field | value |
+|---|---|
+| experiment_id | EXP-022 |
+| program / def | `port/text.bend` / `trim_end` (under `T.trim`: the decoder's key-value split, primitive tokens, header inline text; S2.106) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'trim\|reverse' perf/NEGATIVE-EVIDENCE.md` → NE-014 (EXP-010, this lever, NEUTRAL by wall at load 10-13, CPU 1.057×). Its retry predicate: a quiet host for a cv ≤ 5% capture, OR an input of long text values. Neither holds literally: gsoc was already its input and the host is not quiet. What is new is the instrument: the allocation profile counts this lever's site EXACTLY (below), and cachegrind's count does not depend on the load. The retry is therefore a NEW card with a COUNTED gate; it does not re-open EXP-010's wall-clock gate, and NE-014 stays as written |
+| status | COUNTED_WIN 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-025): 12.5% fewer instructions on `gsoc_2018.toon --decode` against EXP-021 (gate 10%); CPU confirmation on a quiet host pending |
+| precommitted | true |
+
+### Hypothesis
+`trim_end(s)` is `String.reverse(trim_start(String.reverse(s)))`, two copies of every trimmed text. A text whose last character is
+not White_Space is its own trim, and `ends_ws` (EXP-013) finds that by a borrowed walk that allocates nothing. The instruction count
+of `--decode` on `gsoc_2018.toon` at 1 thread falls by at least 10% against the EXP-021 binary.
+
+### Evidence before the lever
+Allocation profile of the EXP-021 tree on `gsoc_2018.toon --decode` (3,091,396 bytes): 44,389,777 wraps, 14.4 per byte;
+`String.reverse` under the trim (`spin_18<spin_10`, reached from `DECODE_PRIM` and from the key-value split) 2,819,811 × 2 and
+2,755,347 × 2: 11,150,316 wraps, 25.1% of all.
+
+### Lever (one)
+`trim_end.pick(T.ends_ws(s), s)`: `False` returns `s`; `True` runs the old reversal. Both branches compute the same text (a
+reversed text whose head is not White_Space is left alone by `trim_start`, and two reversals are the identity). Laws: closed
+instances of `trim_end` on no trailing space, a trailing ASCII space, trailing spaces after an inner one, a trailing U+3000, an
+all-space text and the empty text, each against the old expression written out; corpus and fuzz.
+
+### Precommitted gate
+In INSTRUCTIONS (counted): ≥ 10% fewer than the EXP-021 binary on `gsoc_2018.toon` (`--decode`, `--threads 1`), stdout identical;
+conform c-1t with and without `TOON_SPEC=1`; the proof green.

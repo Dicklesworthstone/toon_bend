@@ -134,18 +134,6 @@ def trim_start.go(s: String, ws: Bool) -> String:
 def trim_start(+s: String) -> String:
   trim_start.go(s, head_is_ws(s))
 
-# S2.106 drop trailing White_Space: reverse, drop leading, reverse back (both reversals are loops)
-def trim_end(s: String) -> String:
-  String.reverse(trim_start(String.reverse(s)))
-
-# S2.106 drop White_Space at both ends (Rust's trim)
-def trim(s: String) -> String:
-  trim_end(trim_start(s))
-
-# S2.105 a text made only of White_Space (or empty) is blank
-def is_blank(s: String) -> Bool:
-  String.is_empty(trim_start(s))
-
 # S4.8 the loop of ends_ws: c is the character before `rest`, so the last one is tested alone
 def ends_ws.go(rest: String, c: Char) -> Bool:
   match rest:
@@ -162,6 +150,28 @@ def ends_ws(s: String) -> Bool:
       False{}
     case SCon{c, rest}:
       ends_ws.go(rest, c)
+
+# S2.106 the trailing trim once its need is known: a text that does not end in White_Space is its own
+# trim; one that does is reversed, trimmed at the front and reversed back (both reversals are loops)
+def trim_end.pick(ws: Bool, s: String) -> String:
+  match ws:
+    case False{}:
+      s
+    case True{}:
+      String.reverse(trim_start(String.reverse(s)))
+
+# S2.106 drop trailing White_Space. ends_ws only reads the text (a borrow), so a text with nothing to
+# drop is not copied at all (EXP-022; EXP-010 before it)
+def trim_end(+s: String) -> String:
+  trim_end.pick(ends_ws(s), s)
+
+# S2.106 drop White_Space at both ends (Rust's trim)
+def trim(s: String) -> String:
+  trim_end(trim_start(s))
+
+# S2.105 a text made only of White_Space (or empty) is blank
+def is_blank(s: String) -> Bool:
+  String.is_empty(trim_start(s))
 
 # S4.8 whether the first or the last character is White_Space (the text differs from its own trim)
 def has_edge_ws(+s: String) -> Bool:

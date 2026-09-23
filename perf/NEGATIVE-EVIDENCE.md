@@ -587,3 +587,15 @@ likewise do not establish universal performance rules.
 - **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain
 - Tally: W1/L0/N0 (counted)
 - Agent: Claude (session ef481f9c, 2026-09-23)
+
+### NE-025 — trim_end returns a text whose last character is not White_Space as it is (EXP-022, EXP-010 retried and counted)   [2026-09-23 | COUNTED_WIN, kept]
+- Program / def: `port/text.bend` / `trim_end.pick`, `trim_end` (`ends_ws` moved above it); not behind the switch: both branches compute the same text
+- Provenance: as NE-022; base = the EXP-021 binary. NE-014 (the same lever, NEUTRAL by wall at load 10-13) stands as written: this entry is a new card with a COUNTED gate, not a re-reading of that one
+- Counted (cachegrind Ir): `gsoc_2018.toon --decode` 6,785,804,709 → 5,937,718,735, **12.5% fewer (1.143×)**, stdout identical; the gate was 10%. Why the wall missed it in NE-014: a 12% change is inside a cv of 8-21%, which is what a load-independent instrument is for
+- Mechanism: the allocation profile put 11,150,316 of 44,389,777 wraps (25.1%) in the two reversals under the trim; `ends_ws` only matches its argument, so the compiler borrows the text (no keep) and a text with nothing to drop is returned untouched
+- Binding: six closed laws `trim_end_*` against the old expression written out (nothing trailing, one space, an inner space kept with a trailing space and tab, a trailing U+3000, only spaces, empty) and `decode_values_trimmed_at_the_end` through the whole pure core (bytes from the pinned original). Three hand mutants each killed in a reduced proof: the untouched text dropped (`_nothing_trailing`), the trim skipped (`_one_space`), `ends_ws` testing the first character (`_one_space`)
+- Correctness evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/diff-fuzz.py` seed 2222: docs, mutate and expand 1500 inputs each, 0 differences
+- Killing metric: none; promotion to MEASURED needs a cv-gated CPU capture on a quiet host
+- **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain
+- Tally: W1/L0/N0 (counted)
+- Agent: Claude (session ef481f9c, 2026-09-23)

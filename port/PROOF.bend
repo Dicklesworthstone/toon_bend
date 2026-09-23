@@ -2071,3 +2071,31 @@ def Laws.encode_text_tabular_rows():
 # S5.100 closed: the whole pure core computed (EXP-021)
 def Laws.encode_text_list_items():
   {==}
+
+# S2.106 closed: computed (EXP-022)
+def Laws.trim_end_nothing_trailing():
+  {==}
+
+# S2.106 closed: computed (EXP-022)
+def Laws.trim_end_one_space():
+  {==}
+
+# S2.106 closed: computed (EXP-022)
+def Laws.trim_end_inner_kept():
+  {==}
+
+# S2.106 closed: computed (EXP-022)
+def Laws.trim_end_ideographic():
+  {==}
+
+# S2.106 closed: computed (EXP-022)
+def Laws.trim_end_all_space():
+  {==}
+
+# S2.106 closed: computed (EXP-022)
+def Laws.trim_end_empty():
+  {==}
+
+# S2.106 closed: computed (EXP-022)
+def Laws.decode_values_trimmed_at_the_end():
+  {==}

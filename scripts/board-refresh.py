@@ -79,6 +79,8 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(encode_non_ascii_without_stats|encode_stats_reads_the_text)$", ["strict UTF-8", "--stats"]),
  # EXP-021: the TOON text built forward from reversed lines (the final LF, line order, every line shape)
  (r"(encode_text_)", ["output framing"]),
+ # EXP-022: trim_end on every shape, and the decoder's values trimmed through the whole pure core
+ (r"(trim_end_|decode_values_trimmed_at_the_end$)", ["tokens, string literals"]),
  (r"(writer_b_keeps_)", ["JSON writer B"]),
  (r"(writer_a_keeps_del_raw)$", ["JSON writer A"]),
  (r"(tab_in_value_forces_quotes)$", ["encoder primitives", "delimiters comma, tab, pipe on encode"]),

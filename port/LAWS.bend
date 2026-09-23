@@ -199,7 +199,9 @@ law stats_pct_double_rounding:
 
 # S8.2 (EXP-001, EXP-002, EXP-003) with the switch on, NO fast twin is selected, whatever its own
 # applicability verdict says: every fast twin is a two-arm match on this gate (F.shortest_fast through
-# F.int.fit, F.int_text.ok, F.div_p10, F.from_dec_p10), and the other arm is its spec twin
+# F.int.fit, F.int_text.ok, F.div_p10, F.from_dec_p10), and the other arm is its spec twin. (Round 17, R17-2:
+# F.div_p10 is no longer called by the program, only by the laws about it; they stay, since laws are never
+# deleted, and describe a def main does not reach.)
 law twin_gate_switch:
   for ok: Bool
   {F.twin.on(True{}, ok) == False{} : Bool}
@@ -2251,3 +2253,13 @@ law ends_ws_trailing_ideographic:
 # S4.8 (EXP-013) a space in the middle is no edge
 law ends_ws_inner_space:
   {T.has_edge_ws("a b") == False{} : Bool}
+
+# S3.26, S9.151 (round 17, R17-1) a failure found INSIDE a nested merge never replaces an earlier failure of
+# the same merge: the outer key b conflicts first, then c merges and its d conflicts; b is reported (a
+# mutant that started the nested merge with no pending failure reported d and passed every case)
+law hot_dups_outer_failure_before_nested:
+  {(D.hr.entries(D.hot.dups(J.JECons{"b", False{}, J.JStr{"2"}, J.JECons{"c", False{}, J.JObj{J.JECons{"d", False{}, J.JStr{"2"}, J.JNil{}}}, J.JNil{}}}, J.JECons{"b", False{}, J.JStr{"1"}, J.JECons{"c", False{}, J.JObj{J.JECons{"d", False{}, J.JStr{"1"}, J.JNil{}}}, J.JNil{}}}, True{})), D.hr.err(D.hot.dups(J.JECons{"b", False{}, J.JStr{"2"}, J.JECons{"c", False{}, J.JObj{J.JECons{"d", False{}, J.JStr{"2"}, J.JNil{}}}, J.JNil{}}}, J.JECons{"b", False{}, J.JStr{"1"}, J.JECons{"c", False{}, J.JObj{J.JECons{"d", False{}, J.JStr{"1"}, J.JNil{}}}, J.JNil{}}}, True{}))) == (D.mr.entries(D.dups(J.JECons{"b", False{}, J.JStr{"2"}, J.JECons{"c", False{}, J.JObj{J.JECons{"d", False{}, J.JStr{"2"}, J.JNil{}}}, J.JNil{}}}, J.JECons{"b", False{}, J.JStr{"1"}, J.JECons{"c", False{}, J.JObj{J.JECons{"d", False{}, J.JStr{"1"}, J.JNil{}}}, J.JNil{}}}, True{})), D.mr.err(D.dups(J.JECons{"b", False{}, J.JStr{"2"}, J.JECons{"c", False{}, J.JObj{J.JECons{"d", False{}, J.JStr{"2"}, J.JNil{}}}, J.JNil{}}}, J.JECons{"b", False{}, J.JStr{"1"}, J.JECons{"c", False{}, J.JObj{J.JECons{"d", False{}, J.JStr{"1"}, J.JNil{}}}, J.JNil{}}}, True{}))) : J.Json & Maybe<&2, String>}
+
+# S3.26, S9.151 (round 17, R17-1) the reviewer's input through the whole pure core: the original reports "b"
+law decode_outer_dup_before_nested_dup:
+  {C.run_pure(["--decode"], T.ascii_bytes("x:\n  b: 1\n  c:\n    d: 1\nx:\n  b: 2\n  c:\n    d: 2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Duplicate sibling key \"b\""} : C.Out}

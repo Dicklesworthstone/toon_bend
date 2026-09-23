@@ -244,7 +244,10 @@ def div_p10.pick(fast: Bool, neg: Bool, ma: List<&2, U32>, ta: Nat, +k: Nat) -> 
       div(FNum{neg, ta, ma}, pow10(k))
 
 # S4.114 ONE IEEE division by the table entry P(k): the spec twin is div(f, pow10(k)); the fast twin
-# applies to a nonzero finite f and k <= 22 (where the table entry IS 10^k), through the gate
+# applies to a nonzero finite f and k <= 22 (where the table entry IS 10^k), through the gate. Not
+# reached by the program since the bug-fix re-pin (94a9ecf): the correctly rounded reader calls
+# BN.div_pow10 through div_p10.fin directly (round 17, R17-2); kept because the laws div_p10_* speak
+# about it and laws are never deleted
 def div_p10(f: F64, +k: Nat, spec: Bool) -> F64:
   match f:
     case FNum{neg, ta, Con{h, t}}:

@@ -118,7 +118,7 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(decode_error_ends_pass|decode_root_ends_pass|decode_trailing_line_is_error|decode_dup_reported_at_end)$",["structural decoding"]),
  (r"hot_dups_", ["structural decoding"]),
  # round 16 (R16-2): the first repeated-key failure is the one reported
- (r"(dup_keep_is_first)$", ["structural decoding"]),
+ (r"(dup_keep_is_first|decode_outer_dup_before_nested_dup)$", ["structural decoding"]),
  (r"hdr_precheck_", ["tokens, string literals"]),
  (r"write_(empty_array|empty_object|nested_indent_[02])$", ["JSON writer A"]),
  (r"golden_(decstr_|toonerr_|toonedge_|fx_dec_)", ["structural decoding"]),

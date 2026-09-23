@@ -1999,3 +1999,11 @@ def Laws.ends_ws_trailing_ideographic():
 # S4.8 closed
 def Laws.ends_ws_inner_space():
   {==}
+
+# S3.26 closed: both merges computed (R17-1)
+def Laws.hot_dups_outer_failure_before_nested():
+  {==}
+
+# S3.26, S9.151 closed: the whole pure core computed (R17-1)
+def Laws.decode_outer_dup_before_nested_dup():
+  {==}

@@ -44,6 +44,9 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(pre_gate_switch|pre_txt_is_num|pre_raw_is_num)$", ["TOON number text"]),
  # the decode-side half of the same pass renders the JSON number text before the writer
  (r"(pre_txt_is_num_json)$", ["JSON number text"]),
+ # R16-1/R16-3: the reader's deferral bounds. They govern which tokens the pre-pass may keep raw,
+ # so they pin whether `number out of range` keeps its position — a JSON-input fact, not a TOON one
+ (r"(num_safe_)", ["JSON text input", "TOON number text"]),
  (r"(kt_collision_)", ["JSON text input", "safe key folding"]),
  (r"(str_cmp_orders|ks_bucket_)", ["JSON text input", "safe key folding", "safe path expansion"]),
  (r"golden_encstr_fold_hash_collision$", ["safe key folding"]),

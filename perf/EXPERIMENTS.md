@@ -595,7 +595,7 @@ case), so a fork-shape bug is a c-8t-only failure.
 - **No regression at scale:** `--threads 8` on the same input not worse than the current binary by more
   than 2%.
 - Always: conform 1076/1076 on c-1t, **c-8t** and js; byte-identical output on the e2e corpus;
-  `bend PROOF.bend` unchanged at 478 laws.
+  `bend PROOF.bend` unchanged at 480 laws.
 - NE-019's lesson applies: a profile share is not a budget. If the gate is missed, the lever is reverted
   and ledgered, whatever the call counts say.
 

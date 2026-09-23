@@ -47,6 +47,8 @@ RULES = [  # (regex on the law name, rows) — first match wins
  # the pass's printer dispatch: which of the two number printers a rendered token was built with,
  # so the law belongs on both number-text rows (hand mutant M36 swaps them)
  (r"(num_text_)", ["TOON number text", "JSON number text"]),
+ # the argv scanner's gate: pinned because the corpus covers it by only two cases
+ (r"(on_neg_takes_)", ["argv: option spellings"]),
  # EXP-016: the byte classifier's table. Every branch of the reader dispatches on this code,
  # so the table belongs on the row that owns the JSON grammar.
  (r"(byte_cls_)", ["JSON text input"]),

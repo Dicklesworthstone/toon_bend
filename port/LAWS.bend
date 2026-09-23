@@ -1764,6 +1764,29 @@ law pre_raw_is_num:
   for acc: String
   {E.put.prim(J.JRaw{neg, ints, fracs, eneg, x}, delim, spec, acc) == E.put.prim(J.JNum{J.raw.f64(neg, ints, fracs, eneg, x, spec)}, delim, spec, acc) : String}
 
+# S1.15 the argv scanner's one gate, pinned because the CORPUS BARELY COVERS IT. The dispatch sweep
+# left the five validity gates to the goldens on the reasoning that a swap breaks many captured cases.
+# Measured 2026-09-23 by swapping each gate's arms and running conform on c-1t against all 1076 cases:
+#     literal.value  270 fail     int.digits.if   89 fail     vk.tab.if  67 fail
+#     utf8.scalar     47 fail     on.neg           2 fail
+# Four of the five are covered with room to spare. `on.neg` is covered by TWO cases, and a coverage of
+# two is one generator edit away from none — so it gets the law the others do not need.
+law on_neg_takes_the_plain_arm:
+  for ch: U32
+  for w: String
+  for c: List<&2, Nat>
+  for p: C.Pend
+  for v: C.Vals
+  {C.on.neg(True{}, ch, w, c, p, v) == C.on.plain(p, False{}, C.has(c, 0n), w, c, v) : C.PS}
+
+law on_neg_takes_the_short_arm:
+  for ch: U32
+  for w: String
+  for c: List<&2, Nat>
+  for p: C.Pend
+  for v: C.Vals
+  {C.on.neg(False{}, ch, w, c, p, v) == C.on.short(C.short.id(ch), ch, c, p, v) : C.PS}
+
 # S4.130, S5.30, EXP-007 the pass's printer dispatch. `num.text` chooses the JSON text or the TOON
 # text from the side it runs on, and until these two laws existed NO law mentioned it: `pre_txt_is_num`
 # and `pre_txt_is_num_json` pin what a JTxt MEANS on each side, not that the pass built it with the

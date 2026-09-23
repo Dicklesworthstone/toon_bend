@@ -1665,6 +1665,13 @@ def Laws.pre_txt_is_num(f, spec, delim, acc):
 def Laws.pre_raw_is_num(neg, ints, fracs, eneg, x, spec, delim, acc):
   {==}
 
+# S1.15 the argv scanner's gate: the equality is the arm's body
+def Laws.on_neg_takes_the_plain_arm(ch, w, c, p, v):
+  {==}
+
+def Laws.on_neg_takes_the_short_arm(ch, w, c, p, v):
+  {==}
+
 # S4.130 the pass's printer dispatch on the JSON side: the match reduces on the literal
 def Laws.num_text_json_is_show_json(f, spec):
   {==}

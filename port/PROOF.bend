@@ -1669,6 +1669,7 @@ def Laws.pre_raw_is_num(neg, ints, fracs, eneg, x, spec, delim, acc):
 def Laws.on_neg_takes_the_plain_arm(ch, w, c, p, v):
   {==}
 
+# S1.15 closed
 def Laws.on_neg_takes_the_short_arm(ch, w, c, p, v):
   {==}
 
@@ -1890,89 +1891,117 @@ def Laws.dgw_fits_mp_at_2p64():
 def Laws.dgw_fits_mm_at_2p64():
   {==}
 
-# ---- EXP-016: the byte classifier's table, computed ----
+# ---- EXP-016: the byte classifier's table (S2.6 value dispatch), each entry computed ----
 
+# S2.6 computed
 def Laws.byte_cls_32_is_1():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_10_is_1():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_13_is_1():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_9_is_1():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_44_is_2():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_93_is_3():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_125_is_4():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_58_is_5():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_34_is_6():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_91_is_7():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_123_is_8():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_45_is_9():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_48_is_10():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_49_is_11():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_53_is_11():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_57_is_11():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_110_is_12():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_116_is_13():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_102_is_14():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_92_is_15():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_0_is_0():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_31_is_0():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_33_is_0():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_47_is_0():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_59_is_0():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_97_is_0():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_126_is_0():
   {==}
 
+# S2.6 computed
 def Laws.byte_cls_255_is_0():
   {==}
 
@@ -2318,25 +2347,31 @@ def Laws.encode_plain_string_bytes():
   {==}
 
 # closed: the whole pure core computed (round 18)
+# S2.125 closed
 def Laws.decode_inline_escaped_quote_before_delimiter():
   {==}
 
 # closed: the whole pure core computed (round 18)
+# S2.125 closed
 def Laws.decode_tabular_escaped_quote_before_delimiter():
   {==}
 
 # closed: the whole pure core computed (round 18)
+# S2.125 closed
 def Laws.decode_pipe_escaped_quote_before_delimiter():
   {==}
 
 # closed: the whole pure core computed (round 18)
+# S9.105 closed
 def Laws.decode_literal_first_of_two_bad_escapes():
   {==}
 
 # closed: the whole pure core computed (round 18)
+# S2.126 closed
 def Laws.decode_form_feed_before_quoted_key():
   {==}
 
 # closed: the whole pure core computed (round 18)
+# S2.132 closed
 def Laws.decode_backslash_outside_quotes_in_fields():
   {==}

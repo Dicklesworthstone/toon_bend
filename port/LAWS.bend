@@ -2139,7 +2139,7 @@ law dgw_fits_mm_at_2p64:
 
 # ---------------------------------------------------------------- EXP-016: the byte classifier's table
 #
-# S2.15 `J.byte.cls` maps an input byte to one of 16 class codes, and every branch of the JSON reader
+# S2.6 `J.byte.cls` maps an input byte to one of 16 class codes, and every branch of the JSON reader
 # dispatches on that code. Until this block it had NO law: a wrong entry would have been caught only by
 # whichever captured case happened to contain that byte. The table is pinned here class by class, plus
 # non-members on both sides of each run, so that any change to the classifier — including EXP-016's

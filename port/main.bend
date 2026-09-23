@@ -40,13 +40,22 @@ def chunks.join(chunks: List<&2, List<&2, U32>>, acc: List<&2, U32>) -> List<&2,
     case Con{c, rest}:
       chunks.join(rest, chunk.onto(List.reverse(&2, U32, c), acc))
 
+# S8.6 the whole input from its chunks, newest first: the newest chunk IS the tail and is not copied, so an
+# input read in one chunk is never copied (EXP-019); each older chunk is pushed on in front of it
+def chunks.all(chunks: List<&2, List<&2, U32>>) -> List<&2, U32>:
+  match chunks:
+    case Nil{}:
+      Nil{}
+    case Con{c, rest}:
+      chunks.join(rest, c)
+
 # S9.12 a failed read. On STANDARD INPUT the original takes EBADF (errno 9) for the end of the input: a
 # descriptor 0 that is missing, or open without read access (`0>/dev/null`, the write end of a pipe, an
 # O_PATH descriptor), reads as EMPTY there (round 8, R8-1). A named INPUT file has no such rule.
 def read.failed(stdin: Bool, ebadf: Bool, n: U32, text: String, chunks: List<&2, List<&2, U32>>) -> RB:
   match stdin ebadf:
     case True{} True{}:
-      RBOk{chunks.join(chunks, Nil{})}
+      RBOk{chunks.all(chunks)}
     case _ _:
       RBFail{n, text}
 
@@ -65,20 +74,22 @@ def read.loop(budget: Nat, got: File & Result<&1, &1, U32 & String, List<&2, U32
         case (f, Done{Nil{}}):
           do IO<RB>:
             File.close(f)
-            return RBOk{chunks.join(chunks, Nil{})}
+            return RBOk{chunks.all(chunks)}
         case (f, Done{Con{b, more}}):
           do IO<RB>:
             next : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(f, 1048576)
             read.loop(g, next, (b <> more) <> chunks, stdin)
 
-# S8.6 open failures carry the platform's error number and text (S9.4–S9.6)
+# S8.6 open failures carry the platform's error number and text (S9.4–S9.6). The first read asks for
+# 16 MiB, so a regular file up to that size arrives as ONE chunk (EXP-019); later reads (a pipe gives at
+# most its buffer per read) ask for 1 MiB, so no read allocates 16 MiB more than once
 def read.opened(r: Result<&1, &1, U32 & String, File>, +stdin: Bool) -> IO(RB):
   match r:
     case Fail{(+n, text)}:
       IO.pure(RB, read.failed(stdin, U32.is_eq(n, 9), n, text, Nil{}))
     case Done{f}:
       do IO<RB>:
-        got : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(f, 1048576)
+        got : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(f, 16777216)
         read.loop(1048576n, got, Nil{}, stdin)
 
 # S8.5 standard input as a Base File: descriptor 0 ITSELF. Base has no stdin effect, and opening the

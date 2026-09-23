@@ -356,6 +356,30 @@ Outcome taxonomy (closed set):
 - Tally: W0/L0/N1 (provisional)
 - Agent: Claude (session ef481f9c, 2026-09-23)
 
+
+### NE-017 — a tabular array whose rows all matched the header in order skips the second lockstep walk (EXP-014)   [2026-09-23 | NEUTRAL, parked]
+- Program / def: `port/encode.bend` / a three-state `rows_st.go` replacing `rows_ok.go`, `VTab`/`CTab` carrying `lk`, `row.line.seq`
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, SHARED HOST AT LOAD 14-16 (a review round and other agents' jobs); base = the EXP-013 binary (tree of `208c0c2`), `--threads 1`
+- Mechanism: the writer's second `row.lock` per row (half of `spin_269`, 8.8% inclusive on `flights_200k --encode`) is skipped when every row was found in header order; about 4% expected
+- Correctness: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/diff-fuzz.py` seed 1414: docs, mutate, collide 1500 each and scale 20, 0 differences
+- Wall (interleaved ABBA, 6 rounds): `flights_200k --encode` 8283.3 → 8473.7 ms, 0.978× by median, 1.011× by minimum, 0.992× by CPU, cv 44.5% / 29.6%; `citm_catalog --encode` 1.002× / 1.004× / 1.004× (cv 35-88%). The expected 4% is far inside this noise: the gate is not shown
+- Disposition: not merged; the code is parked as a git stash in the author's scratch clone
+- **Do-not-retry unless:** a quiet host (load below 1) is available for a cv-gated capture; the lever is then re-applied and measured, not re-argued
+- Tally: W0/L0/N1 (neutral)
+- Agent: Claude (session ef481f9c, 2026-09-23)
+
+
+### NE-018 — the encoder's edge-White_Space test reads the last character without reversing the string (EXP-013)   [2026-09-23 | PROVISIONAL]
+- Program / def: `port/text.bend` / `ends_ws`, `ends_ws.go`, `has_edge_ws`. Not behind the switch: the same verdict by construction (the head of the reverse is the last character)
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, SHARED HOST AT LOAD 8-9 (a review round running); base = the binary of `722991e`, `--threads 1`
+- Binding (the weaker kind): six closed laws `ends_ws_*` (the empty text, one space, a leading space only, a trailing space, a trailing U+3000, an inner space) against `head_is_ws(String.reverse(s))`; a mutant that never sees a trailing space is killed by `ends_ws_one_space`
+- Correctness evidence: conform c-1t 1076/1076; `scripts/diff-fuzz.py` seed 1313: docs and mutate 1500 each, 0 differences
+- Orientation (interleaved ABBA, 8 rounds): `gsoc_2018 --encode` 816.0 → 700.5 ms, 1.165× by median, 1.163× by minimum, 1.144× by CPU, cv 16.5% / 19.3%; `jobs --encode` 0.99-1.02×, `citm_catalog --encode` 1.01-1.27× (cv 21-84%): the gain appears where string values are long, as NE-014's retry predicate said
+- Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
+- **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
+- Tally: W0/L0/N1 (provisional)
+- Agent: Claude (session ef481f9c, 2026-09-23)
+
 ---
 
 ## Inherited priors (re-confirm on THIS program's shape; not local evidence)

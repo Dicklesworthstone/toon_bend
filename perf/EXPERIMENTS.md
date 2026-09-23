@@ -726,7 +726,7 @@ original rejects, and those two laws are what would catch it.
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | `rg -i 'edge_ws\|has_edge\|ends_ws' perf/` → NE-014 (EXP-010: the same walk for `trim_end`, NEUTRAL on decode because the reversals there were short). Its retry predicate names "an input whose values are long texts" as the target; `gsoc_2018 --encode` (long project descriptions, 16.5-17.2x the original in the quiet-host reference run of `722991e`) is that input |
-| status | CARDED 2026-09-23, before the lever |
+| status | BUILT 2026-09-23, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-018): orientation 1.14-1.17× on `gsoc_2018 --encode` by every estimator at load 8-9, above the gate; cv above the capture's bound |
 | precommitted | true |
 
 ### Hypothesis
@@ -747,3 +747,34 @@ written out; beside them conform on c-1t and the docs/mutate lenses.
 ### Precommitted gate
 ≥ 5% below the `722991e` binary on `gsoc_2018.json` (`--encode`, `--threads 1`), CPU median, cv ≤ 5% on both arms; conform c-1t
 1076/1076; the proof green.
+
+## EXP-014 — a tabular array whose rows all matched the header in order skips the second lockstep walk
+
+| field | value |
+|---|---|
+| experiment_id | EXP-014 |
+| program / def | `port/encode.bend` / `rows_ok.go` → a three-state verdict, `VTab`/`CTab` carry it, `rows` and `row.line` (S4.34–S4.37) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'row.lock\|rows_ok\|lockstep\|tabular check' perf/NEGATIVE-EVIDENCE.md` → NE-005 (EXP-004 introduced the lockstep walk as a win; no predicate against reusing its verdict) |
+| status | BUILT and PARKED 2026-09-23, NEUTRAL at load 14-16 (`perf/NEGATIVE-EVIDENCE.md` NE-017): the gate is not shown; the code is kept as a git stash in the author's scratch clone, not in the port |
+| precommitted | true |
+
+### Hypothesis
+The tabular test walks every row in lockstep with the header (`row.lock`: one `str_eq` per field), and the row writer walks every row
+in lockstep AGAIN to choose between the row's own order and its key map. When the test found every row in header order (the common
+case), the writer's second walk is redundant. Carrying "every row locked" from the test to the writer removes one `str_eq` per field
+per row; the median CPU time of `--encode` on `flights_200k.json` at 1 thread falls by at least 3% against the EXP-013 binary.
+
+### Evidence before the lever
+gprof of the EXP-013 tree, `flights_200k.json --encode` at 1 thread: `spin_269` (`row.lock`) 8.8% inclusive over 400000 calls,
+half from `row_ok` and half from `row.line`; `str_eq` (`spin_48`) 1200000 calls under it, each taking both keys apart.
+
+### Lever (one)
+`rows_ok.go` returns 0 (not tabular), 1 (tabular, every row locked) or 2 (tabular, some row needs its key map); `VTab`/`CTab` carry
+`lk`; `row.line` with `lk` writes the row's own cells in order without the second walk. Same text by construction (the second walk
+would return 1 and choose the same cells). Laws: closed instances of the whole encoder on arrays whose rows are all locked, one
+row in another key order, and a non-uniform array, against the captured behaviour (goldens) and via `run_pure`; corpus and fuzz.
+
+### Precommitted gate
+≥ 3% below the EXP-013 binary on `flights_200k.json` (`--encode`, `--threads 1`), CPU median; conform c-1t 1076/1076; proof green.

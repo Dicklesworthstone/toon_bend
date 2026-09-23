@@ -1260,10 +1260,25 @@ def convert.text(m: Maybe<&2, String>, o: Opts, bytes: List<&2, U32>, +spec: Boo
     case Some{rev} Opts{has_in, input, has_out, output, True{}, delim, +indent, strict, fold, budget, expand, stats}:
       dec.text(bom.text(String.reverse(rev)), expand, strict, indent, spec, stats)
 
+# S8.7 the decoder's start: the text is read by decode mode and by --stats (S4.313); an encode without
+# --stats reads the bytes, so the decoder only validates there (EXP-018: the same verdict, no text built)
+def utf8.start.keep(keep: Bool) -> T.UTF8:
+  match keep:
+    case True{}:
+      T.utf8.init()
+    case False{}:
+      T.utf8.init.verdict()
+
+# S8.7 whether the conversion reads the decoded text
+def o.reads_text(o: Opts) -> Bool:
+  match o:
+    case Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
+      Bool.or(decode, stats)
+
 # S8.7, S8.8 input bytes to output text. spec is the numeric kill-switch (TOON_SPEC=1, read once by the
 # shell): with it every number takes its spec twin; the bytes are the same either way.
-def convert(o: Opts, +bytes: List<&2, U32>, spec: Bool) -> CR:
-  convert.text(T.utf8.finish(T.utf8.bytes(bytes, T.utf8.init())), o, bytes, spec)
+def convert(+o: Opts, +bytes: List<&2, U32>, spec: Bool) -> CR:
+  convert.text(T.utf8.finish(T.utf8.bytes(bytes, utf8.start.keep(o.reads_text(o)))), o, bytes, spec)
 
 # S5.107 the input label: the literal `stdin`, or the INPUT word exactly as typed
 def label.in(has_in: Bool, input: String) -> String:

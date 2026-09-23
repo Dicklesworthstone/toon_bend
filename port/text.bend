@@ -6,54 +6,63 @@
 import Base
 
 # S2.2 strict UTF-8 decoder state: continuation bytes still needed, the value so far, the smallest value
-# a sequence of this length may encode (overlong forms fall below it), and the text so far, reversed
+# a sequence of this length may encode (overlong forms fall below it), whether the text is kept, and the
+# text so far, reversed (empty when it is not kept: the verdict never reads it, EXP-018)
 type UTF8 is Data:
-  Decoding{need: Nat, value: U32, minimum: U32, rev: String}
+  Decoding{need: Nat, value: U32, minimum: U32, keep: Bool, rev: String}
   Invalid{}
 
+# S2.2 a completed scalar onto the reversed text, when the text is kept
+def utf8.push(keep: Bool, c: U32, rev: String) -> String:
+  match keep:
+    case True{}:
+      SCon{Chr{c}, rev}
+    case False{}:
+      rev
+
 # S2.2 a lead byte: 00-7F alone; C2-DF one continuation; E0-EF two; F0-F4 three; anything else is invalid
-def utf8.start(ascii: Bool, two: Bool, three: Bool, four: Bool, +c: U32, rev: String) -> UTF8:
+def utf8.start(ascii: Bool, two: Bool, three: Bool, four: Bool, +c: U32, +keep: Bool, rev: String) -> UTF8:
   match ascii two three four:
     case True{} _ _ _:
-      Decoding{0n, 0, 0, SCon{Chr{c}, rev}}
+      Decoding{0n, 0, 0, keep, utf8.push(keep, c, rev)}
     case False{} True{} _ _:
-      Decoding{1n, (c .&. 31 : U32), 128, rev}
+      Decoding{1n, (c .&. 31 : U32), 128, keep, rev}
     case False{} False{} True{} _:
-      Decoding{2n, (c .&. 15 : U32), 2048, rev}
+      Decoding{2n, (c .&. 15 : U32), 2048, keep, rev}
     case False{} False{} False{} True{}:
-      Decoding{3n, (c .&. 7 : U32), 65536, rev}
+      Decoding{3n, (c .&. 7 : U32), 65536, keep, rev}
     case False{} False{} False{} False{}:
       Invalid{}
 
 # S2.2 a completed sequence must not be overlong, a surrogate (D800-DFFF) or above U+10FFFF
-def utf8.scalar(ok: Bool, c: U32, rev: String) -> UTF8:
+def utf8.scalar(ok: Bool, c: U32, +keep: Bool, rev: String) -> UTF8:
   match ok:
     case True{}:
-      Decoding{0n, 0, 0, SCon{Chr{c}, rev}}
+      Decoding{0n, 0, 0, keep, utf8.push(keep, c, rev)}
     case False{}:
       Invalid{}
 
 # S2.2 a continuation byte must be 80-BF
-def utf8.cont(ok: Bool, need: Nat, +value: U32, minimum: U32, rev: String) -> UTF8:
+def utf8.cont(ok: Bool, need: Nat, +value: U32, minimum: U32, keep: Bool, rev: String) -> UTF8:
   match ok:
     case False{}:
       Invalid{}
     case True{}:
       match need:
         case 0n:
-          utf8.scalar(Bool.and(U32.is_ge(value, minimum), Bool.and(U32.is_le(value, 1114111), Bool.or(U32.is_lt(value, 55296), U32.is_gt(value, 57343)))), value, rev)
+          utf8.scalar(Bool.and(U32.is_ge(value, minimum), Bool.and(U32.is_le(value, 1114111), Bool.or(U32.is_lt(value, 55296), U32.is_gt(value, 57343)))), value, keep, rev)
         case 1n+n:
-          Decoding{1n+n, value, minimum, rev}
+          Decoding{1n+n, value, minimum, keep, rev}
 
 # S2.2 one byte
 def utf8.step(st: UTF8, +c: U32) -> UTF8:
   match st:
     case Invalid{}:
       Invalid{}
-    case Decoding{0n, v, m, rev}:
-      utf8.start(U32.is_lt(c, 128), Bool.and(U32.is_ge(c, 194), U32.is_le(c, 223)), Bool.and(U32.is_ge(c, 224), U32.is_le(c, 239)), Bool.and(U32.is_ge(c, 240), U32.is_le(c, 244)), c, rev)
-    case Decoding{1n+n, v, m, rev}:
-      utf8.cont(Bool.and(U32.is_ge(c, 128), U32.is_le(c, 191)), n, ((v << 6n) .|. (c .&. 63) : U32), m, rev)
+    case Decoding{0n, v, m, k, rev}:
+      utf8.start(U32.is_lt(c, 128), Bool.and(U32.is_ge(c, 194), U32.is_le(c, 223)), Bool.and(U32.is_ge(c, 224), U32.is_le(c, 239)), Bool.and(U32.is_ge(c, 240), U32.is_le(c, 244)), c, k, rev)
+    case Decoding{1n+n, v, m, k, rev}:
+      utf8.cont(Bool.and(U32.is_ge(c, 128), U32.is_le(c, 191)), n, ((v << 6n) .|. (c .&. 63) : U32), m, k, rev)
 
 # S2.2 a chunk of bytes through the decoder (the state crosses chunk boundaries)
 def utf8.bytes(xs: List<&2, U32>, st: UTF8) -> UTF8:
@@ -65,12 +74,16 @@ def utf8.bytes(xs: List<&2, U32>, st: UTF8) -> UTF8:
 
 # S2.2 the decoder's start state
 def utf8.init() -> UTF8:
-  Decoding{0n, 0, 0, SNil{}}
+  Decoding{0n, 0, 0, True{}, SNil{}}
+
+# S2.2 the start state of a decoder that only validates: the same verdict, and the empty text (EXP-018)
+def utf8.init.verdict() -> UTF8:
+  Decoding{0n, 0, 0, False{}, SNil{}}
 
 # S2.2 a sequence cut short by the end of input is invalid; the text is still reversed
 def utf8.finish(st: UTF8) -> Maybe<&2, String>:
   match st:
-    case Decoding{0n, v, m, rev}:
+    case Decoding{0n, v, m, k, rev}:
       Some{rev}
     case _:
       None{}

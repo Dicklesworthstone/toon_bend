@@ -2007,3 +2007,47 @@ def Laws.hot_dups_outer_failure_before_nested():
 # S3.26, S9.151 closed: the whole pure core computed (R17-1)
 def Laws.decode_outer_dup_before_nested_dup():
   {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.utf8_verdict_empty():
+  {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.utf8_verdict_ascii_keeps_no_text():
+  {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.utf8_verdict_two_byte():
+  {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.utf8_verdict_four_byte():
+  {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.utf8_verdict_rejects_surrogate():
+  {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.utf8_verdict_rejects_overlong():
+  {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.utf8_verdict_rejects_cut_short():
+  {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.utf8_verdict_rejects_stray_continuation():
+  {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.encode_non_ascii_without_stats():
+  {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.encode_stats_reads_the_text():
+  {==}
+
+# S2.2, S8.7 closed: computed (EXP-018)
+def Laws.encode_invalid_utf8_refused():
+  {==}

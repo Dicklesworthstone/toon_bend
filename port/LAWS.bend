@@ -2263,3 +2263,44 @@ law hot_dups_outer_failure_before_nested:
 # S3.26, S9.151 (round 17, R17-1) the reviewer's input through the whole pure core: the original reports "b"
 law decode_outer_dup_before_nested_dup:
   {C.run_pure(["--decode"], T.ascii_bytes("x:\n  b: 1\n  c:\n    d: 1\nx:\n  b: 2\n  c:\n    d: 2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Duplicate sibling key \"b\""} : C.Out}
+
+# S2.2 (EXP-018) the decoder that only validates gives the keeping decoder's verdict and NO text: the empty
+# input and ASCII are accepted with the empty text (a mutant that kept the text anyway fails these)
+law utf8_verdict_empty:
+  {T.utf8.finish(T.utf8.bytes([], T.utf8.init.verdict())) == Some{SNil{}} : Maybe<&2, String>}
+
+law utf8_verdict_ascii_keeps_no_text:
+  {T.utf8.finish(T.utf8.bytes([104, 105], T.utf8.init.verdict())) == Some{SNil{}} : Maybe<&2, String>}
+
+# S2.2 (EXP-018) two- and four-byte scalars are accepted
+law utf8_verdict_two_byte:
+  {T.utf8.finish(T.utf8.bytes([195, 169], T.utf8.init.verdict())) == Some{SNil{}} : Maybe<&2, String>}
+
+law utf8_verdict_four_byte:
+  {T.utf8.finish(T.utf8.bytes([240, 159, 152, 128], T.utf8.init.verdict())) == Some{SNil{}} : Maybe<&2, String>}
+
+# S2.2 (EXP-018) and every refusal of the keeping decoder is kept: a surrogate, an overlong form, a sequence
+# cut short by the end, a stray continuation byte
+law utf8_verdict_rejects_surrogate:
+  {T.utf8.finish(T.utf8.bytes([237, 160, 128], T.utf8.init.verdict())) == None{} : Maybe<&2, String>}
+
+law utf8_verdict_rejects_overlong:
+  {T.utf8.finish(T.utf8.bytes([224, 128, 175], T.utf8.init.verdict())) == None{} : Maybe<&2, String>}
+
+law utf8_verdict_rejects_cut_short:
+  {T.utf8.finish(T.utf8.bytes([226, 130], T.utf8.init.verdict())) == None{} : Maybe<&2, String>}
+
+law utf8_verdict_rejects_stray_continuation:
+  {T.utf8.finish(T.utf8.bytes([128], T.utf8.init.verdict())) == None{} : Maybe<&2, String>}
+
+# S8.7 (EXP-018) through the whole pure core, bytes captured from the pinned original: an encode without
+# --stats writes a non-ASCII value unchanged; with --stats the estimate of the INPUT text is 2, not the 0
+# an unkept (empty) text would give; invalid UTF-8 is still refused in encode mode
+law encode_non_ascii_without_stats:
+  {C.run_pure(["--encode"], [123, 34, 97, 34, 58, 34, 195, 169, 34, 125]) == C.Out{0n, "a: é\n", ""} : C.Out}
+
+law encode_stats_reads_the_text:
+  {C.run_pure(["--encode", "--stats"], [123, 34, 97, 34, 58, 34, 195, 169, 34, 125]) == C.Out{0n, "a: é\n", "\nToken estimates: ~2 (JSON) → ~2 (TOON)\nNo token difference (0.0%)"} : C.Out}
+
+law encode_invalid_utf8_refused:
+  {C.run_pure(["--encode"], [123, 34, 97, 34, 58, 34, 255, 34, 125]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}

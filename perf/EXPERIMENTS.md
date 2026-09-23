@@ -598,3 +598,53 @@ case), so a fork-shape bug is a c-8t-only failure.
   `bend PROOF.bend` unchanged at 478 laws.
 - NE-019's lesson applies: a profile share is not a budget. If the gate is missed, the lever is reverted
   and ledgered, whatever the call counts say.
+
+## EXP-020 — path expansion rebuilds nodes it does not change
+
+| field | value |
+|---|---|
+| experiment_id | EXP-020 |
+| program / def | `port/decode.bend` / `x.norm` (S3.28, the expansion tree's normalisation) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (Claude Code session) |
+| graveyard sweep | `rg -i 'expand\|x.norm\|rebuild\|wildcard' perf/` → nothing on expansion. NE-019 and NE-020 apply as METHOD (a profile share is not a budget; gate on a measured A/B), and NE-012 is adjacent (borrowing is not inferred for `List<&2, U32>`) |
+| status | **CLOSED, NOT ADMITTED (2026-09-23)** — built in a scratch tree, counted, not merged; ledgered as `perf/NEGATIVE-EVIDENCE.md` NE-027. The pass-through rebuild costs **0.11%**, against a 5% gate. `port/` was never modified |
+| precommitted | true |
+
+### Hypothesis
+
+`x.norm` walks the expansion tree and reconstructs EVERY node, including the two that it does not
+change: `case XLeaf{v}: XLeaf{v}` and `case XBNil{}: XBNil{}` each allocate a fresh node identical to
+the one they destructured, so every scalar in the document costs one `rfc_wrap` and a matching
+`term_drop` for nothing. Letting those two fall through a single `case other: other` arm returns the
+term unchanged and allocates nothing. `XV` has exactly six constructors (`XLeaf`, `XObj`, `XTLeaf`,
+`XTNode`, `XBNil`, `XBNode`), the other four keep their explicit arms, so the wildcard covers exactly
+the two pass-through cases and nothing else.
+
+### Motivation (deterministic, cachegrind, 2026-09-23)
+
+`--expand-paths safe` is the most expensive path in the port per byte of input: **479.6 ms/MB** against
+plain `--decode` at 340.4 ms/MB across the 204-cell e2e reference run. Isolated on
+`perf/e2e/corpus/citm_catalog.fold.toon` (650 KB): plain decode **2,077,027,910** I-refs, with expansion
+**2,682,287,179** — expansion adds **605,259,269 instructions, +29.1%**. Of the expansion run,
+`term_drop` is 29.4%, `rfc_wrap` 18.1% and `span_fade` 6.1% — **53.6% is allocate-and-drop traffic**,
+while the expansion's own logic (`WL_FID_DECODE_X_NORM` plus `_K950`) is 2.7%. The cost is not the
+normalisation; it is the rebuilding it does on the way through.
+
+### Lever (one)
+
+The `XLeaf` and `XBNil` arms of `x.norm` replaced by a single trailing `case other: other`.
+
+### Correctness binding
+
+A quantified law per pass-through case, pinning that the def returns its argument unchanged for exactly
+those constructors — the same "pin the dispatch" form that killed M36/M37, and it is refutable: a mutant
+that made the wildcard swallow `XTLeaf` or `XBNode` would fail the explicit-arm laws.
+
+### Precommitted gate
+
+- **Primary (counted, deterministic):** ≥ 5% fewer instructions on
+  `--decode --expand-paths safe perf/e2e/corpus/citm_catalog.fold.toon` at `--threads 1`.
+- Always: output byte-identical to the current binary AND to the oracle; `bend PROOF.bend` green with the
+  new laws; conform 1076/1076 on c-1t, c-8t and js.
+- Per NE-019/NE-020: if the gate is missed the lever is reverted and ledgered, whatever the profile said.

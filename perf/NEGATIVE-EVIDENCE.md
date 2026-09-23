@@ -485,3 +485,36 @@ likewise do not establish universal performance rules.
   rather than 6.6%, OR the chain representation stops being a cons list (an array or rope would change
   what a split costs), OR a >= 64-thread run is the target, where leaf count rather than copying bounds
   the pool.
+
+### NE-027 — path expansion's pass-through rebuild (EXP-020)   [2026-09-23 | NEUTRAL, not merged]
+
+- **Lever:** `D.x.norm`'s two arms that reconstruct what they destructure — `case XLeaf{v}: XLeaf{v}` and
+  `case XBNil{}: XBNil{}` — replaced by a single trailing `case other: other`, which returns the term
+  unchanged and allocates nothing. The other four `XV` constructors kept their explicit arms.
+- **Why it looked promising:** `--expand-paths safe` is the port's most expensive path per byte in the
+  e2e reference run (**479.6 ms/MB** against plain `--decode` at 340.4). Isolated on
+  `citm_catalog.fold.toon` (650 KB), expansion adds **605,259,269 instructions (+29.1%)** over plain
+  decode, and of the expansion run `term_drop` is 29.4%, `rfc_wrap` 18.1%, `span_fade` 6.1% — **53.6% is
+  allocate-and-drop traffic** while the expansion's own logic is 2.7%. Rebuilding a node per scalar
+  looked like an obvious source of it.
+- **Counted** (cachegrind, `--cache-sim=no`, deterministic):
+  current **2,682,287,539** I-refs, lever **2,679,346,560** — **2,940,979 fewer, 0.11%**.
+  Gate was >= 5%. **MISSED by a factor of 45.** Output byte-identical to the current port AND to the
+  oracle (sha256 `dab1596b…`).
+- **Outcome:** the pass-through rebuild is very nearly free. Either the compiler already recognises
+  `case C{x}: C{x}` and elides the reconstruction, or `XLeaf`/`XBNil` are far rarer in the tree than a
+  per-scalar count suggests. Either way the hypothesis that "every scalar costs an `rfc_wrap` and a
+  `term_drop` for nothing" is false. `port/` was never modified: the lever was built and counted in a
+  scratch tree, so there is nothing to revert.
+- **THE PATTERN ACROSS NE-019, NE-020 AND NE-027.** Three levers, three defs, three inputs, three
+  precommitted gates, three misses — 2%, 1%, 0.11%. All three made an *operation* cheaper: a select, a
+  split, a reconstruction. Over the same hours the peer session's two levers, which remove a whole *traversal*
+  of the data (one drops a decoded text that encode builds and throws away; the other stops the chunk
+  join copying the newest chunk twice), counted **18.3%** and **11.6%** and together **1.386x** on the
+  same input — their cards and ledger entries land with their push. The rule this yields for the next card: **eliminate a pass over the data, not an
+  operation within one.** A lever whose description contains the word "cheaper" is suspect; one whose
+  description contains "no longer builds" or "one copy instead of three" is worth the effort.
+- **Do-not-retry unless:** a cachegrind run shows `x.norm` itself (`WL_FID_DECODE_X_NORM`, today 2.1% of
+  the expand run) above 10%, OR the expansion tree stops being rebuilt wholesale — the 605M that
+  expansion adds is worth attacking, but by not building the intermediate `XV` tree at all, which is a
+  different and much larger lever than this one.

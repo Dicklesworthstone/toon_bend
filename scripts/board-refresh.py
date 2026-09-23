@@ -94,7 +94,7 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"token_", ["TOON number tokens"]),
  (r"golden_fx_dec_numbers_", ["TOON number tokens"]),
  (r"twin_gate_", ["JSON number reading", "TOON number text", "TOON number tokens", "JSON number text"]),
- (r"dg_digit_fast_", ["TOON number text", "JSON number text"]),
+ (r"(dg_digit_fast_|dgw_run_|dgw_fits_|dg_run_with_gate|dg_run_words_spec_arm)", ["TOON number text", "JSON number text"]),
  (r"(fold_off_never_folds|fctx_lean_closed_by_switch)$", ["safe key folding"]),
  (r"golden_(encstr_root_|fx_enc_primitives_|fx_enc_objects_(04|17|20))", ["encoder primitives"]),
  (r"golden_fx_enc_arrays_(primitive|nested_0[13]|tabular|objects_(15|02))", ["array headers, joins"]),
@@ -162,7 +162,7 @@ def finalize(commit, log):
     quant = [n for n, b in zip(names, blocks) if re.search(r"(?m)^  for ", b.split("\nlaw ")[0])]
     golden = [n for n in names if n.startswith("golden_")]
     closed = [n for n in names if n not in quant and n not in golden]
-    twin = [n for n in names if re.match(r"(twin_gate_|dg_digit_fast_|fold_off_never_folds|fctx_lean_closed_by_switch|div_pow10_|div_p10_|from_dec_p10_|serde_|token_|show_(toon|json)_fast_|int_fit_|int_text_|short_of_digits_)", n)]
+    twin = [n for n in names if re.match(r"(twin_gate_|dg_digit_fast_|dgw_run_|dgw_fits_|dg_run_with_gate|dg_run_words_spec_arm|fold_off_never_folds|fctx_lean_closed_by_switch|div_pow10_|div_p10_|from_dec_p10_|serde_|token_|show_(toon|json)_fast_|int_fit_|int_text_|short_of_digits_)", n)]
     s = read(BOARD)
     a = s.index("Last gate run:")
     b = s.index("| feature |")

@@ -2036,3 +2036,69 @@ law dup_keep_is_first:
   for m: String
   for new: Maybe<&2, String>
   {D.dup.keep(Some{m}, new) == Some{m} : Maybe<&2, String>}
+
+# S4.131 (EXP-012) the word loop equals the spec loop: several digits, both ends with the interval symmetric
+law dgw_run_third:
+  {F.dg.run.words(True{}, F.Dg{[1000], [3000], [1], [1], Nil{}, False{}}, 78913n, True{}, True{}) == F.dg.run(F.DgK{F.Dg{[1000], [3000], [1], [1], Nil{}, False{}}, 78913n}, True{}) : F.Short}
+
+# S4.131 (EXP-012) an asymmetric interval (the lower neighbour of a power of two), odd mantissa
+law dgw_run_asym:
+  {F.dg.run.words(True{}, F.Dg{[1000], [3000], [2], [1], Nil{}, False{}}, 78913n, False{}, True{}) == F.dg.run(F.DgK{F.Dg{[1000], [3000], [2], [1], Nil{}, False{}}, 78913n}, False{}) : F.Short}
+
+# S4.131 (EXP-012) an exact half: the first digit ends at the lower end
+law dgw_run_half:
+  {F.dg.run.words(True{}, F.Dg{[500], [1000], [1], [1], Nil{}, False{}}, 78913n, True{}, True{}) == F.dg.run(F.DgK{F.Dg{[500], [1000], [1], [1], Nil{}, False{}}, 78913n}, True{}) : F.Short}
+
+# S4.131, S4.133 (EXP-012) both ends reached on an exact tie: the even digit stays
+law dgw_run_tie:
+  {F.dg.run.words(True{}, F.Dg{[45], [100], [10], [10], Nil{}, False{}}, 78913n, True{}, True{}) == F.dg.run(F.DgK{F.Dg{[45], [100], [10], [10], Nil{}, False{}}, 78913n}, True{}) : F.Short}
+
+# S4.131 (EXP-012) operands above 2^32: every word carries into the next and every subtraction borrows
+law dgw_run_carry:
+  {F.dg.run.words(True{}, F.Dg{[0, 0, 1], [0, 0, 3], [7], [7], Nil{}, False{}}, 78913n, True{}, True{}) == F.dg.run(F.DgK{F.Dg{[0, 0, 1], [0, 0, 3], [7], [7], Nil{}, False{}}, 78913n}, True{}) : F.Short}
+
+# S4.131 (EXP-012) a remainder that borrows at the low word: r = 2^24, s = 2^24 + 5, the first digit is
+# 9 and 10r - 9s takes a borrow from the middle word (0 < 45 in the low words)
+law dgw_run_borrow:
+  {F.dg.run.words(True{}, F.Dg{[0, 256], [5, 256], [1], [1], Nil{}, False{}}, 78913n, True{}, True{}) == F.dg.run(F.DgK{F.Dg{[0, 256], [5, 256], [1], [1], Nil{}, False{}}, 78913n}, True{}) : F.Short}
+
+# S4.131 (EXP-012) the 64-bit edge: s just below 2^64, a remainder that needs every word
+law dgw_run_edge64:
+  {F.dg.run.words(True{}, F.Dg{[65535, 65535, 65535, 21845], [65535, 65535, 65535, 65535], [65535, 255], [32767, 255], Nil{}, False{}}, 78913n, False{}, True{}) == F.dg.run(F.DgK{F.Dg{[65535, 65535, 65535, 21845], [65535, 65535, 65535, 65535], [65535, 255], [32767, 255], Nil{}, False{}}, 78913n}, False{}) : F.Short}
+
+# S4.131 (EXP-012) the gate, CONDITION included: the word loop runs exactly when the switch is open AND
+# the fixed state fits (a mutant dropping dgw.fits or forcing it would change this body)
+law dg_run_with_gate:
+  for st: F.Dg
+  for kb: Nat
+  for even: Bool
+  for fast: Bool
+  {F.dg.run.with(F.DgK{st, kb}, even, fast) == F.dg.run.words(Bool.and(fast, F.dgw.fits(st)), st, kb, even, fast) : F.Short}
+
+# S4.131 (EXP-012) the closed arm is the gated spec loop, line for line
+law dg_run_words_spec_arm:
+  for st: F.Dg
+  for kb: Nat
+  for even: Bool
+  for fast: Bool
+  {F.dg.run.words(False{}, st, kb, even, fast) == F.dg.finish(F.dg.gen.with(25n, st, even, even, fast), kb) : F.Short}
+
+# S4.131 (EXP-012) the fit boundary: every operand at 2^64 - 1 fits
+law dgw_fits_all_at_2p64_minus_1:
+  {F.dgw.fits(F.Dg{[65535, 65535, 65535, 65535], [65535, 65535, 65535, 65535], [65535, 65535, 65535, 65535], [65535, 65535, 65535, 65535], Nil{}, False{}}) == True{} : Bool}
+
+# S4.131 (EXP-012) the fit boundary on each axis: one operand at 2^64 does not fit
+law dgw_fits_r_at_2p64:
+  {F.dgw.fits(F.Dg{[0, 0, 0, 0, 1], [1], [1], [1], Nil{}, False{}}) == False{} : Bool}
+
+# S4.131 (EXP-012)
+law dgw_fits_s_at_2p64:
+  {F.dgw.fits(F.Dg{[1], [0, 0, 0, 0, 1], [1], [1], Nil{}, False{}}) == False{} : Bool}
+
+# S4.131 (EXP-012)
+law dgw_fits_mp_at_2p64:
+  {F.dgw.fits(F.Dg{[1], [1], [0, 0, 0, 0, 1], [1], Nil{}, False{}}) == False{} : Bool}
+
+# S4.131 (EXP-012)
+law dgw_fits_mm_at_2p64:
+  {F.dgw.fits(F.Dg{[1], [1], [1], [0, 0, 0, 0, 1], Nil{}, False{}}) == False{} : Bool}

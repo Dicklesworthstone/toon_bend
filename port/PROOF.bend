@@ -1826,3 +1826,59 @@ def Laws.pre_txt_is_num_json(f, first, n, depth, spec, acc):
 # S3.26 the first pending failure stands (R16-2)
 def Laws.dup_keep_is_first(m, new):
   {==}
+
+# S4.131 closed: both loops computed
+def Laws.dgw_run_third():
+  {==}
+
+# S4.131 closed
+def Laws.dgw_run_asym():
+  {==}
+
+# S4.131 closed
+def Laws.dgw_run_half():
+  {==}
+
+# S4.131, S4.133 closed
+def Laws.dgw_run_tie():
+  {==}
+
+# S4.131 closed
+def Laws.dgw_run_carry():
+  {==}
+
+# S4.131 closed
+def Laws.dgw_run_borrow():
+  {==}
+
+# S4.131 closed
+def Laws.dgw_run_edge64():
+  {==}
+
+# S4.131 dg.run.with matches DgK first: one step reaches the body
+def Laws.dg_run_with_gate(st, kb, even, fast):
+  {==}
+
+# S4.131 the False arm of dg.run.words
+def Laws.dg_run_words_spec_arm(st, kb, even, fast):
+  {==}
+
+# S4.131 closed
+def Laws.dgw_fits_all_at_2p64_minus_1():
+  {==}
+
+# S4.131 closed
+def Laws.dgw_fits_r_at_2p64():
+  {==}
+
+# S4.131 closed
+def Laws.dgw_fits_s_at_2p64():
+  {==}
+
+# S4.131 closed
+def Laws.dgw_fits_mp_at_2p64():
+  {==}
+
+# S4.131 closed
+def Laws.dgw_fits_mm_at_2p64():
+  {==}

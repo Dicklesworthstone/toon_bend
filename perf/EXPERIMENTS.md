@@ -452,3 +452,35 @@ and every `--decode` case go through this def).
 ### Precommitted gate
 ≥ 5% below the EXP-009 binary on `gsoc_2018.toon` (`--decode`, `--threads 1`), cv ≤ 5% on both arms; 1071/1071 on c-1t; the proof
 green.
+
+## EXP-012 — the shortest-digit loop in scalar words when every operand is below 2^64
+
+| field | value |
+|---|---|
+| experiment_id | EXP-012 |
+| program / def | `port/f64.bend` / `dg.gen.with` under `shortest.with` (S4.131), the digit loop after `dg.fix` |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'scalar\|limb\|u32 pair\|two words\|bitlen' perf/NEGATIVE-EVIDENCE.md` → NE-012 (BN.cmp cannot borrow; its retry predicate is "the number path stops carrying big naturals as lists"), NE-008 (its retry predicate is "the number path stops allocating per digit"), NE-INH-9 (generic `Bool.pick` in hot code: typed match helpers instead). This lever is the one both predicates name |
+| status | BUILT 2026-09-23, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-016). The card's "pair of packed Nat words" became three U32 words: the Nat version was right but its closed laws did not finish in the checker. Orientation (CPU estimator, load 17-20) 1.84× on `canada --decode`, above the gate; wall cv far above the capture's bound |
+| precommitted | true |
+
+### Hypothesis
+After the scale and the fix-up, the digit loop of the shortest-digit generator works on four big naturals `r`, `s`, `mp`, `mm`
+held as little-endian lists of 16-bit limbs: every digit multiplies three of them by ten, compares four times and subtracts,
+and each operation allocates and takes apart shared lists (gprof of `canada.toon --decode` at 1 thread: `BN.cmp` 18.8% inclusive
+over 7523500 calls, 68 per number; `span_fade` 41%). When all four are below 2^64 (a double of ordinary magnitude), `10s < 2^68`
+bounds every intermediate (`rem < s`; `mp, mm <= s` before each step, else the previous step ended generation), so each value is
+a pair of packed `Nat` words `h * 2^24 + l` with `h < 2^44`, and one tail-recursive loop whose operands are scalar arguments
+allocates nothing per digit but the digit. The median wall of `--decode` on `canada.toon` at 1 thread falls by at least 20%
+against the binary of `31e46fd`.
+
+### Lever (one)
+`dg.run.with` tests the bound on the fixed state; within it, `dgw.loop` (scalar pairs) replaces `dg.gen.with`; outside it, the
+current path runs unchanged. Behind `F.twin.on` (`TOON_SPEC=1` runs the spec loop). Laws: closed instances of `dgw.run == dg.run`
+on states at each branch of the loop (low end, high end, both with the tie, the 64-bit edge, a many-digit value); beside them the
+1000000-number differential against the original and the spec twin, and conform on c-1t with the switch off and on.
+
+### Precommitted gate
+≥ 20% below the `31e46fd` binary on `canada.toon` (`--decode`, `--threads 1`), cv ≤ 5% on both arms; the 10^6-number differential
+0 differences; 1071/1071 on c-1t with `TOON_SPEC` unset and set; the proof green.

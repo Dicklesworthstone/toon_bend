@@ -641,17 +641,195 @@ def dg.finish(st: Dg, +kb: Nat) -> Short:
     case Dg{r, s, mp, mm, ds, done}:
       Short{List.reverse(&2, U32, ds), Int.diff(kb, 78913n)}
 
+# ---------------------------------------------------------------- S4.131 fast twin: the digit loop in words
+# EXP-012. When r, s, mp and mm are all below 2^64 after the fix-up, every value the loop forms stays
+# below 10s < 2^68: rem < s after each digit, and mp, mm <= s before each step (otherwise the previous
+# step's tests would have ended generation). Each value is then three 24-bit words x2 * 2^48 + x1 * 2^24 + x0
+# in U32 (x2 < 2^20), so every product by a digit fits 32 bits, and the loop keeps all of them in scalar
+# arguments: one digit allocates nothing but itself. U32, not Nat: the checker evaluates U32 words natively
+# and Nat values of 2^24 scale in unary (a closed law over Nat words did not finish in 22 GB).
+
+# S4.131 (EXP-012) the word mask 2^24 - 1
+def dgw.m() -> U32:
+  16777215
+
+# S4.131 (EXP-012) the first limb of a big natural, or 0
+def dgw.head(a: List<&2, U32>) -> U32:
+  match a:
+    case Nil{}:
+      0
+    case Con{x, t}:
+      x
+
+# S4.131 (EXP-012) the low word of a big natural below 2^64: limb 0 and the low byte of limb 1
+def dgw.w0(+a: List<&2, U32>) -> U32:
+  (dgw.head(a) .|. ((dgw.head(BN.above(1n, a)) .&. 255) << 16n) : U32)
+
+# S4.131 (EXP-012) the middle word: the high byte of limb 1 and limb 2
+def dgw.w1(+a: List<&2, U32>) -> U32:
+  ((dgw.head(BN.above(1n, a)) >> 8n) .|. (dgw.head(BN.above(2n, a)) << 8n) : U32)
+
+# S4.131 (EXP-012) the high word: limb 3
+def dgw.w2(+a: List<&2, U32>) -> U32:
+  dgw.head(BN.above(3n, a))
+
+# S4.131 (EXP-012) compare two word triples: the higher words decide unless equal
+def dgw.cmp(+a2: U32, +a1: U32, +a0: U32, +b2: U32, +b1: U32, +b0: U32) -> Cmp:
+  BN.cmp.pick(BN.cmp.limb(U32.is_lt(a2, b2), U32.is_gt(a2, b2)), BN.cmp.pick(BN.cmp.limb(U32.is_lt(a1, b1), U32.is_gt(a1, b1)), BN.cmp.limb(U32.is_lt(a0, b0), U32.is_gt(a0, b0))))
+
+# S4.131 (EXP-012) the carry out of the low word of a * k (k <= 10)
+def dgw.mc0(+a0: U32, +k: U32) -> U32:
+  ((a0 * k) >> 24n : U32)
+
+# S4.131 (EXP-012) the carry out of the middle word of a * k
+def dgw.mc1(+a1: U32, +a0: U32, +k: U32) -> U32:
+  (((a1 * k) + dgw.mc0(a0, k)) >> 24n : U32)
+
+# S4.131 (EXP-012) the words of a * k
+def dgw.mo0(+a0: U32, +k: U32) -> U32:
+  ((a0 * k) .&. dgw.m() : U32)
+
+# S4.131 (EXP-012)
+def dgw.mo1(+a1: U32, +a0: U32, +k: U32) -> U32:
+  (((a1 * k) + dgw.mc0(a0, k)) .&. dgw.m() : U32)
+
+# S4.131 (EXP-012)
+def dgw.mo2(+a2: U32, +a1: U32, +a0: U32, +k: U32) -> U32:
+  ((a2 * k) + dgw.mc1(a1, a0, k) : U32)
+
+# S4.131 (EXP-012) the carries and words of a + b
+def dgw.ac0(+a0: U32, +b0: U32) -> U32:
+  ((a0 + b0) >> 24n : U32)
+
+# S4.131 (EXP-012)
+def dgw.ac1(+a1: U32, +a0: U32, +b1: U32, +b0: U32) -> U32:
+  (((a1 + b1) + dgw.ac0(a0, b0)) >> 24n : U32)
+
+# S4.131 (EXP-012)
+def dgw.ao0(+a0: U32, +b0: U32) -> U32:
+  ((a0 + b0) .&. dgw.m() : U32)
+
+# S4.131 (EXP-012)
+def dgw.ao1(+a1: U32, +a0: U32, +b1: U32, +b0: U32) -> U32:
+  (((a1 + b1) + dgw.ac0(a0, b0)) .&. dgw.m() : U32)
+
+# S4.131 (EXP-012)
+def dgw.ao2(+a2: U32, +a1: U32, +a0: U32, +b2: U32, +b1: U32, +b0: U32) -> U32:
+  ((a2 + b2) + dgw.ac1(a1, a0, b1, b0) : U32)
+
+# S4.131 (EXP-012) the borrows and words of a - b, for a >= b: a word adds 2^24 before it subtracts, and
+# bit 24 of the result is 1 exactly when no borrow was taken
+def dgw.sb0(+a0: U32, +b0: U32) -> U32:
+  (1 - (((a0 + 16777216) - b0) >> 24n) : U32)
+
+# S4.131 (EXP-012)
+def dgw.sb1(+a1: U32, +a0: U32, +b1: U32, +b0: U32) -> U32:
+  (1 - ((((a1 + 16777216) - b1) - dgw.sb0(a0, b0)) >> 24n) : U32)
+
+# S4.131 (EXP-012)
+def dgw.so0(+a0: U32, +b0: U32) -> U32:
+  (((a0 + 16777216) - b0) .&. dgw.m() : U32)
+
+# S4.131 (EXP-012)
+def dgw.so1(+a1: U32, +a0: U32, +b1: U32, +b0: U32) -> U32:
+  ((((a1 + 16777216) - b1) - dgw.sb0(a0, b0)) .&. dgw.m() : U32)
+
+# S4.131 (EXP-012)
+def dgw.so2(+a2: U32, +a1: U32, +a0: U32, +b2: U32, +b1: U32, +b0: U32) -> U32:
+  ((a2 - b2) - dgw.sb1(a1, a0, b1, b0) : U32)
+
+# S4.131 (EXP-012) whether a >= b
+def dgw.ge(+a2: U32, +a1: U32, +a0: U32, +b2: U32, +b1: U32, +b0: U32) -> Bool:
+  Bool.not(BN.is_lt.of(dgw.cmp(a2, a1, a0, b2, b1, b0)))
+
+# S4.131 (EXP-012) floor(r / s) for r < 10 s by repeated subtraction; ge is r >= s for the r given
+# (ten rounds of fuel, of which at most nine subtract, as in dg.digit)
+def dgw.q(fuel: Nat, ge: Bool, +r2: U32, +r1: U32, +r0: U32, +s2: U32, +s1: U32, +s0: U32, +d: U32) -> U32:
+  match fuel ge:
+    case _ False{}:
+      d
+    case 0n True{}:
+      d
+    case 1n+f True{}:
+      +n2 = dgw.so2(r2, r1, r0, s2, s1, s0)
+      +n1 = dgw.so1(r1, r0, s1, s0)
+      +n0 = dgw.so0(r0, s0)
+      dgw.q(f, dgw.ge(n2, n1, n0, s2, s1, s0), n2, n1, n0, s2, s1, s0, (d + 1 : U32))
+
+# S4.131 (EXP-012) emit the digit, or the digit plus one (dg.emit's four cases, digits only)
+def dgw.emit(tc1: Bool, tc2: Bool, up: Bool, +d: U32, ds: List<&2, U32>) -> List<&2, U32>:
+  match tc1 tc2:
+    case False{} False{}:
+      d <> ds
+    case True{} False{}:
+      d <> ds
+    case False{} True{}:
+      (d + 1 : U32) <> ds
+    case True{} True{}:
+      (d + Bool.pick(U32, up, 1, 0) : U32) <> ds
+
+# S4.131 (EXP-012) the digit loop of dg.gen over word pairs: done is whether the previous digit ended
+# generation (dg.gen's "a finished state stays as it is"); the remainder, mp and mm are multiplied by ten,
+# the digit is floor(10r / s), and the same three tests as dg.step2 decide the emitted digit and the end
+def dgw.loop(fuel: Nat, done: Bool, +r2: U32, +r1: U32, +r0: U32, +s2: U32, +s1: U32, +s0: U32, +p2: U32, +p1: U32, +p0: U32, +m2: U32, +m1: U32, +m0: U32, ds: List<&2, U32>, +low_ok: Bool, +high_ok: Bool) -> List<&2, U32>:
+  match fuel done:
+    case _ True{}:
+      ds
+    case 0n False{}:
+      ds
+    case 1n+f False{}:
+      +x2 = dgw.mo2(r2, r1, r0, 10)
+      +x1 = dgw.mo1(r1, r0, 10)
+      +x0 = dgw.mo0(r0, 10)
+      +q2 = dgw.mo2(p2, p1, p0, 10)
+      +q1 = dgw.mo1(p1, p0, 10)
+      +q0 = dgw.mo0(p0, 10)
+      +n2 = dgw.mo2(m2, m1, m0, 10)
+      +n1 = dgw.mo1(m1, m0, 10)
+      +n0 = dgw.mo0(m0, 10)
+      +d = dgw.q(10n, dgw.ge(x2, x1, x0, s2, s1, s0), x2, x1, x0, s2, s1, s0, 0)
+      +t2 = dgw.mo2(s2, s1, s0, d)
+      +t1 = dgw.mo1(s1, s0, d)
+      +t0 = dgw.mo0(s0, d)
+      +e2 = dgw.so2(x2, x1, x0, t2, t1, t0)
+      +e1 = dgw.so1(x1, x0, t1, t0)
+      +e0 = dgw.so0(x0, t0)
+      +tc1 = dg.low(low_ok, dgw.cmp(e2, e1, e0, n2, n1, n0))
+      +tc2 = dg.high(high_ok, dgw.cmp(dgw.ao2(e2, e1, e0, q2, q1, q0), dgw.ao1(e1, e0, q1, q0), dgw.ao0(e0, q0), s2, s1, s0))
+      +up = dg.tie(dgw.cmp(dgw.mo2(e2, e1, e0, 2), dgw.mo1(e1, e0, 2), dgw.mo0(e0, 2), s2, s1, s0), U32.is_eq((d .&. 1 : U32), 1))
+      dgw.loop(f, Bool.or(tc1, tc2), e2, e1, e0, s2, s1, s0, q2, q1, q0, n2, n1, n0, dgw.emit(tc1, tc2, up, d, ds), low_ok, high_ok)
+
+# S4.131 (EXP-012) the fixed state fits the words: r, s, mp and mm all below 2^64
+def dgw.fits(st: Dg) -> Bool:
+  match st:
+    case Dg{r, s, mp, mm, ds, done}:
+      Bool.and(Bool.and(Nat.is_le(BN.bitlen(r, 0n), 64n), Nat.is_le(BN.bitlen(s, 0n), 64n)), Bool.and(Nat.is_le(BN.bitlen(mp, 0n), 64n), Nat.is_le(BN.bitlen(mm, 0n), 64n)))
+
+# S4.131 (EXP-012) the digit loop over words, from the fixed state (25 digits of fuel, as dg.gen)
+def dgw.run(st: Dg, +even: Bool) -> List<&2, U32>:
+  match st:
+    case Dg{+r, +s, +mp, +mm, ds, done}:
+      dgw.loop(25n, done, dgw.w2(r), dgw.w1(r), dgw.w0(r), dgw.w2(s), dgw.w1(s), dgw.w0(s), dgw.w2(mp), dgw.w1(mp), dgw.w0(mp), dgw.w2(mm), dgw.w1(mm), dgw.w0(mm), ds, even, even)
+
 # S4.131 generate after the fix-up
 def dg.run(fixed: DgK, +even: Bool) -> Short:
   match fixed:
     case DgK{st, kb}:
       dg.finish(dg.gen(25n, st, even, even), kb)
 
+# S4.131 (EXP-012) the digit loop over words when the gate is open and the state fits, else dg.gen.with
+def dg.run.words(words: Bool, st: Dg, +kb: Nat, +even: Bool, +fast: Bool) -> Short:
+  match words:
+    case True{}:
+      Short{List.reverse(&2, U32, dgw.run(st, even)), Int.diff(kb, 78913n)}
+    case False{}:
+      dg.finish(dg.gen.with(25n, st, even, even, fast), kb)
+
 # S4.131 dg.run with the digit step chosen by the gate
 def dg.run.with(fixed: DgK, +even: Bool, +fast: Bool) -> Short:
   match fixed:
-    case DgK{st, kb}:
-      dg.finish(dg.gen.with(25n, st, even, even, fast), kb)
+    case DgK{+st, +kb}:
+      dg.run.words(Bool.and(fast, dgw.fits(st)), st, kb, even, fast)
 
 # S4.131 shortest round-trip digits of  man * 2^(tb - 100000) > 0.  The estimate
 # floor((bitlen + t - 1) * 78913 / 2^18) never exceeds k (78913/2^18 is just below log10 2); it is

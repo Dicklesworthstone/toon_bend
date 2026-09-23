@@ -1665,6 +1665,14 @@ def Laws.pre_txt_is_num(f, spec, delim, acc):
 def Laws.pre_raw_is_num(neg, ints, fracs, eneg, x, spec, delim, acc):
   {==}
 
+# S4.130 the pass's printer dispatch on the JSON side: the match reduces on the literal
+def Laws.num_text_json_is_show_json(f, spec):
+  {==}
+
+# S5.30 the same on the TOON side
+def Laws.num_text_toon_is_show_toon(f, spec):
+  {==}
+
 # S2.51 (R16-1) computed: 51 integer digits outrun any negative exponent
 def Laws.num_safe_wide_ints_refused_when_eneg():
   {==}

@@ -72,6 +72,20 @@ MUTANTS = [
  # to be the ONLY law that kills one of the reviewer's mutants. These make that bite permanent.
  ("M34", "f64.bend", "    case Pos{p}:\n      Nat.is_le(p, 21n)", "    case Pos{p}:\n      Nat.is_le(p, 22n)", "the JSON writer stays plain at k = 22 (json_exponent_at_k22 catches it)"),
  ("M35", "text.bend", "Bool.or(Bool.and(U32.is_ge(c, 9), U32.is_le(c, 13)), Bool.or(U32.is_eq(c, 32)", "Bool.or(Bool.and(U32.is_ge(c, 9), U32.is_le(c, 14)), Bool.or(U32.is_eq(c, 32)", "White_Space gains U+000E (only is_ws_documented_non_members catches it)"),
+ # S4.130/S5.30 (round 16 named the EXP-007 decode half as unmutated): the pass's printer dispatch,
+ # swapped. JSON output would carry Rust `Display` number text and TOON output JavaScript's. No law
+ # mentioned num.text until num_text_json_is_show_json / num_text_toon_is_show_toon were written;
+ # law-mutation.sh cannot express this one (its only operator here, swapargs, is type-invalid).
+ ("M36", "encode.bend",
+  "    case True{}:\n      F.show_json_fast(f, spec)\n    case False{}:\n      F.show_toon_fast(f, spec)",
+  "    case True{}:\n      F.show_toon_fast(f, spec)\n    case False{}:\n      F.show_json_fast(f, spec)",
+  "the number pre-pass renders TOON text into JSON output and JSON text into TOON output"),
+ # S5.101 the other half of the same question: dec.done is what TELLS the pass it is on the JSON side.
+ # num_text_*_is_show_* pin the dispatch GIVEN the flag; this mutant lies about the flag instead.
+ ("M37", "cli.bend",
+  "dec.ok(stats, J.write_ln(E.pre.if(spec, True{}, v), indent, spec), text)",
+  "dec.ok(stats, J.write_ln(E.pre.if(spec, False{}, v), indent, spec), text)",
+  "--decode renders its numbers with the TOON printer instead of the JSON one"),
 ]
 
 def reduced(laws_text, proof_text):

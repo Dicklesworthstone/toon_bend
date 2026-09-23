@@ -47,6 +47,10 @@ RULES = [  # (regex on the law name, rows) — first match wins
  # the pass's printer dispatch: which of the two number printers a rendered token was built with,
  # so the law belongs on both number-text rows (hand mutant M36 swaps them)
  (r"(num_text_)", ["TOON number text", "JSON number text"]),
+ # the dispatch sweep: each law pins one arm of a fast/spec gate, on the row whose numbers it decides
+ (r"(dg_step_with_|dg_digit_fast_fin_)", ["TOON number text"]),
+ (r"(div_p10_pick_|from_dec_p10_pick_|token_short_takes_)", ["JSON number reading"]),
+ (r"(num_defer_)", ["JSON text input", "TOON number text"]),
  # which printer the decode side tells the pass to use (hand mutant M37 lies about the flag)
  (r"(dec_done_renders_with_the_json_printer)$", ["JSON number text"]),
  # R16-1/R16-3: the reader's deferral bounds. They govern which tokens the pre-pass may keep raw,

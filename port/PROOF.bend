@@ -1677,6 +1677,48 @@ def Laws.num_text_toon_is_show_toon(f, spec):
 def Laws.dec_done_renders_with_the_json_printer(v, indent, spec, stats, text):
   {==}
 
+# ---- the dispatch sweep: each law is one arm of a gate, so the equality is that arm's body ----
+
+# S4.114
+def Laws.div_p10_pick_takes_the_fast_quotient(neg, ma, ta, k):
+  {==}
+
+# S4.143
+def Laws.from_dec_p10_pick_takes_the_spec_reader(eneg, neg, d, eabs):
+  {==}
+
+# S4.131
+def Laws.dg_step_with_takes_the_fast_step(st, low_ok, high_ok):
+  {==}
+
+# S4.131
+def Laws.dg_step_with_takes_the_spec_step(st, low_ok, high_ok):
+  {==}
+
+# S4.131
+def Laws.dg_digit_fast_fin_takes_the_fast_digit(r, s, est):
+  {==}
+
+# S4.131
+def Laws.dg_digit_fast_fin_takes_the_spec_digit(r, s, est):
+  {==}
+
+# S4.143
+def Laws.token_short_takes_the_short_value(neg, ints, fracs, e):
+  {==}
+
+# S4.143
+def Laws.token_short_takes_the_literal(neg, ints, fracs, e, spec):
+  {==}
+
+# S2.51
+def Laws.num_defer_keeps_the_token_raw(neg, ints, fracs, eneg, x, spec):
+  {==}
+
+# S2.51
+def Laws.num_defer_converts_now(neg, ints, fracs, eneg, x, spec):
+  {==}
+
 # S2.51 (R16-1) computed: 51 integer digits outrun any negative exponent
 def Laws.num_safe_wide_ints_refused_when_eneg():
   {==}

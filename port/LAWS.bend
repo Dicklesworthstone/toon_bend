@@ -1796,6 +1796,104 @@ law dec_done_renders_with_the_json_printer:
   for text: String
   {C.dec.done(D.DOk{v}, indent, spec, stats, text) == C.dec.ok(stats, J.write_ln(E.pre.if(spec, True{}, v), indent, spec), text) : C.CR}
 
+# ---------------------------------------------------------------- the dispatch sweep (round 16 follow-up)
+#
+# R16-2, R16-3, M36 and M37 were one disease: a def that CHOOSES between two behaviours with no law
+# saying which choice belongs in which arm. A mutant that swaps the arms of a fast/spec gate can then
+# survive both the corpus and the proof, because the corpus only samples inputs and the fast twin
+# agrees with the spec twin on most of them — the difference hides outside the captured cases.
+#
+# This block pins every fast/spec gate in the port that no law named, both arms where the checker can
+# take it. Each law is a QUANTIFIED restatement of one arm, which is the cheap form: it names no
+# number, so it never routes the checker through the decimal->binary64 conversion or the
+# shortest-digit generator, and it adds nothing measurable to the proof's footprint.
+#
+# TWO ARMS ARE NOT HERE and cannot be, for the reason NE-001..003 already give: the checker cannot
+# unfold those bodies over abstract arguments (it reports "the machine stack overflowed").
+#   div_p10.pick        the SPEC arm, div(FNum{neg, ta, ma}, pow10(k))
+#   from_dec_p10.pick   the FAST arm, from_dec_p10.go(neg, d, eabs)
+# Their opposite arms ARE pinned below, so a mutant cannot put the wrong body in the pinned arm; what
+# stays unpinned is the unpinned arm's own body, which remains golden-tested only. Stated, not hidden.
+
+# S4.114 the gate takes the fast quotient when it says fast
+law div_p10_pick_takes_the_fast_quotient:
+  for neg: Bool
+  for ma: List<&2, U32>
+  for ta: Nat
+  for k: Nat
+  {F.div_p10.pick(True{}, neg, ma, ta, k) == F.div_p10.go(neg, ma, ta, k) : F.F64}
+
+# S4.143 and the correctly rounded reader when it says spec
+law from_dec_p10_pick_takes_the_spec_reader:
+  for eneg: Bool
+  for neg: Bool
+  for d: List<&2, U32>
+  for eabs: Nat
+  {F.from_dec_p10.pick(False{}, eneg, neg, d, eabs) == F.from_dec(eneg, neg, d, eabs) : F.F64}
+
+# S4.131 the shortest-digit step, both arms
+law dg_step_with_takes_the_fast_step:
+  for st: F.Dg
+  for low_ok: Bool
+  for high_ok: Bool
+  {F.dg.step.with(True{}, st, low_ok, high_ok) == F.dg.step.fast(st, low_ok, high_ok) : F.Dg}
+
+law dg_step_with_takes_the_spec_step:
+  for st: F.Dg
+  for low_ok: Bool
+  for high_ok: Bool
+  {F.dg.step.with(False{}, st, low_ok, high_ok) == F.dg.step(st, low_ok, high_ok) : F.Dg}
+
+# S4.131 (EXP-006) the digit itself, both arms
+law dg_digit_fast_fin_takes_the_fast_digit:
+  for r: List<&2, U32>
+  for s: List<&2, U32>
+  for est: Nat
+  {F.dg.digit_fast.fin(True{}, r, s, est) == F.dg.digit_fast.fix(BN.sub(r, BN.mul_small(s, U32.from_nat(est), 0), 0), s, U32.from_nat(est)) : List<&2, U32> & U32}
+
+law dg_digit_fast_fin_takes_the_spec_digit:
+  for r: List<&2, U32>
+  for s: List<&2, U32>
+  for est: Nat
+  {F.dg.digit_fast.fin(False{}, r, s, est) == F.dg.digit(10n, r, s, 0) : List<&2, U32> & U32}
+
+# S4.143 the short-integer twin, both arms. Round 5 found this gate accepting 15-digit texts, which
+# is what a swapped arm here would look like again.
+law token_short_takes_the_short_value:
+  for neg: Bool
+  for ints: String
+  for fracs: String
+  for e: F.Int
+  {F.token.short(True{}, neg, ints, fracs, e, False{}) == F.token.short.value(T.nat_of(ints, 0n), neg, ints, fracs, e) : Maybe<&2, F.F64>}
+
+law token_short_takes_the_literal:
+  for neg: Bool
+  for ints: String
+  for fracs: String
+  for e: F.Int
+  for spec: Bool
+  {F.token.short(False{}, neg, ints, fracs, e, spec) == F.token.literal(neg, ints, fracs, e, spec) : Maybe<&2, F.F64>}
+
+# S2.51 (EXP-007) the consumer of num.safe. R16-1 was a wrong BOUND; a swap here is the same bug
+# reached from the other side, deferring a token the bound refused.
+law num_defer_keeps_the_token_raw:
+  for neg: Bool
+  for ints: String
+  for fracs: String
+  for eneg: Bool
+  for x: Nat
+  for spec: Bool
+  {J.num.defer(True{}, neg, ints, fracs, eneg, x, spec) == Some{J.JRaw{neg, ints, fracs, eneg, x}} : Maybe<&2, J.Json>}
+
+law num_defer_converts_now:
+  for neg: Bool
+  for ints: String
+  for fracs: String
+  for eneg: Bool
+  for x: Nat
+  for spec: Bool
+  {J.num.defer(False{}, neg, ints, fracs, eneg, x, spec) == J.num.wrap(F.token_value(neg, String.reverse(ints), String.reverse(fracs), J.num.exp_int(eneg, x), spec)) : Maybe<&2, J.Json>}
+
 # S2.51, EXP-007 (R16-1, R16-3) the two bounds num.safe rests on, pinned as closed facts so that
 # moving either constant is a red proof and not a surviving mutant. A deferred token's `number out of
 # range` would be lost: the reader defers before the kill-switch is read, so TOON_SPEC=1 does not

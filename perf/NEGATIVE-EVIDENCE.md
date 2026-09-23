@@ -599,3 +599,14 @@ likewise do not establish universal performance rules.
 - **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain
 - Tally: W1/L0/N0 (counted)
 - Agent: Claude (session ef481f9c, 2026-09-23)
+
+### NE-028 — a string literal is found and unescaped in one walk (EXP-024)   [2026-09-23 | COUNTED_WIN, kept]
+- Program / def: `port/decode.bend` / `lit`, `lit.go`, `lit.close`, `lit.plain`, `lit.esc`, `lit.esc.ch` (the old `lit.q` removed: `lit` was its only caller); keys and headers keep `quote.close` + `unesc`
+- Provenance: as NE-022; base = the EXP-022 binary
+- Counted (cachegrind Ir): `gsoc_2018.toon --decode` 5,937,718,735 → 5,449,278,370, **8.2% fewer (1.090×)**, stdout identical; the gate was 8% and is met by 0.2 points, which is stated rather than rounded
+- Binding: seven closed goldens `decode_literal_*` through the whole pure core (bytes from the pinned original): the failure order (unterminated before a bad escape, trailing characters before a bad escape), a bad escape alone, all five escapes, a backslash before the last quote, the empty literal, quoted tabular cells. Three hand mutants each killed in a reduced proof: the bad escape reported before trailing characters (`_trailing_before_bad_escape`), a backslash that does not take the next character (`_bad_escape`), `\t` not unescaped (`_five_escapes`)
+- Correctness evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/diff-fuzz.py` seed 2424: docs, mutate and expand 1500 inputs each, 0 differences
+- Killing metric: none; promotion to MEASURED needs a cv-gated CPU capture on a quiet host
+- **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain
+- Tally: W1/L0/N0 (counted)
+- Agent: Claude (session ef481f9c, 2026-09-23)

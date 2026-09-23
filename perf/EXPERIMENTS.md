@@ -954,3 +954,36 @@ all-space text and the empty text, each against the old expression written out; 
 ### Precommitted gate
 In INSTRUCTIONS (counted): ≥ 10% fewer than the EXP-021 binary on `gsoc_2018.toon` (`--decode`, `--threads 1`), stdout identical;
 conform c-1t with and without `TOON_SPEC=1`; the proof green.
+
+## EXP-024 — a string literal is found and unescaped in one walk: two copies per character instead of four
+
+| field | value |
+|---|---|
+| experiment_id | EXP-024 |
+| program / def | `port/decode.bend` / `lit` (S2.120, S2.122, S2.123): quoted values and quoted tabular cells; keys and headers keep `quote.close` + `unesc` |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'unesc\|quote\|string literal' perf/NEGATIVE-EVIDENCE.md` → no entry |
+| status | COUNTED_WIN 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-028): 8.2% fewer instructions on `gsoc_2018.toon --decode` against EXP-022 (gate 8%, met by 0.2 points); CPU confirmation on a quiet host pending |
+| precommitted | true |
+
+### Hypothesis
+`lit` walks a quoted literal twice: `quote.go` copies the raw inner text reversed and reverses it, then `unesc` copies it reversed
+again and reverses it: four list cells per character. One walk that pairs each backslash with the next character (as `quote.go`
+does), unescapes as it goes, remembers the first bad escape and reverses once at the closing quote builds two. The failures keep their
+order: no closing quote first, then characters after it, then the first bad escape. The instruction count of `--decode` on
+`gsoc_2018.toon` at 1 thread falls by at least 8% against the EXP-022 binary.
+
+### Evidence before the lever
+Re-profile of the EXP-022 tree on `gsoc_2018.toon --decode`: 32,936,101 wraps; `quote.go` and its reversal under `DECODE_LIT`
+2,428,836 × 2, `unesc`'s accumulation and its reversal 2,441,813 × 2: 9,741,298, 29.6% of all.
+
+### Lever (one)
+`lit` becomes one loop over (text, class of its head, unescaper state); the old `lit.q` goes (its only callers were `lit`). Laws:
+closed `run_pure` goldens through the whole pure core with bytes from the pinned original: an unterminated literal holding a bad
+escape (the quote failure wins), a bad escape followed by characters after the quote (those win), a bad escape alone, all five
+escapes, a backslash before the last quote (unterminated), the empty literal, quoted tabular cells with escapes; corpus and fuzz.
+
+### Precommitted gate
+In INSTRUCTIONS (counted): ≥ 8% fewer than the EXP-022 binary on `gsoc_2018.toon` (`--decode`, `--threads 1`), stdout identical;
+conform c-1t with and without `TOON_SPEC=1`; the proof green.

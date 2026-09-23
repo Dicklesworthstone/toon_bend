@@ -2348,3 +2348,28 @@ law trim_end_empty:
 # and a tab are trimmed, a value with none is kept whole
 law decode_values_trimmed_at_the_end:
   {C.run_pure(["--decode"], T.ascii_bytes("a: x  \nb:  y z \t\nc: w\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"x\",\n  \"b\": \"y z\",\n  \"c\": \"w\"\n}\n", ""} : C.Out}
+
+# S2.120, S2.122, S2.123, S9.103-S9.105 (EXP-024) a string literal found and unescaped in one walk, through the
+# whole pure core with bytes from the pinned original: the failures keep their order (no closing quote, then
+# characters after it, then the first bad escape), the five escapes, a backslash before the last quote, the
+# empty literal, quoted tabular cells
+law decode_literal_unterminated_before_bad_escape:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: \"x\\qy\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unterminated string: missing closing quote"} : C.Out}
+
+law decode_literal_trailing_before_bad_escape:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: \"x\\qy\" z\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unexpected characters after closing quote"} : C.Out}
+
+law decode_literal_bad_escape:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: \"x\\qy\"\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Invalid escape sequence: \\q"} : C.Out}
+
+law decode_literal_five_escapes:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: \"x\\\\n\\\"y\\tz\\r\\n\"\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"x\\\\n\\\"y\\tz\\r\\n\"\n}\n", ""} : C.Out}
+
+law decode_literal_escaped_last_quote:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: \"abc\\\"\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unterminated string: missing closing quote"} : C.Out}
+
+law decode_literal_empty:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: \"\"\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"\"\n}\n", ""} : C.Out}
+
+law decode_literal_tabular_cells:
+  {C.run_pure(["--decode"], T.ascii_bytes("t[2]{p,q}:\n  \"a\\tb\",\"c\\\"d\"\n  \"e\",f\n", Nil{})) == C.Out{0n, "{\n  \"t\": [\n    {\n      \"p\": \"a\\tb\",\n      \"q\": \"c\\\"d\"\n    },\n    {\n      \"p\": \"e\",\n      \"q\": \"f\"\n    }\n  ]\n}\n", ""} : C.Out}

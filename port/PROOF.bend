@@ -2099,3 +2099,31 @@ def Laws.trim_end_empty():
 # S2.106 closed: computed (EXP-022)
 def Laws.decode_values_trimmed_at_the_end():
   {==}
+
+# S2.122 closed: the whole pure core computed (EXP-024)
+def Laws.decode_literal_unterminated_before_bad_escape():
+  {==}
+
+# S2.122 closed: the whole pure core computed (EXP-024)
+def Laws.decode_literal_trailing_before_bad_escape():
+  {==}
+
+# S2.122 closed: the whole pure core computed (EXP-024)
+def Laws.decode_literal_bad_escape():
+  {==}
+
+# S2.122 closed: the whole pure core computed (EXP-024)
+def Laws.decode_literal_five_escapes():
+  {==}
+
+# S2.122 closed: the whole pure core computed (EXP-024)
+def Laws.decode_literal_escaped_last_quote():
+  {==}
+
+# S2.122 closed: the whole pure core computed (EXP-024)
+def Laws.decode_literal_empty():
+  {==}
+
+# S2.122 closed: the whole pure core computed (EXP-024)
+def Laws.decode_literal_tabular_cells():
+  {==}

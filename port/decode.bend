@@ -242,20 +242,69 @@ def unesc.fin(st: UE) -> RS:
 def unesc(s: String) -> RS:
   unesc.fin(unesc.go(s, UE{False{}, SNil{}, False{}, 0}))
 
-# S2.122 a string literal after its opening quote: S9.103 without a closing quote, S9.104 when the
-# closing quote is not the last character of the (trimmed) token
-def lit.q(q: QS) -> RS:
-  match q:
-    case QS{False{}, inner, after}:
-      RSErr{"Unterminated string: missing closing quote"}
-    case QS{True{}, inner, SNil{}}:
-      unesc(inner)
-    case QS{True{}, inner, SCon{c, more}}:
+# S2.123 the character after a backslash inside a literal: one of the five escapes joins the text; any
+# other is the first bad escape. After a bad escape the text is no longer kept (it can only fail)
+def lit.esc(bad: Bool, k: Nat, c: U32, rev: String, badc: U32) -> UE:
+  match bad k:
+    case True{} _:
+      UE{False{}, rev, True{}, badc}
+    case False{} 1n:
+      UE{False{}, SCon{Chr{10}, rev}, False{}, badc}
+    case False{} 2n:
+      UE{False{}, SCon{Chr{9}, rev}, False{}, badc}
+    case False{} 3n:
+      UE{False{}, SCon{Chr{13}, rev}, False{}, badc}
+    case False{} 4n:
+      UE{False{}, SCon{Chr{92}, rev}, False{}, badc}
+    case False{} 5n:
+      UE{False{}, SCon{Chr{34}, rev}, False{}, badc}
+    case False{} _:
+      UE{False{}, rev, True{}, c}
+
+# S2.123 the escaped character, by its class
+def lit.esc.ch(bad: Bool, ch: Char, rev: String, badc: U32) -> UE:
+  match ch:
+    case Chr{+c}:
+      lit.esc(bad, unesc.cls(c), c, rev, badc)
+
+# S2.123 a character that is neither a backslash nor the closing quote joins the text
+def lit.plain(bad: Bool, ch: Char, rev: String, badc: U32) -> UE:
+  match bad:
+    case True{}:
+      UE{False{}, rev, True{}, badc}
+    case False{}:
+      UE{False{}, SCon{ch, rev}, False{}, badc}
+
+# S2.122 at the closing quote: S9.104 when it is not the last character of the (trimmed) token, then the
+# first bad escape (S9.105), else the text
+def lit.close(rest: String, st: UE) -> RS:
+  match rest st:
+    case SCon{c, more} _:
       RSErr{"Unexpected characters after closing quote"}
+    case SNil{} UE{esc, rev, True{}, badc}:
+      RSErr{"Invalid escape sequence: \\" ++ SCon{Chr{badc}, SNil{}}}
+    case SNil{} UE{esc, rev, False{}, badc}:
+      RSOk{String.reverse(rev)}
+
+# S2.120, S2.122, S2.123 the literal in ONE walk (EXP-024): k is the class of the head of `s` (1 a double
+# quote, 2 a backslash); a backslash takes the next character with it, as in quote.go, and the text is
+# unescaped as it is read. S9.103 without a closing quote comes before every other failure
+def lit.go(s: String, k: Nat, st: UE) -> RS:
+  match s k st:
+    case SNil{} _ _:
+      RSErr{"Unterminated string: missing closing quote"}
+    case SCon{ch, +rest} _ UE{True{}, rev, bad, badc}:
+      lit.go(rest, quote.cls(rest), lit.esc.ch(bad, ch, rev, badc))
+    case SCon{ch, rest} 1n UE{False{}, rev, bad, badc}:
+      lit.close(rest, UE{False{}, rev, bad, badc})
+    case SCon{ch, +rest} 2n UE{False{}, rev, bad, badc}:
+      lit.go(rest, quote.cls(rest), UE{True{}, rev, bad, badc})
+    case SCon{ch, +rest} _ UE{False{}, rev, bad, badc}:
+      lit.go(rest, quote.cls(rest), lit.plain(bad, ch, rev, badc))
 
 # S2.122 the text a string literal denotes, given the token after its opening quote
-def lit(s: String) -> RS:
-  lit.q(quote.close(s))
+def lit(+s: String) -> RS:
+  lit.go(s, quote.cls(s), UE{False{}, SNil{}, False{}, 0})
 
 # S2.124 a string literal as a value
 def prim.lit(r: RS) -> RV:

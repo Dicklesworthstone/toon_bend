@@ -247,6 +247,25 @@ Outcome taxonomy (closed set):
 - Orientation (interleaved ABBA, 8 rounds, not the cv-gated tool): `canada` 6112.6 → 3243.8 ms, 1.884× by median, 1.935× by minimum, 1.852× by CPU, cv 3.3% / 4.2%; `numbers` 1.79× / 1.97× / 1.87×; `mesh` 1.62× / 1.89× / 1.70×; `doubles_20000` 1.87× / 1.86× / 1.83×. Every estimator on every input clears the card's precommitted gate (≥ 30% below the baseline); the cv gate on the card's own input does not
 - Profile after the lever (gprof, `canada --encode`): `BN.cmp` 22.8 M → 7.5 M calls, 45.5% → 25.7% inclusive
 - Killing metric: none yet. Promotion to a ledger WIN needs: a cv-gated capture (a quiet host, the card's command) AND either a quantified law or the owner's acceptance of closed laws + the 10^6 differential (bead `toon_bend-clf`, the same question as NE-001..003)
+- **COUNTED 2026-09-23** (valgrind 3.26 cachegrind, `--cache-sim=no`, deterministic to 6e-8 run to run;
+  `--encode perf/inputs/doubles_20000.json` at `--threads 1`, the input this card names):
+
+  | arm | I-refs |
+  |---|---|
+  | lever ON (current binary) | **5,298,462,439** |
+  | lever OFF (`dg.digit_fast.fin` forced to its spec arm) | **9,283,456,452** |
+
+  **The lever removes 42.9% of the instructions (1.752x fewer).** Output byte-identical between the two
+  arms (sha256 `f44011cd…`).
+- **Corroborating CPU time** (interleaved, both orders, 7 rounds per arm, child CPU): ON min 0.566 s
+  median 0.574 s (cv **7.2%**); OFF min 1.051 s median 1.088 s (cv 3.6%). **1.855x by min, 1.896x by
+  median.** The two currencies agree.
+- **Why this is still PROVISIONAL_LOCAL_WIN and not WIN:** the card's success criterion is a wall-clock
+  capture with **cv <= 5% on both arms**, and the ON arm's cv is 7.2% on this shared host. A 7.2% cv
+  cannot manufacture an 85% effect, so the gain is not in doubt — but the stated criterion is the stated
+  criterion, and "counted" is a different claim class that does not retroactively satisfy a gate
+  precommitted in wall-clock terms. The entry now carries numbers where it had none; the outcome label
+  waits for a host at load < 1.
 - **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
 - Tally: W0/L0/N1 (provisional)
 - Agent: Claude (session ef481f9c, 2026-09-22)
@@ -258,6 +277,15 @@ Outcome taxonomy (closed set):
 - Correctness evidence: `conform.sh` 1071/1071 on c-1t with and without `TOON_SPEC=1`
 - Orientation (interleaved ABBA, 8 rounds): `openapi_github --encode` (13 MB, deep schemas) 4785.5 → 3858.4 ms, 1.240× by median, 1.329× by minimum, 1.269× by CPU, cv 1.6% / 4.4%; `vscode_lock` 1.305× / 1.275× / 1.26× (cv 8.9% / 6.5%); `twitter` 1.09× / 1.13× / 1.12×. The profile had given `fctx.child` 18.5% inclusive on the OpenAPI encode (`perf/e2e/results/2026-09-22-694d73b/profiles/openapi_encode.inclusive.txt`)
 - Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
+- **COUNTED 2026-09-23** (valgrind 3.26 cachegrind, `--cache-sim=no`, deterministic; `--encode` of
+  `perf/e2e/corpus/gsoc_2018.json`, 3.2 MB, at `--threads 1`, folding off, which is the case the lever is
+  for): lever ON **7,325,873,584** I-refs, lever OFF (`fctx.lean` forced `False{}`) **7,457,489,302** —
+  **the lever removes 1.8% of the instructions (1.018x)**. Output byte-identical between the arms.
+  `TOON_SPEC=1` was NOT used as the off arm: it would also close the number twins and confound the count.
+- **Reading:** 1.8% is a real but small effect, and far below what the earlier orientation implied. The
+  lever costs nothing and is already proved by `fctx_lean_closed_by_switch`, so it stays; but it should
+  not be described as a significant win, and a wall-clock capture is unlikely ever to resolve 1.8% on
+  this host.
 - **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
 - Tally: W0/L0/N1 (provisional)
 - Agent: Claude (session ef481f9c, 2026-09-22)
@@ -276,6 +304,12 @@ Outcome taxonomy (closed set):
 - Correctness evidence: `conform.sh` 1071/1071 on c-1t; `scripts/diff-fuzz.py` seed 11: mutate, docs, expand 1500 inputs each and scale 20, 0 differences
 - Orientation (interleaved ABBA, 6 rounds, load 11): `gsoc_2018 --decode` 1290.4 → 1106.5 ms, 1.166× by median, 1.233× by minimum, 1.157× by CPU, cv 4.7% / 8.8%: the lever arm's cv is above the gate, so this is not a capture
 - Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
+- **COUNTED 2026-09-23** (cachegrind, `--cache-sim=no`, deterministic; `--decode` of the 3.0 MB
+  `gsoc_2018.toon` at `--threads 1`, the input this card names): lever ON **7,356,972,045** I-refs,
+  lever OFF (`hdr.a.plain.pre` forced to always cut, the pre-EXP-009 behaviour) **8,881,143,736** —
+  **the lever removes 17.2% of the instructions (1.207x)**. Output byte-identical between the arms.
+- **Reading:** this CORROBORATES the earlier orientation of 1.157x with a deterministic number, and is
+  slightly better than it. The precheck is a real win on header-poor documents, which is the common case.
 - **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
 - Tally: W0/L0/N1 (provisional)
 - Agent: Claude (session ef481f9c, 2026-09-22)
@@ -297,6 +331,13 @@ Outcome taxonomy (closed set):
 - Correctness evidence: `conform.sh` 1071/1071 on c-1t; `scripts/diff-fuzz.py` seed 13: docs, mutate, expand 1500 inputs each, 0 differences
 - Orientation (interleaved ABBA, 10 rounds): `gsoc_2018 --decode` 1102.0 → 903.4 ms, 1.220× by median, 1.284× by minimum, 1.204× by CPU, cv 11.4% / 9.5% (not a capture)
 - Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
+- **COUNTED 2026-09-23** (cachegrind, `--cache-sim=no`, deterministic; `--decode` of the 3.0 MB
+  `gsoc_2018.toon` at `--threads 1`): lever ON **7,356,971,965** I-refs, lever OFF (the `JArr{cnt, +items}`
+  / `JObj{+entries}` arms and `w.close` restored VERBATIM from `8d32b6e^`, not reconstructed)
+  **8,219,726,013** — **the lever removes 10.5% of the instructions (1.117x)**. Output byte-identical.
+- **Reading:** positive and substantial, though more conservative than the earlier orientation of 1.204x.
+  Removing the share (so the writer does not take each node apart with `span_fade` while another
+  reference is dropped) is worth about a tenth of the decode path.
 - **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
 - Tally: W0/L0/N1 (provisional)
 - Agent: Claude (session ef481f9c, 2026-09-22)

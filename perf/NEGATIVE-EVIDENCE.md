@@ -301,6 +301,20 @@ Outcome taxonomy (closed set):
 - Tally: W0/L0/N1 (provisional)
 - Agent: Claude (session ef481f9c, 2026-09-22)
 
+
+
+### NE-016 — the shortest-digit loop in scalar words when every operand is below 2^64 (EXP-012)   [2026-09-23 | PROVISIONAL]
+- Program / def: `port/f64.bend` / `dgw.*` (the loop `dgw.loop`, the word helpers, `dgw.fits`, `dgw.run`), `dg.run.words`, `dg.run.with`. Behind `F.twin.on` (`TOON_SPEC=1` runs `dg.gen.with`); a state with any of r, s, mp, mm at or above 2^64 takes the old path
+- Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, SHARED HOST AT LOAD 17-20 (other agents' benchmark suite and builds); base = the binary of `4902734` sha256 `ef15400197d1ad85…`, lever binary `beca7cf43e91eedf…`, `--threads 1`
+- Representation: three 24-bit words in U32 per value. A first version held two Nat words; the program was right (1000000-number differential SAME) but a closed law over it did not finish in 22 GB: the checker evaluates Nat values of 2^24 scale in unary. With U32 words the seven closed laws check in 17 s at 1.9 GB
+- Binding (the weaker kind, as NE-010): seven closed laws `dgw_run_third`, `_asym`, `_half`, `_tie`, `_carry` (operands above 2^32), `_borrow` (a low-word borrow), `_edge64` (s just below 2^64), each `dg.run.words(True, st, …) == dg.run(DgK{st, …})` against the spec loop; three hand mutants (no low-word borrow, a wrong multiply carry, the tie's parity inverted) are each killed, by `_borrow`, `_carry` and `_tie`. The gate is pinned too, condition included: the quantified laws `dg_run_with_gate` (the word loop runs exactly when the switch is open AND `dgw.fits` holds) and `dg_run_words_spec_arm`, and five closed boundary laws `dgw_fits_*` (every operand at 2^64 - 1 fits; each of r, s, mp, mm at 2^64 does not); a mutant dropping `fits` and one moving the s bound to 65 bits are each killed. No quantified `fast == spec` law
+- Correctness evidence: `conform.sh` 1071/1071 on c-1t with `TOON_SPEC` unset and set; the seeded 1000000-number differential (original, fast twin, spec twin; seeds 12 and 1212) `{"diffs": 0, "verdict": "SAME"}` twice; an exponent sweep of 24562 doubles (every biased exponent 0-2046, six mantissas, both signs, subnormals included) encoded and decoded byte-identical to the original, exit 0, empty stderr. The loop never forms a value at or above 2^68, so no word exceeds 2^24 (the high word stays below 2^20)
+- Orientation (interleaved ABBA, 6 rounds, load 17-20; wall cv 23-53% so wall means nothing here, process CPU time is the steady estimator): CPU `canada --decode` 1.84×, `canada --encode` 2.24×, `citm_catalog --decode` 0.97×, `twitter --encode` 1.01× (neutral where numbers are few); stdout identical in every pair. An earlier single pair on a quieter host: `canada --decode` 5.60 → 2.80 s
+- Killing metric: none yet; promotion needs a cv-gated capture on a quiet host
+- **Do-not-retry unless:** (not a loss) — re-capture when the load average is below 1
+- Tally: W0/L0/N1 (provisional)
+- Agent: Claude (session ef481f9c, 2026-09-23)
+
 ---
 
 ## Inherited priors (re-confirm on THIS program's shape; not local evidence)

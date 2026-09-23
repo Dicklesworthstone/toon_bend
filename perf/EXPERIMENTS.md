@@ -1091,3 +1091,68 @@ quantified step_fast_is_step_under_switch (the carded law of the carded shape, s
 ### Precommitted gate
 In INSTRUCTIONS (counted): ≥ 5% fewer than the EXP-026 binary on `gsoc_2018.json` (`--encode`, `--threads 1`), stdout identical;
 conform c-1t with and without `TOON_SPEC=1`; the proof green.
+
+## EXP-028 — the port has integer fast paths on both sides and nothing for ordinary decimals
+
+| field | value |
+|---|---|
+| experiment_id | EXP-028 |
+| program / def | `port/f64.bend` / `token.short` (the reader's gate, S4.143) and the printer's integer twin (S4.131, EXP-001) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (Claude Code session) |
+| graveyard sweep | `rg -i 'decimal\|fraction\|integer fast\|short' perf/` → NE-001 (EXP-001, the printer's INTEGER fast path), NE-002 (EXP-002, the reader's INTEGER fast path, bound 14 digits), NE-003 (EXP-003, division by a power of ten), NE-016 (EXP-012, the shortest-digit loop in words). Every one of them is about integers or about the digit LOOP; **none is about a non-integer value taking a fast path**, and no do-not-retry applies |
+| status | CARDED 2026-09-23 with its evidence, LEVER NOT BUILT |
+| precommitted | true |
+
+### The measurement that localises it (counted, cachegrind, deterministic)
+
+`canada` is the worst cell of the counted corpus comparison: **13.33×** the original's instructions on
+encode, **4,893 instructions per input byte** against the original's 367, where every other document in
+the suite sits between 3.85× and 9.72×. It has 111,126 numbers with a median of 18 characters each.
+
+Three twins of that document, same shape, same number COUNT, different number TEXT:
+
+| twin | median chars/number | port I-refs | oracle I-refs | port / oracle | instr / number |
+|---|---|---|---|---|---|
+| short integers | 2 | 1,890,963,549 | 582,449,097 | **3.25×** | 17,015 |
+| short decimals | 7 | 6,922,497,773 | 586,761,517 | **11.80×** | 62,294 |
+| `canada` as published | 18 | 11,014,963,500 | 826,582,787 | **13.33×** | 99,121 |
+
+**The oracle is nearly flat across all three** (582M, 587M, 827M). The port is not. And the jump is not
+the digit count: a 7-character decimal carries about 5 significant digits, comfortably inside
+`token.short`'s 14-digit bound, and it already costs **11.80×**. What changes between row 1 and row 2 is
+the presence of a FRACTION.
+
+### Hypothesis
+
+`token.short` refuses any token with a fraction — the law `int_text_fraction_refused` pins exactly that —
+and the printer's fast twin is likewise an integer path. So a value like `65.613471` takes the full
+correctly-rounded big-natural route in BOTH directions, while `65613471` takes a fast path in both. A
+decimal whose significand fits a machine word is arithmetically no harder than the integer: `65.613471`
+is `65613471 × 10^-6`, and EXP-003 already provides an exact division by a power of ten. Giving the
+reader and the printer a fast path for a non-integer whose significand fits should move the decimal rows
+toward the integer row.
+
+### Why this is the right SHAPE (NE-027's rule)
+
+It does not make an operation cheaper; it stops a whole big-natural computation from happening for the
+common case. NE-019, NE-020 and NE-027 each made an operation cheaper and returned 2%, 1% and 0.11%.
+The levers that paid removed work wholesale.
+
+### Precommitted gate
+
+- **Primary (counted):** ≥ 25% fewer instructions on `--encode` of `canada.json` at `--threads 1`,
+  and the short-decimal twin's ratio against the oracle below 8× (from 11.80×).
+- Always: output byte-identical to the oracle on `canada.json`, both twins, and every `encnum_*` and
+  `decnum_*` case; the existing number laws unchanged and still proved; conform 1076/1076 on c-1t,
+  c-8t and js.
+- The twins are regenerable from `perf/e2e/counted.py`'s corpus by the substitutions recorded here; they
+  are not committed (the corpus directory is gitignored).
+
+### The trap
+
+Correct rounding is the whole contract of this path. A significand that fits a word does NOT mean the
+decimal→binary64 conversion is exact: `0.1` is not representable, and the fast path must round exactly as
+the slow one does or the goldens will diverge on the first tie. The existing closed laws on the reader's
+boundary values are the floor, not the ceiling, and a new fast path needs its own boundary laws plus the
+million-number differential before it is believed.

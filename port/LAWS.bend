@@ -2227,3 +2227,27 @@ law byte_cls_126_is_0:
 
 law byte_cls_255_is_0:
   {J.byte.cls(255) == 0n : Nat}
+
+# S4.8 (EXP-013) the last-character walk answers what the reversal answered: empty text
+law ends_ws_empty:
+  {T.ends_ws(SNil{}) == T.head_is_ws(String.reverse(SNil{})) : Bool}
+
+# S4.8 (EXP-013) one character, White_Space
+law ends_ws_one_space:
+  {T.ends_ws(" ") == T.head_is_ws(String.reverse(" ")) : Bool}
+
+# S4.8 (EXP-013) a leading space only: the last character is not White_Space
+law ends_ws_leading_only:
+  {T.ends_ws(" ab") == T.head_is_ws(String.reverse(" ab")) : Bool}
+
+# S4.8 (EXP-013) a trailing space
+law ends_ws_trailing_space:
+  {T.ends_ws("ab ") == T.head_is_ws(String.reverse("ab ")) : Bool}
+
+# S4.8 (EXP-013) a trailing U+3000 (White_Space outside ASCII)
+law ends_ws_trailing_ideographic:
+  {T.ends_ws(SCon{Chr{97}, SCon{Chr{12288}, SNil{}}}) == T.head_is_ws(String.reverse(SCon{Chr{97}, SCon{Chr{12288}, SNil{}}})) : Bool}
+
+# S4.8 (EXP-013) a space in the middle is no edge
+law ends_ws_inner_space:
+  {T.has_edge_ws("a b") == False{} : Bool}

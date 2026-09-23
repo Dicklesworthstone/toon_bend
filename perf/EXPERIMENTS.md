@@ -717,3 +717,33 @@ original rejects, and those two laws are what would catch it.
 - Always: output byte-identical to the oracle on every `*.fold.toon` in the corpus and on a dot-free
   document; `expansion_cap_on_values` and `expansion_cap_on_merges` unchanged and still proved; conform
   1076/1076 on c-1t, c-8t and js.
+## EXP-013 — the encoder's edge-White_Space test looks at the last character without reversing the string
+
+| field | value |
+|---|---|
+| experiment_id | EXP-013 |
+| program / def | `port/text.bend` / `has_edge_ws` (S4.8), called by the encoder's value rule `needs_quote` for every string value |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'edge_ws\|has_edge\|ends_ws' perf/` → NE-014 (EXP-010: the same walk for `trim_end`, NEUTRAL on decode because the reversals there were short). Its retry predicate names "an input whose values are long texts" as the target; `gsoc_2018 --encode` (long project descriptions, 16.5-17.2x the original in the quiet-host reference run of `722991e`) is that input |
+| status | CARDED 2026-09-23, before the lever |
+| precommitted | true |
+
+### Hypothesis
+`has_edge_ws(s)` is `head_is_ws(s) or head_is_ws(String.reverse(s))`: a full reversed copy of every string value the encoder
+writes, taken apart again at once, only to read its last character. An allocation-free walk to the last character answers the
+same question. The median CPU time of `--encode` on `gsoc_2018.json` at 1 thread falls by at least 5% against the binary of `722991e`.
+
+### Evidence before the lever
+gprof of `722991e` at 1 thread, `gsoc_2018.json --encode`: `spin_8` (`String.reverse`) 33.9% inclusive over 68262 calls, 15168 of
+them from `WL_FID_ENCODE_PUT_PRIM` (the value rule), 34128 from the JSON reader and 15168 from line assembly.
+
+### Lever (one)
+`ends_ws` (a walk that keeps the previous character, allocating nothing) replaces the reversal inside `has_edge_ws`. Same verdict
+by construction (the head of the reverse is the last character). Laws: closed instances of `has_edge_ws` on the empty text, one
+character, a leading space, a trailing space, a trailing U+3000 and no edge space, each against `head_is_ws(String.reverse(s))`
+written out; beside them conform on c-1t and the docs/mutate lenses.
+
+### Precommitted gate
+≥ 5% below the `722991e` binary on `gsoc_2018.json` (`--encode`, `--threads 1`), CPU median, cv ≤ 5% on both arms; conform c-1t
+1076/1076; the proof green.

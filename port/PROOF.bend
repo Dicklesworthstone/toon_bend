@@ -1975,3 +1975,27 @@ def Laws.byte_cls_126_is_0():
 
 def Laws.byte_cls_255_is_0():
   {==}
+
+# S4.8 closed
+def Laws.ends_ws_empty():
+  {==}
+
+# S4.8 closed
+def Laws.ends_ws_one_space():
+  {==}
+
+# S4.8 closed
+def Laws.ends_ws_leading_only():
+  {==}
+
+# S4.8 closed
+def Laws.ends_ws_trailing_space():
+  {==}
+
+# S4.8 closed
+def Laws.ends_ws_trailing_ideographic():
+  {==}
+
+# S4.8 closed
+def Laws.ends_ws_inner_space():
+  {==}

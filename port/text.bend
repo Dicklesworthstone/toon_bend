@@ -133,9 +133,26 @@ def trim(s: String) -> String:
 def is_blank(s: String) -> Bool:
   String.is_empty(trim_start(s))
 
+# S4.8 the loop of ends_ws: c is the character before `rest`, so the last one is tested alone
+def ends_ws.go(rest: String, c: Char) -> Bool:
+  match rest:
+    case SNil{}:
+      is_ws_char(c)
+    case SCon{d, t}:
+      ends_ws.go(t, d)
+
+# S4.8 whether the last character is White_Space: a walk to the last character that allocates nothing
+# (EXP-013: this used to reverse the whole text to read its head)
+def ends_ws(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{c, rest}:
+      ends_ws.go(rest, c)
+
 # S4.8 whether the first or the last character is White_Space (the text differs from its own trim)
 def has_edge_ws(+s: String) -> Bool:
-  Bool.or(head_is_ws(s), head_is_ws(String.reverse(s)))
+  Bool.or(head_is_ws(s), ends_ws(s))
 
 # S6.36 prepend the characters of `s` to `acc` in reverse order: the accumulate step of every builder
 def rev_onto(s: String, acc: String) -> String:

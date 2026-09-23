@@ -82,6 +82,7 @@ RULES = [  # (regex on the law name, rows) — first match wins
  # usage_similar_arg_*, stats_ws_each + encstr_ws_edge_sweep, decfmt_exp_upper_boundary). CR is a quoting
  # character only, not a delimiter, so unlike TAB it is not placed on the delimiters row.
  (r"(cr_in_value_forces_quotes)$", ["encoder primitives"]),
+ (r"ends_ws_", ["encoder primitives"]),
  (r"(lower_rev_folds_upper_toon)$", ["mode detection"]),
  (r"(seven_tenths_is_0_7)$", ["clap error shapes"]),
  (r"(is_ws_ogham_space_mark|is_ws_not_after_ogham|is_ws_all_25_members|is_ws_documented_non_members)$", ["encoder primitives", "--stats"]),

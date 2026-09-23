@@ -378,6 +378,21 @@ likewise do not establish universal performance rules.
   were never heap-allocated, which also falsified the second half of the card's own hypothesis).
 - **Correctness:** output byte-identical to the oracle on the 3.2 MB document; the `byte_cls_*` laws
   passed unchanged across the rewrite, which is what they were written for.
+- **Cross-checked with instruction counts (2026-09-23, valgrind 3.26 cachegrind, `--cache-sim=no`), and
+  this REFINES the conclusion above:** baseline **7,325,874,144** I-refs, lever **7,222,208,788** —
+  **ratio 0.986, i.e. 1.4% fewer instructions**, against a measured CPU ratio of 0.975–0.995. The two
+  agree. Run-to-run variation was 440 instructions in 7.3e9 (6e-8), so the count is deterministic.
+
+  The reconciliation matters more than the lever. `spin_6` is a THREE-INSTRUCTION function (a compare,
+  a move, a drop). 79.2M calls of it is about 240M instructions — **3.3% of the 7.3e9 total**, not the
+  8.14% gprof attributed to it. Removing 63% of those calls removes about 2% of the instructions, which
+  is exactly what both cachegrind and the CPU measurement report.
+
+  So the sharper statement is: **gprof's %time column overstates tiny leaf functions** — its sampling
+  resolution and its own `mcount` overhead land on the leaf — while an instruction count does not. "The
+  hottest symbol was not worth attacking" is true; "profiles lie" is too coarse. A CALL count and a
+  `%time` share are both poor proxies for work here; an instruction count is a good one, and it would
+  have failed this lever before it was written.
 - **Kept anyway:** the `byte_cls_*` closed laws pinning the classifier's table (commit `053554b`). `byte.cls` had no
   law of any kind before this experiment; a wrong entry would have been caught only by whichever captured
   case happened to contain that byte.

@@ -987,3 +987,40 @@ escapes, a backslash before the last quote (unterminated), the empty literal, qu
 ### Precommitted gate
 In INSTRUCTIONS (counted): ≥ 8% fewer than the EXP-022 binary on `gsoc_2018.toon` (`--decode`, `--threads 1`), stdout identical;
 conform c-1t with and without `TOON_SPEC=1`; the proof green.
+
+## EXP-025 — the TOON scanner walks the decoded text still reversed: each line built forward in one copy instead of three
+
+| field | value |
+|---|---|
+| experiment_id | EXP-025 |
+| program / def | `port/decode.bend` / `scan` (S2.102–S2.113): a segmenter over the reversed text (`seg.go`) and a per-line pass in document order (`scan.segs`, `scan.lead`); `port/cli.bend` / the decode arm of `convert.text` without `--stats` |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'scan\|segment' perf/NEGATIVE-EVIDENCE.md` → no entry about the line scanner |
+| status | COUNTED_WIN 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-029): 24.3% fewer instructions on `gsoc_2018.toon --decode` against EXP-024 (gate 8%); CPU confirmation on a quiet host pending |
+| precommitted | true |
+
+### Hypothesis
+Decode copies every character three times before the structural decoder sees it: `convert` reverses the decoded text, `scan.go`
+pushes each line's characters onto a reversed accumulator, and `scan.end` reverses each line back. The UTF-8 decoder already holds the
+text reversed; walking THAT pushes each line's characters into forward order, and pushing each finished line onto a list collects the
+lines first-first: one copy per character. The instruction count of `--decode` on `gsoc_2018.toon` at 1 thread falls by at least 8%
+against the EXP-024 binary.
+
+### Evidence before the lever
+Allocation profile of the EXP-022 tree on `gsoc_2018.toon --decode`: `String.reverse` under `CLI_CONVERT` 3,089,196 wraps, the
+scanner's accumulation 2,995,661 and its per-line reversal 2,995,661: 9,080,518 of 32,936,101.
+
+### Lever (one)
+`seg.go(rev, class of its head, at a line's end, current line, lines)`: an LF closes a line; the FIRST character met for a line is its
+LAST, so a CR there is the one `cr.drop` removes; any other character is pushed. The per-line pass consumes the leading U+0020 run as
+the indent (no copy), and the TAB flag is "the rest starts with a TAB" (the leading run is spaces then a TAB or not at all: S2.104,
+S2.108); then `scan.line` and `scan.check` as before, in document order, so the first failure is still the earliest line. The byte order
+mark is the head of the first line. `scan(text)` stays for every other caller and every law (it reverses its argument once); decode with
+`--stats` keeps the forward path, whose estimate reads the forward text. Laws: closed `run_pure` goldens from the pinned original on
+CRLF endings, a lone CR, CR CR, blank and whitespace-only lines, a TAB in the indent (strict failure) and after it, two strict failures
+(the first wins), a byte order mark, an empty input, a text without a final LF; corpus and fuzz.
+
+### Precommitted gate
+In INSTRUCTIONS (counted): ≥ 8% fewer than the EXP-024 binary on `gsoc_2018.toon` (`--decode`, `--threads 1`), stdout identical;
+conform c-1t with and without `TOON_SPEC=1`; the proof green.

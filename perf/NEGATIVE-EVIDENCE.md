@@ -610,3 +610,14 @@ likewise do not establish universal performance rules.
 - **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain
 - Tally: W1/L0/N0 (counted)
 - Agent: Claude (session ef481f9c, 2026-09-23)
+
+### NE-029 — the TOON scanner walks the decoded text still reversed: each line built forward in one copy (EXP-025)   [2026-09-23 | COUNTED_WIN, kept]
+- Program / def: `port/decode.bend` / `seg.go`, `seg.cls`, `seg.bom`, `seg.bom.drop`, `scan.lead`, `scan.segs`, `scan.rev`, `decode.rev`, `decode_expanded.rev`; the per-character state `SS` and its loop (`scan.go`, `scan.ch`, `scan.tr`, `scan.end`, `cr.drop`) replaced by the per-line state `SL`; `scan(text)` kept for the laws that name it; `port/cli.bend` / `dec.run.rev`, `dec.text.rev` (decode with `--stats` keeps the forward path)
+- Provenance: as NE-022; base = the EXP-024 binary
+- Counted (cachegrind Ir): `gsoc_2018.toon --decode` 5,449,278,370 → 4,126,574,186, **24.3% fewer (1.321×)**; `flights_200k.toon --decode` 30,209,984,532 → 28,390,287,257 (6.0% fewer); `canada.toon --decode` 14,608,072,725 → 13,549,853,165 (7.2% fewer); stdout identical to the original's on all three; the gate was 8% on gsoc
+- Binding: fourteen closed goldens `decode_scan_*` through the whole pure core (bytes from the pinned original): CRLF endings, CR CR, a CR inside a line, blank and whitespace-only lines, a TAB in the indent alone and after spaces, two strict failures (the first line wins), the TAB under `--no-strict`, a byte order mark with and without `--stats`, the empty input, no final LF, and a bare list marker before CR CR and before CRLF. Four hand mutants in a reduced proof: every CR dropped (killed by `_lone_cr_inside_kept`), the TAB flag lost (`_tab_in_indent_strict`), the byte order mark kept (`_byte_order_mark`), both CRs of CR CR dropped: this last one SURVIVED the first twelve laws, because the value trim removes a kept trailing CR; the two bare-marker laws were written for it (S2.113's one observable exception) and it is killed by `_bare_dash_cr_cr`
+- Correctness evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set; `scripts/diff-fuzz.py` seed 2525: docs, mutate, expand and argv 1500 inputs each, 0 differences; `scripts/stdio-probe.py` the same 13 SAME, 13 KNOWN and 1 FIXED rows, 0 NEW
+- Killing metric: none; promotion to MEASURED needs a cv-gated CPU capture on a quiet host
+- **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain
+- Tally: W1/L0/N0 (counted)
+- Agent: Claude (session ef481f9c, 2026-09-23)

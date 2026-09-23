@@ -83,6 +83,8 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(trim_end_|decode_values_trimmed_at_the_end$)", ["tokens, string literals"]),
  # EXP-024: a string literal found and unescaped in one walk, its failures in their order
  (r"(decode_literal_)", ["tokens, string literals"]),
+ # EXP-025: the scanner over the reversed text: CR endings, blank lines, the TAB check, the first failure, the BOM
+ (r"(decode_scan_)", ["TOON scanning"]),
  (r"(writer_b_keeps_)", ["JSON writer B"]),
  (r"(writer_a_keeps_del_raw)$", ["JSON writer A"]),
  (r"(tab_in_value_forces_quotes)$", ["encoder primitives", "delimiters comma, tab, pipe on encode"]),

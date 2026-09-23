@@ -2127,3 +2127,59 @@ def Laws.decode_literal_empty():
 # S2.122 closed: the whole pure core computed (EXP-024)
 def Laws.decode_literal_tabular_cells():
   {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_crlf_endings():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_cr_cr_keeps_one():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_lone_cr_inside_kept():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_blank_and_space_lines():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_tab_in_indent_strict():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_tab_after_spaces_strict():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_two_failures_first_wins():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_tab_lenient():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_byte_order_mark():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_byte_order_mark_stats():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_empty_input():
+  {==}
+
+# S2.111 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_no_final_lf():
+  {==}
+
+# S2.113 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_bare_dash_cr_cr():
+  {==}
+
+# S2.113 closed: the whole pure core computed (EXP-025)
+def Laws.decode_scan_bare_dash_crlf():
+  {==}

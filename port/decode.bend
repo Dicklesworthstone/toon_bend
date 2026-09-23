@@ -25,12 +25,10 @@ type Scan is Data:
   ScanOk{lines: List<&2, Line>, blanks: List<&2, Nat>}
   ScanErr{msg: String}
 
-# S2.104, S2.108 scanner state inside one line: its number; whether the leading U+0020 run is still
-# going (lead) and its length (indent); whether the leading space/TAB run is still going (run) and has
-# met a TAB (tab); the content so far, reversed; the lines and blank-line numbers so far, newest first;
-# the first failure
-type SS is Data:
-  SS{num: Nat, lead: Bool, indent: Nat, run: Bool, tab: Bool, rev: String, lines: List<&2, Line>, blanks: List<&2, Nat>, err: Maybe<&2, String>}
+# S2.105, S2.111 the per-line pass's state: the number of the next line; the lines and blank-line numbers
+# so far, newest first; the first failure
+type SL is Data:
+  SL{num: Nat, lines: List<&2, Line>, blanks: List<&2, Nat>, err: Maybe<&2, String>}
 
 # S2.107 depth = floor(indent / I), and 0 when I = 0
 def scan.depth(indent: Nat, unit: Nat) -> Nat:
@@ -64,79 +62,91 @@ def scan.check(err: Maybe<&2, String>, strict: Bool, tab: Bool, num: Nat, +unit:
       scan.indent_msg(Nat.is_eq(unit, 0n), Bool.and(Nat.is_gt(indent, 0n), Bool.or(Nat.is_eq(unit, 0n), Bool.not(Nat.is_eq(Nat.mod(indent, Nat.max(unit, 1n)), 0n)))), num, unit, indent)
 
 # S2.105 a finished line: a blank line only leaves its number; any other line is checked and kept
-def scan.line(blank: Bool, +num: Nat, +indent: Nat, tab: Bool, content: String, lines: List<&2, Line>, blanks: List<&2, Nat>, err: Maybe<&2, String>, strict: Bool, +unit: Nat) -> SS:
+def scan.line(blank: Bool, +num: Nat, +indent: Nat, tab: Bool, content: String, lines: List<&2, Line>, blanks: List<&2, Nat>, err: Maybe<&2, String>, strict: Bool, +unit: Nat) -> SL:
   match blank:
     case True{}:
-      SS{1n+num, True{}, 0n, True{}, False{}, SNil{}, lines, num <> blanks, err}
+      SL{1n+num, lines, num <> blanks, err}
     case False{}:
-      SS{1n+num, True{}, 0n, True{}, False{}, SNil{}, Line{num, scan.depth(indent, unit), content} <> lines, blanks, scan.check(err, strict, tab, num, unit, indent)}
+      SL{1n+num, Line{num, scan.depth(indent, unit), content} <> lines, blanks, scan.check(err, strict, tab, num, unit, indent)}
 
-# S2.105 blank means: empty after WS-trim
-def scan.end.with(+content: String, num: Nat, indent: Nat, tab: Bool, lines: List<&2, Line>, blanks: List<&2, Nat>, err: Maybe<&2, String>, strict: Bool, unit: Nat) -> SS:
-  scan.line(T.is_blank(content), num, indent, tab, content, lines, blanks, err, strict, unit)
+# S2.105 blank means: empty after WS-trim. S2.104, S2.108 the leading run of a line is its U+0020 run
+# (the indent, already taken off) and then TABs and spaces: a TAB in that run exists exactly when the
+# content starts with one
+def scan.end.with(+content: String, num: Nat, indent: Nat, lines: List<&2, Line>, blanks: List<&2, Nat>, err: Maybe<&2, String>, strict: Bool, unit: Nat) -> SL:
+  scan.line(T.is_blank(content), num, indent, T.head_is(content, 9), content, lines, blanks, err, strict, unit)
 
-# S2.113 the last character of the line (the head of the reversed content), kept unless it is CR
-def cr.drop.if(cr: Bool, c: U32, rest: String) -> String:
-  match cr:
+# S2.102, S2.113 the class of the head of a reversed text: 1 LF, 2 CR, 0 anything else or the end
+def seg.cls(s: String) -> Nat:
+  match s:
+    case SNil{}:
+      0n
+    case SCon{Chr{+c}, rest}:
+      Bool.pick(Nat, U32.is_eq(c, 10), 1n, Bool.pick(Nat, U32.is_eq(c, 13), 2n, 0n))
+
+# S8.7 a leading U+FEFF is dropped, any other first character kept
+def seg.bom.drop(mark: Bool, c: U32, rest: String) -> String:
+  match mark:
     case True{}:
       rest
     case False{}:
       SCon{Chr{c}, rest}
 
-# S2.113 one CR at the end of a line belongs to a CRLF line ending, not to the content
-def cr.drop(rev: String) -> String:
-  match rev:
-    case SCon{Chr{+c}, rest}:
-      cr.drop.if(U32.is_eq(c, 13), c, rest)
-    case other:
+# S8.7 the byte order mark, when it is dropped here, is the head of the FIRST line
+def seg.bom(bom: Bool, line: String) -> String:
+  match bom line:
+    case True{} SCon{Chr{+c}, rest}:
+      seg.bom.drop(U32.is_eq(c, 65279), c, rest)
+    case _ other:
       other
 
-# S2.102 the end of a line (an LF, or the end of the text)
-def scan.end(st: SS, strict: Bool, unit: Nat) -> SS:
-  match st:
-    case SS{num, lead, indent, run, tab, rev, lines, blanks, err}:
-      scan.end.with(String.reverse(cr.drop(rev)), num, indent, tab, lines, blanks, err, strict, unit)
+# S2.102, S2.113 the lines of a text given REVERSED (the UTF-8 decoder's own order), EXP-025: walking it
+# pushes each line's characters into document order, and each finished line pushed onto `lines` puts the
+# lines first-first. An LF ends a line; `end` says the walk is at a line's end, so the CR met there is
+# the line's LAST character, which a CRLF ending drops (one CR only); the end of the walk is the start of
+# the text, which closes the first line. k is the class of the head of `s` (seg.cls)
+def seg.go(s: String, k: Nat, end: Bool, cur: String, lines: List<&2, String>, +bom: Bool) -> List<&2, String>:
+  match s k end:
+    case SNil{} _ _:
+      seg.bom(bom, cur) <> lines
+    case SCon{c, +rest} 1n _:
+      seg.go(rest, seg.cls(rest), True{}, SNil{}, cur <> lines, bom)
+    case SCon{c, +rest} 2n True{}:
+      seg.go(rest, seg.cls(rest), False{}, cur, lines, bom)
+    case SCon{c, +rest} _ _:
+      seg.go(rest, seg.cls(rest), False{}, SCon{c, cur}, lines, bom)
 
-# S2.104 one character inside a line. k: 2 U+0020, 3 TAB, 0 anything else. A space extends the indent
-# while only spaces came before; a TAB anywhere in the leading space/TAB run is remembered (S2.108)
-def scan.tr(k: Nat, lead: Bool, run: Bool, c: U32, num: Nat, indent: Nat, tab: Bool, rev: String, lines: List<&2, Line>, blanks: List<&2, Nat>, err: Maybe<&2, String>) -> SS:
-  match k lead run:
-    case 2n True{} r:
-      SS{num, True{}, 1n+indent, r, tab, rev, lines, blanks, err}
-    case 2n False{} r:
-      SS{num, False{}, indent, r, tab, SCon{Chr{32}, rev}, lines, blanks, err}
-    case 3n l True{}:
-      SS{num, False{}, indent, True{}, True{}, SCon{Chr{9}, rev}, lines, blanks, err}
-    case _ l r:
-      SS{num, False{}, indent, False{}, tab, SCon{Chr{c}, rev}, lines, blanks, err}
+# S2.104 the leading U+0020 run of a line is its indent, taken off the line without a copy; `sp` says the
+# head of `s` is U+0020
+def scan.lead(s: String, sp: Bool, +indent: Nat, st: SL, strict: Bool, unit: Nat) -> SL:
+  match s sp st:
+    case SCon{c, +rest} True{} t:
+      scan.lead(rest, T.head_is(rest, 32), 1n+indent, t, strict, unit)
+    case content _ SL{num, lines, blanks, err}:
+      scan.end.with(content, num, indent, lines, blanks, err, strict, unit)
 
-# S2.102, S2.104 one character: LF ends the line (CR does not, S2.113); anything else joins the line
-def scan.ch(lf: Bool, st: SS, +c: U32, strict: Bool, unit: Nat) -> SS:
-  match lf st:
-    case True{} s:
-      scan.end(s, strict, unit)
-    case False{} SS{num, lead, indent, run, tab, rev, lines, blanks, err}:
-      scan.tr(Bool.pick(Nat, U32.is_eq(c, 32), 2n, Bool.pick(Nat, U32.is_eq(c, 9), 3n, 0n)), lead, run, c, num, indent, tab, rev, lines, blanks, err)
-
-# S2.111 the whole text, character by character (a loop over the text)
-def scan.go(s: String, st: SS, +strict: Bool, +unit: Nat) -> SS:
-  match s:
-    case SNil{}:
-      scan.end(st, strict, unit)
-    case SCon{Chr{+c}, rest}:
-      scan.go(rest, scan.ch(U32.is_eq(c, 10), st, c, strict, unit), strict, unit)
+# S2.111 the lines in document order, numbered from 1 (a loop over the lines)
+def scan.segs(ls: List<&2, String>, st: SL, +strict: Bool, +unit: Nat) -> SL:
+  match ls:
+    case Nil{}:
+      st
+    case Con{+l, rest}:
+      scan.segs(rest, scan.lead(l, T.head_is(l, 32), 0n, st, strict, unit), strict, unit)
 
 # S2.111 the first failure wins over every line; otherwise the lines and blank numbers in document order
-def scan.done(st: SS) -> Scan:
+def scan.done(st: SL) -> Scan:
   match st:
-    case SS{num, lead, indent, run, tab, rev, lines, blanks, Some{e}}:
+    case SL{num, lines, blanks, Some{e}}:
       ScanErr{e}
-    case SS{num, lead, indent, run, tab, rev, lines, blanks, None{}}:
+    case SL{num, lines, blanks, None{}}:
       ScanOk{List.reverse(&2, Line, lines), List.reverse(&2, Nat, blanks)}
+
+# S2.102–S2.112, S8.7 scan a text given reversed with indent size `unit`; `bom` drops a leading U+FEFF (EXP-025)
+def scan.rev(+rev: String, +strict: Bool, +unit: Nat, bom: Bool) -> Scan:
+  scan.done(scan.segs(seg.go(rev, seg.cls(rev), True{}, SNil{}, Nil{}, bom), SL{1n, Nil{}, Nil{}, None{}}, strict, unit))
 
 # S2.102–S2.112 scan a text with indent size `unit`
 def scan(text: String, strict: Bool, unit: Nat) -> Scan:
-  scan.done(scan.go(text, SS{1n, True{}, 0n, True{}, False{}, SNil{}, Nil{}, Nil{}, None{}}, strict, unit))
+  scan.rev(String.reverse(text), strict, unit, False{})
 
 # ---------------------------------------------------------------- S2.120–S2.126 tokens
 
@@ -1955,6 +1965,10 @@ def decode.scanned(s: Scan, +strict: Bool, spec: Bool) -> DR:
 def decode(text: String, +strict: Bool, unit: Nat, spec: Bool) -> DR:
   decode.scanned(scan(text, strict, unit), strict, spec)
 
+# S4.200, S8.7 the same for a text given reversed, a leading byte order mark dropped (EXP-025)
+def decode.rev(rev: String, +strict: Bool, unit: Nat, spec: Bool) -> DR:
+  decode.scanned(scan.rev(rev, strict, unit, True{}), strict, spec)
+
 # ---------------------------------------------------------------- S4.240–S4.249 safe path expansion
 #
 # An object under construction is an XObj: its keys in insertion order beside a map from key to value
@@ -2533,6 +2547,10 @@ def decode.x(r: DR, strict: Bool) -> DR:
 # S4.200 (5) the value of a TOON text under `--expand-paths safe`
 def decode_expanded(text: String, +strict: Bool, unit: Nat, spec: Bool) -> DR:
   decode.x(decode(text, strict, unit, spec), strict)
+
+# S4.200 (5), S8.7 the same for a text given reversed, a leading byte order mark dropped (EXP-025)
+def decode_expanded.rev(rev: String, +strict: Bool, unit: Nat, spec: Bool) -> DR:
+  decode.x(decode.rev(rev, strict, unit, spec), strict)
 
 # S4.249 whether a decode outcome is a value (laws ask this of large results)
 def dr.ok(r: DR) -> Bool:

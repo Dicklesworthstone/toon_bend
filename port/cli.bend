@@ -1242,6 +1242,24 @@ def dec.run(expand: Bool, text: String, strict: Bool, indent: Nat, spec: Bool) -
 def dec.text(+text: String, expand: Bool, strict: Bool, +indent: Nat, +spec: Bool, stats: Bool) -> CR:
   dec.done(dec.run(expand, text, strict, indent, spec), indent, spec, stats, text)
 
+# S8.8 decode a text given reversed (the UTF-8 decoder's order), its byte order mark dropped by the
+# scanner (EXP-025): the text itself is never rebuilt in document order
+def dec.run.rev(expand: Bool, rev: String, strict: Bool, indent: Nat, spec: Bool) -> D.DR:
+  match expand:
+    case True{}:
+      D.decode_expanded.rev(rev, strict, indent, spec)
+    case False{}:
+      D.decode.rev(rev, strict, indent, spec)
+
+# S4.313, S8.8 with --stats the estimate reads the input text in document order, so that path stays;
+# without it the reversed text goes straight to the scanner (EXP-025)
+def dec.text.rev(stats: Bool, rev: String, expand: Bool, strict: Bool, +indent: Nat, +spec: Bool) -> CR:
+  match stats:
+    case True{}:
+      dec.text(bom.text(String.reverse(rev)), expand, strict, indent, spec, True{})
+    case False{}:
+      dec.done(dec.run.rev(expand, rev, strict, indent, spec), indent, spec, False{}, SNil{})
+
 # S9.7, S9.8 the UTF-8 failure names stdin or the path as typed
 def utf8.msg(has_in: Bool, input: String) -> String:
   match has_in:
@@ -1259,7 +1277,7 @@ def convert.text(m: Maybe<&2, String>, o: Opts, bytes: List<&2, U32>, +spec: Boo
     case Some{rev} Opts{has_in, input, has_out, output, False{}, delim, indent, strict, fold, budget, expand, stats}:
       enc.read(J.read(bom.bytes(bytes), spec), E.Opts{indent, delim, fold, budget, spec}, stats, bom.text(String.reverse(rev)))
     case Some{rev} Opts{has_in, input, has_out, output, True{}, delim, +indent, strict, fold, budget, expand, stats}:
-      dec.text(bom.text(String.reverse(rev)), expand, strict, indent, spec, stats)
+      dec.text.rev(stats, rev, expand, strict, indent, spec)
 
 # S8.7 the decoder's start: the text is read by decode mode and by --stats (S4.313); an encode without
 # --stats reads the bytes, so the decoder only validates there (EXP-018: the same verdict, no text built)

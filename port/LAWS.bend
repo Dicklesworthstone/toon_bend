@@ -2373,3 +2373,52 @@ law decode_literal_empty:
 
 law decode_literal_tabular_cells:
   {C.run_pure(["--decode"], T.ascii_bytes("t[2]{p,q}:\n  \"a\\tb\",\"c\\\"d\"\n  \"e\",f\n", Nil{})) == C.Out{0n, "{\n  \"t\": [\n    {\n      \"p\": \"a\\tb\",\n      \"q\": \"c\\\"d\"\n    },\n    {\n      \"p\": \"e\",\n      \"q\": \"f\"\n    }\n  ]\n}\n", ""} : C.Out}
+
+# S2.102-S2.113, S8.7 (EXP-025) the scanner walks the decoded text still reversed, through the whole pure
+# core with bytes from the pinned original: CRLF endings, one CR dropped of two, a CR inside a line kept, blank
+# and whitespace-only lines, a TAB in the indent alone and after spaces (strict), two strict failures (the first
+# line wins), the same TAB under --no-strict, a byte order mark with and without --stats, the empty input, no
+# final LF
+law decode_scan_crlf_endings:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: 1\r\nb:\r\n  c: x\r\n", Nil{})) == C.Out{0n, "{\n  \"a\": 1,\n  \"b\": {\n    \"c\": \"x\"\n  }\n}\n", ""} : C.Out}
+
+law decode_scan_cr_cr_keeps_one:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: x\r\r\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"x\"\n}\n", ""} : C.Out}
+
+law decode_scan_lone_cr_inside_kept:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: x\ry\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"x\\ry\"\n}\n", ""} : C.Out}
+
+law decode_scan_blank_and_space_lines:
+  {C.run_pure(["--decode"], T.ascii_bytes("a:\n\n   \n  b: 1\n \t \nc: 2", Nil{})) == C.Out{0n, "{\n  \"a\": {\n    \"b\": 1\n  },\n  \"c\": 2\n}\n", ""} : C.Out}
+
+law decode_scan_tab_in_indent_strict:
+  {C.run_pure(["--decode"], T.ascii_bytes("a:\n\tb: 1\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 2: Tabs are not allowed in indentation in strict mode"} : C.Out}
+
+law decode_scan_tab_after_spaces_strict:
+  {C.run_pure(["--decode"], T.ascii_bytes("a:\n  \tb: 1\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 2: Tabs are not allowed in indentation in strict mode"} : C.Out}
+
+law decode_scan_two_failures_first_wins:
+  {C.run_pure(["--decode"], T.ascii_bytes("a:\n   b: 1\nc:\n\td: 2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 2: Indentation must be exact multiple of 2, but found 3 spaces"} : C.Out}
+
+law decode_scan_tab_lenient:
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("a:\n\tb: 1\n", Nil{})) == C.Out{0n, "{\n  \"a\": {},\n  \"b\": 1\n}\n", ""} : C.Out}
+
+law decode_scan_byte_order_mark:
+  {C.run_pure(["--decode"], [239, 187, 191, 97, 58, 32, 49, 10]) == C.Out{0n, "{\n  \"a\": 1\n}\n", ""} : C.Out}
+
+law decode_scan_byte_order_mark_stats:
+  {C.run_pure(["--decode", "--stats"], [239, 187, 191, 97, 58, 32, 49, 10]) == C.Out{0n, "{\n  \"a\": 1\n}\n", "\nToken estimates: ~4 (JSON) → ~2 (TOON)\nSaved ~2 tokens (-50.0%)"} : C.Out}
+
+law decode_scan_empty_input:
+  {C.run_pure(["--decode"], T.ascii_bytes("", Nil{})) == C.Out{0n, "{}\n", ""} : C.Out}
+
+law decode_scan_no_final_lf:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: 1\nb: 2", Nil{})) == C.Out{0n, "{\n  \"a\": 1,\n  \"b\": 2\n}\n", ""} : C.Out}
+
+# S2.113 (EXP-025) exactly ONE CR ends a line: a bare list marker before CR CR keeps one CR and is not an item
+# (the count fails); before one CR it is (a CR that the value trim removes cannot tell these apart)
+law decode_scan_bare_dash_cr_cr:
+  {C.run_pure(["--decode"], T.ascii_bytes("x[1]:\r\n  -\r\r\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 1 list array items, but got 0"} : C.Out}
+
+law decode_scan_bare_dash_crlf:
+  {C.run_pure(["--decode"], T.ascii_bytes("x[1]:\r\n  -\r\n", Nil{})) == C.Out{0n, "{\n  \"x\": [\n    {}\n  ]\n}\n", ""} : C.Out}

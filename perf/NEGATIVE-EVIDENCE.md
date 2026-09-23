@@ -644,3 +644,40 @@ likewise do not establish universal performance rules.
 - **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain; a future fast arm in `run` is judged on a string-poor input too (canada), because a per-byte test costs every byte
 - Tally: W1/L0/N0 (counted)
 - Agent: Claude (session ef481f9c, 2026-09-23)
+
+### NE-033 — a decimal fast path in the number READER (EXP-028)   [2026-09-23 | MEASURED_LOSS(no gain), not merged]
+
+- **Lever:** `int_text.ok` refuses any token with a fraction (the law `int_text_fraction_refused` pins
+  it), so `65.613471` takes the full correctly rounded big-natural route while `65613471` takes a fast
+  path. The lever admitted a non-integer whose WHOLE significand fits the 14-digit bound and computed it
+  as `nat_of(ints ++ fracs) / 10^len(fracs)` through `div_p10` — EXP-003's short division, not `div` —
+  which is Clinger's condition: a significand below 10^14 < 2^53 divided once, correctly rounded.
+- **Correctness:** **conform 1076/1076 PASS on c-1t**, every `encnum_*`, `decnum_*` and extreme case
+  included. The arithmetic was right.
+- **Counted:** canada `11,014,957,856 → 11,088,288,430` (**−0.7%, slightly WORSE**); the short-decimal
+  twin `6,922,497,466 → 6,862,359,683` (**+0.9%**). Gate was ≥ 25%. **MISSED.** Not merged; `port/` was
+  never modified.
+- **Why, and this corrects EXP-028's card.** The card blamed the reader AND the printer and I built the
+  reader. The reader was never the cost. Forcing EXP-012's scalar digit loop off separates them exactly:
+
+  | twin | EXP-012 ON | EXP-012 OFF | what it means |
+  |---|---|---|---|
+  | short integers | 1,890,963,922 | 1,890,963,917 | **identical** — integers never reach the shortest-digit generator at all |
+  | short decimals | 6,922,497,426 | 13,448,869,374 | the generator IS the decimal cost, and EXP-012 already halves it |
+
+  An integer is printed by EXP-001's path straight from its digits. A decimal must have its shortest
+  round-trip digits GENERATED, and that is the whole of the 17,015 → 62,294 instructions-per-number gap.
+  The reader contributes about 1%.
+- **What this bounds.** The port's worst document is worst because of shortest-digit generation for
+  non-integers, a cost EXP-012 has already halved. Closing the rest is not a fast path or a guard: it
+  needs a DIFFERENT ALGORITHM — a Ryu- or Grisu-class fixed-point method with precomputed powers,
+  replacing Burger and Dybvig's big-natural iteration. That is a large piece of work with real rounding
+  risk, and it is the only remaining lever of size on this path. Naming it is the useful outcome here.
+- **Method note, my fourth miss of the same kind.** NE-019 (2%), NE-020 (1%), NE-027 (0.11%) and now
+  NE-033 (−0.7%) were all chosen from a correct measurement and a wrong attribution. The measurement
+  that would have refused this lever before it was written took four minutes: force the OTHER half of
+  the suspected pair off and see which one moves. **Bisect the suspected cost between two halves before
+  building either.**
+- **Do-not-retry unless:** the printer's decimal path stops being the dominant cost of a number-heavy
+  document (re-measure with the EXP-012 on/off split above first), OR the reader's big-natural route is
+  shown by that same split to exceed 10% of a number-heavy run.

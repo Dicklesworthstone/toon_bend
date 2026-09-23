@@ -1101,7 +1101,7 @@ conform c-1t with and without `TOON_SPEC=1`; the proof green.
 | created (UTC) | 2026-09-23 |
 | agent | Claude (Claude Code session) |
 | graveyard sweep | `rg -i 'decimal\|fraction\|integer fast\|short' perf/` → NE-001 (EXP-001, the printer's INTEGER fast path), NE-002 (EXP-002, the reader's INTEGER fast path, bound 14 digits), NE-003 (EXP-003, division by a power of ten), NE-016 (EXP-012, the shortest-digit loop in words). Every one of them is about integers or about the digit LOOP; **none is about a non-integer value taking a fast path**, and no do-not-retry applies |
-| status | CARDED 2026-09-23 with its evidence, LEVER NOT BUILT |
+| status | **CLOSED, NOT ADMITTED (2026-09-23)** — the reader half was built in a scratch tree, passed 1076/1076, counted −0.7% on canada and +0.9% on the short-decimal twin against a ≥25% gate, and was not merged; `port/` was never modified. Ledgered as `perf/NEGATIVE-EVIDENCE.md` NE-033, which also CORRECTS this card's attribution: the decimal penalty is in the PRINTER, not the reader |
 | precommitted | true |
 
 ### The measurement that localises it (counted, cachegrind, deterministic)

@@ -75,8 +75,29 @@ figure is not an artifact of which cells passed the gate. **The port is about 8�
 wall time, and about 12.5× the original built at `opt-level=3`.**
 
 By scenario (median geomean vs `-Oz`): `encode_fold` 9.71×, `encode` 9.61×, `encode_tab` 9.49×,
-`encode_stdin` 9.36×, `decode_expand` 6.96×, `encode_stats` 6.36×, **`decode` 5.73×** — decoding is the
-port's best path and encoding its worst. By size: S 6.73×, M 7.77×, L 9.46×, XL 9.13×; the gap widens with
+`encode_stdin` 9.36×, `decode_expand` 6.96×, `encode_stats` 6.36×, `decode` 5.73×.
+
+**Do not read that ordering as "where the port is slow".** A ratio moves when EITHER program moves, and
+ranking cells by it conflates "the port is slow here" with "the original is fast here". The worst single
+cell of the whole run, `gsoc_2018/encode_tab` at 17.11×, is not the port being slow: the port is FASTER
+there (711 ms) than on plain encode (792 ms), and the ratio is worst because the ORACLE drops from 59.9 ms
+to 41.6 ms. The same reversal runs through the aggregate. Ranked by the port's own cost per megabyte of
+input:
+
+| scenario | port ms/MB | ratio geomean |
+|---|---|---|
+| `decode_expand` | **479.6** | 6.96× |
+| `encode_fold` | 356.3 | 9.71× |
+| `decode` | **340.4** | 5.73× |
+| `encode_stats` | 336.3 | 6.36× |
+| `encode_tab` | 314.1 | 9.49× |
+| `encode_stdin` | 314.0 | 9.36× |
+| `encode` | **300.2** | 9.61× |
+
+By the port's own time, `decode` (340 ms/MB) costs MORE per byte than plain `encode` (300 ms/MB), and
+`decode_expand` is the most expensive path in the suite — the opposite of what the ratio column suggests.
+The ratio ordering says the original's decoder is comparatively slow, which is a fact about the original.
+**For choosing an optimisation target, use the ms/MB column; for reporting parity, use the ratio.** By size: S 6.73×, M 7.77×, L 9.46×, XL 9.13×; the gap widens with
 the document, so this is not a fixed startup cost. Best cell `flights_2k/decode` 2.69×; worst
 `gsoc_2018/encode_tab` 17.11×.
 
@@ -160,7 +181,7 @@ are ERROR PATH cells of the old binaries and are not listed here.)
 
 The load rose from 8.5 to 20 on 8 cores during the run, and no cell met the 5% cv gate, on wall time or on the child's CPU time
 (cv 7–20%). So nothing below is a MEASURED ratio. It is orientation for the shape, reported with the estimator least favourable to the
-port: contention adds roughly constant time and so inflates the shorter arm proportionally more, and the ratio of medians is pulled
+port: contention adds a near-constant time and so inflates the shorter arm proportionally more, and the ratio of medians is pulled
 toward 1. Here the median ratio divided by the minimum ratio had p10 0.80, p50 0.876 and p90 1.01 per cell; the median flatters the port
 by about 12%.
 

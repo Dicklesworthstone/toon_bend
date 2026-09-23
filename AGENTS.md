@@ -142,7 +142,7 @@ If you see errors, **carefully understand and resolve each issue**. `~/.claude/s
 
 ### Testing Policy
 
-Tests here are **captured, never typed**. `goldens/<case>.out|.err|.exit` hold what the pinned original printed for each row of `goldens/cases.tsv`; the port passes a case when all three match byte for byte **on every lane** (interpreter, C at 1 thread, C at 8 threads, JS). A lane difference is a bug, never a tolerance. A missing golden, an unrunnable case or an empty manifest is a FAIL, never a skip. The two native lanes are ONE sequential execution under two labels: the port places no bang and no parallel let, so the runtime never starts a worker pool and `--threads N` changes nothing (2 OS threads at `--threads` 1, 8 and 64, measured by round 10 and re-measured); `c-8t` adds no evidence beyond `c-1t` today and is kept because it would catch a parallel twin the day one is added.
+Tests here are **captured, never typed**. `goldens/<case>.out|.err|.exit` hold what the pinned original printed for each row of `goldens/cases.tsv`; the port passes a case when all three match byte for byte **on every lane** (interpreter, C at 1 thread, C at 8 threads, JS). A lane difference is a bug, never a tolerance. A missing golden, an unrunnable case or an empty manifest is a FAIL, never a skip. Since EXP-007 (`0131342`) the encoder's number pre-pass is a parallel let: above `--threads 1` the runtime runs it on a worker pool, so `c-8t` is a genuinely parallel lane on every `--encode` case (a c-8t-only failure is a fork-shape bug); decoding and every other path stay sequential, and no bang is placed.
 
 Properties that hold for every input are **laws** in `port/LAWS.bend`, proved in `port/PROOF.bend`. A claim says which of the two it rests on.
 

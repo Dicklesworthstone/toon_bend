@@ -9,9 +9,10 @@
 
 Every case in `goldens/cases.tsv` (1065 cases on 2026-09-20; `docs/PORT_STATE.md` has the current count and the
 pasted line) prints identical stdout, stderr and exit code on the interpreter, the C binary at 1 and 8
-threads, and the JS build (`gpu`: MISSING: no bang is placed, so there is no device lane). The two native lanes are
-ONE sequential execution under two labels: the port has no parallel let, so the runtime never starts a worker pool and `--threads N`
-changes nothing (2 OS threads at `--threads` 1, 8 and 64); the c-8t lane is kept because it would catch a parallel twin the day one is added.
+threads, and the JS build (`gpu`: MISSING: no bang is placed, so there is no device lane). Since EXP-007
+(`0131342`) the encoder's number pre-pass is a parallel let: above `--threads 1` the runtime runs it on a worker pool, so `c-8t` is a
+genuinely parallel lane on every `--encode` case; decoding and every other path stay sequential. (Before it, `--threads N`
+changed nothing: 2 OS threads at `--threads` 1, 8 and 64.)
 `bend port/PROOF.bend` prints `All terms check.` (0 `@unsafe` + 0 template instances under bend 2.0.16). The
 board (`docs/FEATURE_PARITY.md`) is DEBT: 27 rows present and six exclusions, each classed in PLAN §3 (async
 streaming, WebAssembly bindings, the `EncodeReplacer` callback, library-only behavior, completions / tracing / build

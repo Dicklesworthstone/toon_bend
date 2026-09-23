@@ -61,7 +61,8 @@ Notes on these lines:
 |---|---|---|---|
 | rounds | T2 needs the last two rounds clean; rounds 6 to 15 found 6, 11, 8, 3, 10, 12, 13, 9, 15 and 9. The re-pin rewrote the decoder's structure checks, the number paths and the JSON writer, so the next round must review it | convergence, SHIP | a non-author reviewer (bead `toon_bend-uoq`) |
 | perf | every capture ran against `f955c67` or `7c1d6e4` and against port builds before the fix (the JSON number reader and printer changed) | any speed sentence for this code | author, `scripts/incumbent-bench.sh --pin` against a build of `694d73b` (bead `toon_bend-pao`) |
-| NE-001..007 | four PROVISIONAL entries, one MEASURED_LOSS (NE-006), two NO_EVIDENCE (NE-004, NE-007) | a WIN claim | author (`perf/NEGATIVE-EVIDENCE.md`) |
+| NE-001..015 | PROVISIONAL: NE-001, 002, 003, 005, 010 (EXP-006), 011 (EXP-008), 013 (EXP-009), 015 (EXP-011), each with an orientation above its gate on a host at load 10-13 but no cv-gated capture; MEASURED_LOSS NE-006; NO_EVIDENCE NE-004, NE-007; NEUTRAL and reverted NE-014 (EXP-010); NEGATIVE NE-012 (a borrow that the compiler does not infer); EXP-007's entry is NE-008 | a WIN claim | author, on a quiet host (load below 1) (`perf/NEGATIVE-EVIDENCE.md`) |
+| hot types | `String` and `Json` are refcounted everywhere; borrow inference lends 2 of 496 segments, and `term_drop`/`span_fade` are 35-45% of a large decode | the next large speed step | bead `toon_bend-0uw` |
 | `./-` and `docs/AGENTS.scaffold.md` | two stray files from Phase 0/1 | nothing; deletion needs the owner's exact command (RULE 1) | the repository owner |
 
 ## Find-fix rounds (Phase 4/5)
@@ -108,4 +109,4 @@ round resets the clean streak. Every OQ is resolved or excluded; no OPEN DISC. C
 
 ## Next action (one line, executable)
 
-`git clone https://github.com/Dicklesworthstone/toon_bend /data/tmp/review_R16/clone && git -C /data/tmp/review_R16/clone rev-parse HEAD` — then round 16 (bead `toon_bend-uoq`) attacks THAT clone as a fresh non-author reviewer, aimed first at what the bug-fix re-pin changed: the decoder's new strict checks (S9.148–S9.155), repeated-key merging, the nesting limit, the JSON number text and reader, and the spec's Amendment A3 verdicts (each KEPT row re-run against the reference implementation).
+`git clone https://github.com/Dicklesworthstone/toon_bend /data/tmp/review_R16/clone && git -C /data/tmp/review_R16/clone rev-parse HEAD` — then round 16 (bead `toon_bend-uoq`) attacks THAT clone as a fresh non-author reviewer, aimed first at the code no one but its author has reviewed: repeated-key merging through the hot value map (bead `toon_bend-zgb`), the header precheck (EXP-009), the JSON writer's empty containers (EXP-011), the quotient-estimate digit step (EXP-006), the lean fold context (EXP-008) and the parallel number pre-pass (EXP-007, the first parallel let: c-8t is a real parallel lane now); then what the bug-fix re-pin changed (the decoder's strict checks S9.148–S9.155, the nesting limit, the JSON number text and reader).

@@ -178,8 +178,8 @@ def finalize(commit, log):
     |---|---|---|---|
     %s| gpu (`--gpu on`) | - | MISSING: no bang is placed (text with data-dependent structure), so there is no device lane to run | - |
 
-The two native lanes are ONE sequential execution under two labels: no bang and no parallel let is placed, so `--threads N` changes nothing
-(2 OS threads at `--threads` 1, 8 and 64); `c-8t` is kept because it would catch a parallel twin the day one is added.
+Since EXP-007 (`0131342`) the encoder's number pre-pass is a parallel let: above `--threads 1` the runtime runs it on a worker pool,
+so `c-8t` is a genuinely parallel lane on every `--encode` case; decoding and every other path stay sequential, and no bang is placed.
     """ % (len(quant), ", ".join("`%s`" % n for n in quant), len(twin), ", ".join("`%s`" % n for n in twin),
            len([n for n in closed if n not in twin]), ", ".join("`%s`" % n for n in closed if n not in twin), len(golden), len(golden),
            "".join("| %s | %d/%d | %s | %s (tree of `%s`) |\n" % (l["lane"], l["passed"], l["passed"] + l["failed"], l["verdict"], datetime.date.today().isoformat(), commit) for l in lanes["lanes"]))

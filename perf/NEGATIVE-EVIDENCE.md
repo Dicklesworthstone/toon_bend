@@ -170,7 +170,7 @@ Outcome taxonomy (closed set):
   `pre_txt_is_num` and `pre_raw_is_num` (a rendered or deferred number prints exactly what `put.prim`
   would have printed for its `JNum`). The 295 closed whole-pipeline golden laws now run THROUGH the
   pass inside the checker, so the proof gate re-verifies it on every one of them. Gates on the wired
-  tree: `bend PROOF.bend` → `All terms check.` (396 laws); conform 1071/1071 on c-1t, on c-8t and on
+  tree: `bend PROOF.bend` → `All terms check.` (396 laws at that commit); conform 1071/1071 on c-1t, on c-8t and on
   js; kill-switch parity on six real documents (`TOON_SPEC=1` and off, both equal to the original);
   `diff-fuzz docs` 2500 inputs and `numbers`, 0 differences; `port-lint` OK. The INTERPRETER lane had
   not been run when this line was written

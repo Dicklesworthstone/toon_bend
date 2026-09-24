@@ -130,42 +130,68 @@ profile; the next worst ratio is `encode_numbers` at 18.6×.
 
 Attribution of the port's 864,715,290-instruction delta:
 
-| symbol | delta | share of the delta |
+Attribution of the port's 864,715,290-instruction delta, **grouped by base def**. The compiler hoists
+a def's match arms into their own worklist entries with a `_K<n>` suffix (`WL_FID_DECODE_X_NORM_K998`
+… `_K1001`), so reading the base symbol alone under-counts the def — for `x.norm` by a third. The
+first published version of this table did exactly that and is corrected here:
+
+| base def / runtime symbol | delta | share of the delta |
 |---|---|---|
-| `WL_FID_EXIT` | +218,386,148 | 25.3% |
+| `WL_FID_EXIT` (runtime worklist exit frame) | +218,386,148 | 25.3% |
 | `term_drop` | +196,922,367 | 22.8% |
+| **`WL_FID_DECODE_X_NORM`** (with its 4 arm entries) | **+108,506,769** | **12.5%** |
 | `rfc_wrap` | +87,757,215 | 10.1% |
+| `WL_FID_DECODE_XM_SET_GO` (with its arm entries) | +44,408,512 | 5.1% |
 | `span_fade` | +44,117,536 | 5.1% |
-| `WL_FID_DECODE_X_NORM` (**expansion's own logic**) | +68,445,439 | **7.9%** |
+| `spin_249` | +41,180,072 | 4.8% |
+| `WL_FID_DECODE_FIELD_INS` | +15,140,490 | 1.8% |
+| `WL_FID_DECODE_EXPAND` | +7,795,236 | 0.9% |
 | `heap_alloc_miss` | +8,432,200 | 1.0% |
 | `io_cstr` | +702 | 0.0% |
 | `WL_FID_DECODE_SCAN_REV` | 0 | 0.0% |
 
+Rolled up: **runtime primitives and `spin_N` loops are 73.0%** of the delta, named port defs 21.4%,
+of which `x.norm` is 12.5% and every `X_*` def together 18.3%.
+
 Two of those rows are controls that make the rest trustworthy: `io_cstr` moves by 702 instructions
 and `WL_FID_DECODE_SCAN_REV` by zero, so the delta is neither output writing nor re-scanning — it is
-purely the extra pass over the value. **Expansion spends 7.9% of its cost on expanding and 63.3% on
-worklist frames, reference counting and teardown.**
+purely the extra work after decoding.
 
-## What this says the next lever is
+## What this says about the next lever — and the one it refuted
 
-`docs/PROPOSED_ARCHITECTURE.md` makes expansion a separate pass: the decoder builds a `Json` value,
-then path expansion walks and rebuilds it, then the writer walks it again. The measurement above says
-the walk-and-rebuild costs 53% on top of decode while its own logic is 7.9% of that.
+Expansion is three phases after decoding: `expand` builds an `XV` (a keyed map per object, plus the
+objects that dotted keys create), `x.norm` finishes every object still under construction inside it,
+and `x.entries` reads the finished map back in insertion order. Together they cost 53% on top of a
+plain decode, and 73% of that is runtime primitives.
 
-NE-027 is the decisive precedent, and it cuts both ways. It tried to make an *operation* inside this
-very pass cheaper — the pass-through rebuild `case XLeaf{v}: XLeaf{v}` — precommitted 5%, and counted
-**0.11%, missed by a factor of 45**. Its own conclusion, drawn across NE-019, NE-020 and NE-027
-against the peer session's two wins: **eliminate a pass over the data, not an operation within one.**
-Three operation levers counted 2%, 1% and 0.11%; two pass-eliminating levers counted 18.3% and 11.6%.
+**A lever aimed at this was carded as EXP-033 and WITHDRAWN before any code was written**, on two
+findings from reading the source — see `perf/NEGATIVE-EVIDENCE.md` NE-037. Both are worth stating
+here because the shape of the mistake is reusable:
 
-So the lever this profile points at is to **build the expanded value in the decoder rather than
-normalise it afterwards**, removing the pass entirely — which is the shape the ledger says pays, on
-the path that the e2e ms/MB table already ranks first (`decode_expand`, 414.9 ms/MB). The
-attribution above bounds it: an upper bound of the 63.3% that is frame and refcount traffic on the
-extra walk, and it cannot touch the 7.9% that expansion genuinely computes.
+1. The card proposed fusing `x.json` into `x.norm`, on the belief that `x.json` walks the normalised
+   tree and discards it. **It does not.** `x.json` is a two-arm match on ONE constructor (`XLeaf{v}`
+   → `v`, anything else → `JNull{}`); it is too small to appear anywhere in the profile. Fusing it
+   removes one dispatch, not a traversal.
+2. The stronger variant — drop `x.norm(map)` entirely, on the belief that every value in a finished
+   object's map is already an `XLeaf` — is **unsound**. `xo.set` stores `XObj` values, and `lk.of`
+   re-opens an `XLeaf{JObj{…}}` into an `XObj` for merging, so a map legitimately holds objects still
+   under construction. Those are exactly what path expansion creates, and they cannot be finished
+   earlier: an object under construction may still receive another dotted key. `x.norm`'s descent is
+   load-bearing.
 
-That lever needs an experiment card before any code, per the campaign rule, and `port/` is frozen for
-the review rounds, so no code accompanies this file.
+NE-027 remains the decisive precedent on this path, and it now cuts three ways. It made an
+*operation* inside this pass cheaper (the pass-through rebuild `case XLeaf{v}: XLeaf{v}`),
+precommitted 5% and counted **0.11%, missed by a factor of 45**. Its rule — *eliminate a pass over
+the data, not an operation within one* — is why EXP-033 was aimed at a pass. The refutation adds the
+converse: **check that the pass is removable before carding it.** Each of expansion's three phases is
+load-bearing, so on this path there is no pass to remove, and the rule's own precedent says an
+operation lever will not pay either.
+
+What remains attributable is the runtime traffic over a `+`-shared `XV`, which is `toon_bend-0uw`'s
+territory and is already governed by NE-012's do-not-retry predicate (borrow inference never lent a
+`List`, and the retry condition is a Bend release that changes it). **So this profile names no next
+lever for path expansion**, and that is the honest reading of it. Its durable contribution is the
+ranking: the numeric substrate is not the target, and the uniform cost is sharing.
 
 ## What this profile does not establish
 

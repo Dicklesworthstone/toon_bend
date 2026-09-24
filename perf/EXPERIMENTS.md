@@ -1372,7 +1372,7 @@ In INSTRUCTIONS (counted), stdout identical: ≥ 1.5% fewer than the EXP-031 bin
 | created (UTC) | 2026-09-24 |
 | agent | Claude (session 9e91730b), author |
 | graveyard sweep | `rg -i 'x\.norm\|x\.json\|expand\|XV\b' perf/NEGATIVE-EVIDENCE.md` → **NE-027** is the only entry on this pass and it is the decisive prior: it made an OPERATION inside `x.norm` cheaper (the pass-through rebuild `case XLeaf{v}: XLeaf{v}`), precommitted 5% and counted **0.11%, missed by a factor of 45**. Its own conclusion, drawn with NE-019 and NE-020 against the peer session's two wins, is the rule this card obeys: *eliminate a pass over the data, not an operation within one*. No entry proposes fusing the two walks, and no do-not-retry applies. NE-012 (borrow inference never lent a `List`) forbids a borrowing lever, not this one |
-| status | CARDED 2026-09-24, NOT BUILT. `port/` is frozen for review rounds 21–22; this card exists so the lever is chosen from evidence rather than from the stale attribution it replaces |
+| status | **WITHDRAWN 2026-09-24, NOT BUILT** (`perf/NEGATIVE-EVIDENCE.md` NE-037). Carded and withdrawn the same day, by reading the source before writing any code: the hypothesis below misdescribes `x.json`, and the stronger variant is unsound. The card is kept, uncorrected in its Hypothesis and Lever sections, because the shape of the error is the reusable part; Amendment 1 states what is wrong with each |
 | precommitted | true |
 
 ### Motivation (counted, `perf/COUNTED-PROFILE.md`, port binary `sha256 825e44de69c3a4e6c0d442ea`)
@@ -1450,3 +1450,52 @@ one:
 python3 perf/e2e/counted.py --arm pre=<pre-lever binary> --arm post=<lever binary> \
   -- --decode --expand-paths safe perf/e2e/corpus/citm_catalog.fold.toon
 ```
+
+### Amendment 1 — WITHDRAWN before any code (2026-09-24, Claude session 9e91730b)
+
+Withdrawn the same day it was carded, on two findings from reading `port/decode.bend`. No code was
+written, no binary was built, `port/` was never touched. Ledgered as NE-037.
+
+**(1) The Hypothesis above misdescribes `x.json`.** It says `x.norm` "materialises a second `XV`,
+which `x.json` immediately walks and discards". `x.json` (S3.28) does not walk anything:
+
+```
+def x.json(x: XV) -> J.Json:
+  match x:
+    case XLeaf{v}: v
+    case other:    J.JNull{}
+```
+
+Two arms, one constructor, no recursion. It is too small to appear anywhere in the profile. Fusing it
+into `x.norm` removes one dispatch per finished object, not a traversal, so the gate of ≥ 15% was
+never reachable by this lever.
+
+**(2) The stronger variant is unsound.** The obvious repair — drop `x.norm(map)` and let
+`x.entries` read the map directly, on the ground that every value in a finished object's map is
+already an `XLeaf` holding a normalised `Json` — is false. `xo.set` (S6.42) stores `XObj` values, and
+`lk.of` (S4.244) re-opens an `XLeaf{J.JObj{entries}}` into an `XObj` through `xv.open` (S4.245) so it
+can be merged into. A finished object's map therefore legitimately holds objects that are still under
+construction, which is precisely what dotted-key expansion creates, and they cannot be finished any
+earlier because another dotted key may still arrive for them. **`x.norm`'s descent is load-bearing.**
+
+Fusing normalisation into retrieval instead would need `x.entries` (recursion over the key list) to
+call back into the `XV` recursion, which is mutual recursion and is forbidden here. The one-def
+-with-a-phase-parameter form that works around it is a restructuring, not a lever.
+
+**Also corrected: the motivating figure.** This card cited expansion's own logic as 7.9% of the
+delta, taking `WL_FID_DECODE_X_NORM` alone. The compiler hoists a def's match arms into their own
+worklist entries (`_K998`…`_K1001`), so the base symbol under-counts the def. Grouped by base def,
+`x.norm` is **12.5%** of the delta, every `X_*` def together 18.3%, and all named port defs 21.4%
+against 73.0% in runtime primitives and `spin_N` loops. `perf/COUNTED-PROFILE.md` carries the
+corrected table.
+
+**What this costs and what it buys.** It cost the reading of four defs. It saves building a lever
+whose ceiling was one dispatch per object against a 15% gate — the same outcome as NE-027 on this
+same pass (0.11% against 5%), reached without the build. The transferable rule, which NE-027's
+"eliminate a pass, not an operation" does not cover: **before carding a pass-elimination, check the
+pass is removable.** Each of expansion's three phases is load-bearing, so this path has no pass to
+remove, and NE-027 already showed an operation lever on it does not pay.
+
+**Do-not-retry unless:** `x.norm`'s descent stops being load-bearing — that is, a finished object's
+map can no longer hold an `XObj` (both `xo.set`'s `XObj` values and `lk.of`'s re-opening are gone) —
+or Bend admits the mutual recursion that normalise-on-retrieval needs.

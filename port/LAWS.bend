@@ -2624,3 +2624,14 @@ law is_like_zero_in_phase_4_0p00:
 
 law is_like_zero_in_phase_4_1p05e5:
   {F.is_like("1.05e5") == F.is_like.lex("1.05e5") : Bool}
+
+# EXP-031 (S8.7, S9.10): decode mode reads the text alone; the UTF-8 verdict still decides before any decode failure, and a
+# mark with --stats is still dropped from the text the estimate reads (bytes from the pinned original)
+law decode_invalid_utf8_after_toon_error:
+  {C.run_pure(["--decode"], [97, 58, 32, 49, 10, 32, 32, 98, 58, 32, 50, 10, 255]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
+
+law decode_truncated_utf8_at_the_end:
+  {C.run_pure(["--decode"], [97, 58, 32, 49, 10, 98, 58, 32, 195]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
+
+law decode_stats_after_mark_multibyte:
+  {C.run_pure(["--decode", "--stats"], [239, 187, 191, 97, 58, 32, 195, 169, 10]) == C.Out{0n, "{\n  \"a\": \"é\"\n}\n", "\nToken estimates: ~4 (JSON) → ~2 (TOON)\nSaved ~2 tokens (-50.0%)"} : C.Out}

@@ -2431,3 +2431,15 @@ def Laws.is_like_zero_in_phase_4_0p00():
 # closed: computed (round 19)
 def Laws.is_like_zero_in_phase_4_1p05e5():
   {==}
+
+# closed: computed (EXP-031)
+def Laws.decode_invalid_utf8_after_toon_error():
+  {==}
+
+# closed: computed (EXP-031)
+def Laws.decode_truncated_utf8_at_the_end():
+  {==}
+
+# closed: computed (EXP-031)
+def Laws.decode_stats_after_mark_multibyte():
+  {==}

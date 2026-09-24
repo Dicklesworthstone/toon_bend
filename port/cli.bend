@@ -1268,15 +1268,22 @@ def utf8.msg(has_in: Bool, input: String) -> String:
     case True{}:
       T.cat(["Failed to read file '", input, "': stream did not contain valid UTF-8"])
 
-# S8.7 the complete input is validated as UTF-8 before any parsing (S9.10); S8.8 then the conversion,
-# a pure function of the text and the options
-def convert.text(m: Maybe<&2, String>, o: Opts, bytes: List<&2, U32>, +spec: Bool) -> CR:
+# S8.7 the complete input is validated as UTF-8 before any parsing (S9.10); S8.8 then the encoding, which
+# reads the bytes again
+def convert.enc(m: Maybe<&2, String>, o: Opts, bytes: List<&2, U32>, +spec: Bool) -> CR:
   match m o:
     case None{} Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
       CErr{utf8.msg(has_in, input)}
-    case Some{rev} Opts{has_in, input, has_out, output, False{}, delim, indent, strict, fold, budget, expand, stats}:
+    case Some{rev} Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
       enc.read(J.read(bom.bytes(bytes), spec), E.Opts{indent, delim, fold, budget, spec}, stats, bom.text(String.reverse(rev)))
-    case Some{rev} Opts{has_in, input, has_out, output, True{}, delim, +indent, strict, fold, budget, expand, stats}:
+
+# S8.7 the same gate; S8.8 then the decoding, a pure function of the text and the options: the bytes are
+# not passed on, so nothing keeps them alive while the text is decoded (EXP-031)
+def convert.text(m: Maybe<&2, String>, o: Opts, +spec: Bool) -> CR:
+  match m o:
+    case None{} Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
+      CErr{utf8.msg(has_in, input)}
+    case Some{rev} Opts{has_in, input, has_out, output, decode, delim, +indent, strict, fold, budget, expand, stats}:
       dec.text.rev(stats, rev, expand, strict, indent, spec)
 
 # S8.7 the decoder's start: the text is read by decode mode and by --stats (S4.313); an encode without
@@ -1288,16 +1295,31 @@ def utf8.start.keep(keep: Bool) -> T.UTF8:
     case False{}:
       T.utf8.init.verdict()
 
-# S8.7 whether the conversion reads the decoded text
-def o.reads_text(o: Opts) -> Bool:
+# S8.7 the mode
+def o.decode(o: Opts) -> Bool:
   match o:
     case Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
-      Bool.or(decode, stats)
+      decode
+
+# S4.313 whether --stats was given: an encoding reads the decoded text only then
+def o.stats(o: Opts) -> Bool:
+  match o:
+    case Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
+      stats
+
+# S8.7 the mode decides first: decode reads the text alone and the bytes have no later use; encode reads the
+# bytes twice, for the UTF-8 verdict and then for the value (EXP-031)
+def convert.mode(decode: Bool, +o: Opts, +bytes: List<&2, U32>, +spec: Bool) -> CR:
+  match decode:
+    case True{}:
+      convert.text(T.utf8.finish(T.utf8.bytes(bytes, T.utf8.init())), o, spec)
+    case False{}:
+      convert.enc(T.utf8.finish(T.utf8.bytes(bytes, utf8.start.keep(o.stats(o)))), o, bytes, spec)
 
 # S8.7, S8.8 input bytes to output text. spec is the numeric kill-switch (TOON_SPEC=1, read once by the
 # shell): with it every number takes its spec twin; the bytes are the same either way.
-def convert(+o: Opts, +bytes: List<&2, U32>, spec: Bool) -> CR:
-  convert.text(T.utf8.finish(T.utf8.bytes(bytes, utf8.start.keep(o.reads_text(o)))), o, bytes, spec)
+def convert(+o: Opts, +bytes: List<&2, U32>, +spec: Bool) -> CR:
+  convert.mode(o.decode(o), o, bytes, spec)
 
 # S5.107 the input label: the literal `stdin`, or the INPUT word exactly as typed
 def label.in(has_in: Bool, input: String) -> String:

@@ -1277,7 +1277,7 @@ identical; `gsoc_2018` (encode and decode) and `canada` (encode) not worse by mo
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | `rg -i 'utf8\|convert\|bytes' perf/NEGATIVE-EVIDENCE.md` → NE-034 (EXP-030, NEUTRAL: the fused encode walk; its uncarded decode cells are what this card tests, OUT OF SAMPLE) and NE-022 (EXP-018) |
-| status | CARDED |
+| status | COUNTED_WIN on the primary gate, ENCODE GUARD FAILED 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-035): `semanticscholar --decode` 18.18% fewer instructions (gate 5%), out of sample; `gsoc_2018 --encode` 0.80% MORE (allowance 0.5%). Kept by the author as a trade-off, stated in NE-035; the owner may revert it |
 | precommitted | true |
 
 ### Hypothesis

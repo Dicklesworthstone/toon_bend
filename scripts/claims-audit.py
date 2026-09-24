@@ -202,7 +202,8 @@ def facts():
     # its own that no timed capture's fields describe. Its ratio is admitted only when the file carries both counts
     # and the ratio IS their quotient, so a README ratio still has to be computed from counts on disk.
     for name in sorted(os.listdir(evdir) if os.path.isdir(evdir) else []):
-        if not (name.startswith("COUNTED.") and name.endswith(".json")):
+        # Round 22 (R22-3): `COUNTED-PROFILE.*` and `.jsonl` evidence were never read; every COUNTED file is now.
+        if not (name.startswith("COUNTED") and (name.endswith(".json") or name.endswith(".jsonl"))):
             continue
         # Round 19 (R19-5): six evidence files named `494ef82`, a scratch commit a rebase replaced, as the tree
         # their "after" binary came from; the "tree of" rule reads documents only, so nothing caught it. Every
@@ -220,27 +221,42 @@ def facts():
         #      so `COUNTED.494ef82.canada.encode.json` and `COUNTED.e2e-corpus.494EF82.json` both passed.
         # git resolves a rev case-insensitively for a hex id, but the test is normalised anyway so the
         # message quotes what the file says.
-        for field in name[:-len(".json")].split("."):
-            if re.fullmatch(r"[0-9a-fA-F]{7,40}", field) and not reachable(field.lower()):
+        # Round 22 (R22-3): the name's fields are split on `.`, `-` and `_` (a `494ef82-pre` suffix hid the hash). Only
+        # the `COUNTED.<...>` family names a TREE in its file name; `COUNTED-PROFILE.<hash>...` names the BINARY it
+        # measured (the byte-identical executable, a4's convention), which is not a commit, so its name is not read
+        # as one (its contents still are). A commit id is 7 to 12 hex digits or all 40 (git's abbreviated and full
+        # forms); the evidence's output hashes are 16 and 64 digits and are never commits.
+        COMMIT_ID = r"(?:[0-9a-fA-F]{7,12}|[0-9a-fA-F]{40})"
+        stem = re.sub(r"\.jsonl?$", "", name)
+        for field in (re.split(r"[._-]", stem) if name.startswith("COUNTED.") else []):
+            if re.fullmatch(COMMIT_ID, field) and not reachable(field.lower()):
                 f.setdefault("counted_unreachable", []).append((name, "file name's", field))
+        raw = read(os.path.join("perf", "evidence", name))
         try:
-            j = json.loads(read(os.path.join("perf", "evidence", name)))
+            docs_ = [json.loads(l) for l in raw.splitlines() if l.strip()] if name.endswith(".jsonl") else [json.loads(raw)]
         except ValueError as exc:
             f.setdefault("counted_unparseable", []).append((name, str(exc)))
             continue
-        if isinstance(j, dict):
-            # every commit this file names, wherever it sits, and whatever `kind` says
-            revs = []
-            for holder, label in [(j, "top-level")] + [(j.get(s), s) for s in ("before", "after")]:
-                if not isinstance(holder, dict):
-                    continue
-                for key in ("commit", "tree"):
-                    if isinstance(holder.get(key), str):
-                        revs.append((holder[key], "%s %s" % (label, key)))
-                if isinstance(holder.get("commits"), list):
-                    revs += [(c, "%s commits[]" % label) for c in holder["commits"] if isinstance(c, str)]
-            for rev, where in revs:
-                if re.fullmatch(r"[0-9a-fA-F]{7,40}", rev) and not reachable(rev.lower()):
+        j = docs_[0] if len(docs_) == 1 else None
+        # Round 22 (R22-3): every commit this evidence names, at ANY depth (nested objects, lists such as `runs[]`,
+        # a top-level list), under any key that names a commit (`commit`, `commits`, `tree`, `sha`, `rev`,
+        # `revision`, or a key containing "commit"), and a string that STARTS with a hex id ("494ef82 (scratch)").
+        # Hash-of-output keys (`stdout_sha256_16`, `sha256`) are not commits and are not read as ones.
+        COMMIT_KEY = re.compile(r"^(?:commits?|tree|sha|rev|revision)$|commit", re.I)
+        def walk(node, path, named):
+            if isinstance(node, dict):
+                for k, v in node.items():
+                    yield from walk(v, path + "." + str(k), bool(COMMIT_KEY.search(str(k))) and "sha256" not in str(k))
+            elif isinstance(node, list):
+                for i, v in enumerate(node):
+                    yield from walk(v, "%s[%d]" % (path, i), named)
+            elif named and isinstance(node, str):
+                m = re.match(r"\s*(%s)\b" % COMMIT_ID, node)
+                if m:
+                    yield m.group(1), path.lstrip(".") or "top-level"
+        for doc in docs_:
+            for rev, where in walk(doc, "", False):
+                if not reachable(rev.lower()):
                     f.setdefault("counted_unreachable", []).append((name, where, rev))
         try:
             before, after, ratio = j["before"]["instructions"], j["after"]["instructions"], j["ratio"]
@@ -821,6 +837,14 @@ def audit(files, f, gates, verbose):
                                      "finding": "the performance section states the %s %s, which is in no file of perf/evidence/" % (kind, value)})
 
     # the rounds table against the review reports
+    # R22-1: the other direction. A row the table labels non-author is evidence only through its report; a row with no
+    # docs/reviews/round-NN.md (two fabricated `0 | 0 | yes` rows made converge.sh print CONVERGED) is a finding.
+    for m in re.finditer(r"(?m)^\| (\d+) \| (.*?) \| \d+ \| \d+ \| (?:yes|no) \|", read("docs/PORT_STATE.md")):
+        rid = int(m.group(1))
+        if re.search(r"non-author", m.group(2), re.I) and rid not in f["reviews"]:
+            findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
+                             "finding": "round %d is labelled non-author in the rounds table but docs/reviews/round-%02d.md does not exist"
+                                        % (rid, rid)})
     for r, path in f["reviews"].items():
         if r not in f["round_findings"]:
             findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
@@ -840,11 +864,17 @@ def audit(files, f, gates, verbose):
             # From round 20 the owner's counting rule (docs/PORT_STATE.md "Owner decisions", 2026-09-23: the porting
             # skill's recommended rule) counts only NEW BEHAVIOR findings of MEDIUM or HIGH; law-coverage and document
             # findings are listed, repaired and not counted. Rounds before 20 were counted under the earlier rule.
+            # R22-2: the class and the severity are matched case-insensitively (`Medium | Behavior` and the British
+            # `BEHAVIOUR` escaped the first version), and from round 20 the comparison runs even when the report
+            # yields ZERO counted rows: skipping it then let a table say 0 while its report listed 2 in another case.
+            # Both are read from their OWN cells (`| id | sev | class | what | spec |`), never anywhere in the row: a
+            # document finding whose prose says "a MEDIUM-or-HIGH behaviour finding" is not a counted finding.
             if r >= 20:
                 report_rows = [row for row in report_rows
-                               if re.search(r"\bBEHAVIOR\b", row) and re.search(r"\b(?:MEDIUM|HIGH)\b", row)]
+                               if re.match(r"\s*\*{0,2}(?:medium|high)\b", (row.split("|") + ["", ""])[2], re.I)
+                               and re.match(r"\s*\*{0,2}behaviou?r\b", (row.split("|") + ["", "", ""])[3], re.I)]
             rows = len(report_rows)
-            if rows and rows != f["round_findings"][r]:
+            if (rows or r >= 20) and rows != f["round_findings"][r]:
                 findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
                                  "finding": "round %d: the table says %d findings, docs/reviews/%s lists %d"
                                             % (r, f["round_findings"][r], path, rows)})

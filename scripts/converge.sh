@@ -63,7 +63,7 @@ done
 # the registers live beside PORT_STATE unless named; a missing one is reported, never read as "none open"
 : "${OQ:=$(dirname "$STATE")/OPEN_QUESTIONS.md}"; : "${DISC:=$(dirname "$STATE")/DISCREPANCIES.md}"
 python3 -B - "$STATE" "$TIER" "$OQ" "$DISC" "$(dirname "$0")" <<'PY'
-import json, re, sys
+import json, os, re, sys
 sys.path.insert(0, sys.argv[5])
 from markdown_evidence import visible_lines, split_row
 from case_manifest import regular_text
@@ -135,6 +135,26 @@ for r in rows:
     if n is not None and fm and int(fm.group(1)) < n:
         unfixed.append(f'round {rid}: {n - int(fm.group(1))} of {n} finding(s) neither repaired nor registered')
     elif n and not fm: malformed.append(f'round {rid} has no numeric fixed count')
+    # R22-1: a non-author round is evidence only through its report. A row with no docs/reviews/round-NN.md beside
+    # PORT_STATE is a claim nobody can check: it is malformed and never clean (two fabricated `0 | 0 | yes` rows
+    # printed CONVERGED before this). From the counting-rule round, the row's number must also equal the report's
+    # own count of MEDIUM/HIGH BEHAVIOR rows, read case-insensitively (R22-2: `Medium | Behavior` escaped the audit).
+    if re.search(r"non-author", col(r, "lens"), re.I):
+        report = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), "reviews", "round-%02d.md" % rid)
+        if not os.path.isfile(report):
+            malformed.append(f"round {rid} is labelled non-author but has no report {os.path.relpath(report)}")
+            clean = False
+        elif rid >= COUNTING_RULE_ROUND:
+            rep_rows = [m.group(0) for m in re.finditer(r"(?m)^\|\s*\*{0,2}R%d-\d+\b[^\n]*" % rid, regular_text(report))
+                        if not re.search(r"not a finding|confirmation only", m.group(0), re.I)]
+            # The severity and the class are read from THEIR OWN cells (`| id | sev | class | what | spec |`): a
+            # document finding whose prose says "a MEDIUM-or-HIGH behaviour finding" is not a counted finding.
+            cells = lambda row: (row.split("|") + ["", "", ""])[2:4]
+            counted = sum(1 for sev, cls in map(cells, rep_rows)
+                          if re.match(r"\s*\*{0,2}(?:medium|high)\b", sev, re.I) and re.match(r"\s*\*{0,2}behaviou?r\b", cls, re.I))
+            if n is not None and counted != n:
+                malformed.append(f"round {rid}: the table says {n} counted finding(s), {os.path.relpath(report)} lists {counted}")
+                clean = False
     # Reopened findings and adversarial counterexamples reset even a <3 round.
     if re.search(r"\bRE_OPENED\b|\badversarial counterexample\b", " ".join(r.values()), re.I): clean = False
     if reset_findings.intersection(re.findall(r'\bF-\d+-\d+\b', ' '.join(r.values()))): clean = False

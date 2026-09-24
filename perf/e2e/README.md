@@ -47,9 +47,17 @@ Scenarios: `encode`, `encode_stdin`, `encode_fold` (`--key-folding safe`), `enco
 
 ## Results — THE REFERENCE RUN (2026-09-24, `2c33e64`, AMD EPYC-Milan, 8 cores, 1 thread)
 
-`results/2026-09-23-wall2-2c33e64/`. Port built from a clean `git archive` export of `2c33e64` (571 laws,
-`All terms check.`, four lanes PASS 1076/1076); original `toon_rust` `694d73b` at `opt-level=z` and
-`opt-level=3`. 204 cells. Load 2.4–3.6 throughout, because two other sessions on this machine stopped
+`results/2026-09-23-wall2-2c33e64/`. **Port binary `sha256 caac3708…`**, built from `port/main.bend` at
+`2c33e64` (571 laws, `All terms check.`, four lanes PASS 1076/1076); original `toon_rust` `694d73b` at
+`opt-level=z` and `opt-level=3`. 204 cells.
+
+The BINARY's hash is the identity that matters here, not the commit. A wall-clock number measures the
+executable, so it stays valid across every commit that does not change it — and commits that change
+`port/` without changing the executable are common: `9c9039e`, `55ec958` and `c5f3b46` differ in
+`port/json.bend` (comment corrections), `LAWS.bend` and `PROOF.bend`, and all three build the identical
+binary `sha256 825e44de…` (same output basename, which the build is sensitive to). "The `port/` code is
+unchanged" would be refuted by a diff; "the binary is unchanged" is checkable in one command. The
+previous reference run's arm was `sha256 ec6a58ab…`. Load 2.4–3.6 throughout, because two other sessions on this machine stopped
 their own work for it — a four-lane conformance run and a 24 GB C emission.
 
 ### Correctness

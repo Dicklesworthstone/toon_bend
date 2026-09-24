@@ -113,6 +113,33 @@ The port holds the whole document as a `Json` value of boxed constructors and ca
 software binary64 over big naturals, so a larger resident set is expected; the measured factors are 4.09× at
 the median cell and 3.75× at the worst, and the worst-case figure is the number to watch if the port is ever run on a document near memory.
 
+### Memory: linear, and the port's practical ceiling
+
+The suite records peak RSS per cell (`/usr/bin/time -f %M` on the untimed verification run, so the
+figure is the child's own high-water mark and not Python's). Fitted over the corpus's two size series —
+`flights` from 72 KB to 9.9 MB and the `semanticscholar` prefixes from 1.0 MB to 8.9 MB, five and four
+points each — **the port's peak RSS is LINEAR in the input**: slope of log RSS against log bytes
+b = **0.92 to 0.97** across all nine (family, scenario) pairs. There is no superlinear blow-up, which is
+the important negative result: the pushdown machines and the tail-recursive traversals hold.
+
+The constant is the problem, not the shape:
+
+| | bytes of peak RSS per input byte | `openapi_github`, 13.0 MB |
+|---|---|---|
+| port | **57.9** median, 177.9 worst | **616 MB (47×)** |
+| original (`-Oz`) | 15.0 median, 75.5 worst | 89 MB (7×) |
+
+**3.9× the original at the median.** Because the fit is linear over two orders of magnitude, it
+extrapolates: about **5.8 GB for a 100 MB document**, **29 GB for 500 MB**, **58 GB for 1 GB**. That is
+the port's practical ceiling, and it is a memory ceiling rather than a time one — on this 30 GB host the
+linear fit puts the limit near 400 MB of input, whatever the wall clock says.
+
+The cause is structural and named in the architecture: a `Json` value is a tree of boxed constructors
+and every number is a software binary64 over big naturals held as `List<&2, U32>`, so a document's
+resident form is many machine words per input byte. It is not a leak — the scaling says so — and it is
+not addressable by any lever in this directory's ledgers; it would take a different value
+representation.
+
 ### What this run does NOT establish
 
 - It is **not** comparable cell-by-cell with the earlier runs in this directory: those were NOISY on a

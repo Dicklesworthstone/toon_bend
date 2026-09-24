@@ -1482,12 +1482,20 @@ Fusing normalisation into retrieval instead would need `x.entries` (recursion ov
 call back into the `XV` recursion, which is mutual recursion and is forbidden here. The one-def
 -with-a-phase-parameter form that works around it is a restructuring, not a lever.
 
-**Also corrected: the motivating figure.** This card cited expansion's own logic as 7.9% of the
-delta, taking `WL_FID_DECODE_X_NORM` alone. The compiler hoists a def's match arms into their own
-worklist entries (`_K998`…`_K1001`), so the base symbol under-counts the def. Grouped by base def,
-`x.norm` is **12.5%** of the delta, every `X_*` def together 18.3%, and all named port defs 21.4%
-against 73.0% in runtime primitives and `spin_N` loops. `perf/COUNTED-PROFILE.md` carries the
-corrected table.
+**Also corrected: the motivating figures, twice.** First, this card cited expansion's own logic as
+7.9% of the delta, taking `WL_FID_DECODE_X_NORM` alone; the compiler hoists a def's match arms into
+their own worklist entries (`_K998`…`_K1001`), so the base symbol under-counts the def.
+
+Second and larger: **the whole profile behind this card was taken without `--threads 1`**. Above one
+thread the encoder's number pre-pass (EXP-007) is a parallel let on a worker pool, which makes the
+count irreproducible (~6e-5 spread) and inflates it unevenly — a decode by 10.9%. Re-measured at one
+thread, the expansion delta is **605,239,282 (+41.1%)**, not 864,715,290 (+53.0%), the port pays
+**23.7×** the oracle rather than 33.8×, and `WL_FID_EXIT` — 25.3% of the old delta — disappears,
+being the parallel worklist machinery. Grouped by base def at one thread: `x.norm` **14.8%**, every
+`X_*` def 21.7%, named port defs 25.1%, runtime and `spin_N` 67.7%, the refcount trio 54.3%.
+Neither correction changes this card's verdict, which rests on reading the defs rather than on any
+number. `perf/COUNTED-PROFILE.md` carries the corrected tables and cross-validates against NE-027's
+independent 605,259,269 for the same quantity.
 
 **What this costs and what it buys.** It cost the reading of four defs. It saves building a lever
 whose ceiling was one dispatch per object against a 15% gate — the same outcome as NE-027 on this

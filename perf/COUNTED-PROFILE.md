@@ -9,9 +9,9 @@ claim and it does not satisfy any gate written in wall-clock terms. Nothing here
 To choose the next lever. Before this profile the campaign's stated next target was a
 Ryu/Grisu-class rewrite of shortest-digit generation, on the strength of a per-number cost
 measured before several levers landed. **That target is wrong**, and the reason is in the table
-below: on the most number-dense input in the corpus the port's entire numeric substrate is 19.2% of
-instructions, while reference counting and teardown are 39.2% — and on string input the numeric
-substrate is 0.2%. A numeric lever has a ceiling of about a fifth of one scenario. The costs that
+below: on the most number-dense input in the corpus the port's entire numeric substrate is 19.9% of
+instructions, while reference counting and teardown are 40.5% — and on string input the numeric
+substrate is 0.1%. A numeric lever has a ceiling of about a fifth of one scenario. The costs that
 are uniform across every scenario are elsewhere.
 
 Consumer: whoever picks the next experiment card. Gate: no lever is spent on the number path on the
@@ -26,8 +26,9 @@ or when a lever changes the ranking.
 | oracle | `oracle/toon`, the pinned `toon 0.2.4` from `toon_rust` `694d73b` (`sha256 821287ea…` per `docs/PIN.toml`) |
 | tool | `valgrind --tool=cachegrind --cache-sim=no --branch-sim=no`, the `I refs` line; `cg_annotate` for per-symbol attribution |
 | static ownership | `keep-audit.sh` of the bend2-mega-skill over `port/main.bend` |
-| threads | 1 (the port's default; no `--threads` passed) |
-| host sensitivity | none. Counts are deterministic to ~1e-8 for a fixed binary and input, which is why this profile was taken while the host was too loaded for any wall capture |
+| threads | **`--threads 1`, passed explicitly to the port** (a runtime flag, so before `--`). See "The thread count is part of the measurement" below: this profile was first taken WITHOUT it and every number was wrong |
+| host sensitivity | none for the counts themselves. This profile was taken while the host was too loaded for any wall capture |
+| determinism, measured here | `--encode --threads 1`: **bit-identical** over three runs (839,968,998 ×3). `--decode --threads 1`: 1,472,343,298 / 1,472,342,938 / 1,472,342,938, a spread of ~2.4e-7. Without `--threads 1`: 867,758,374 / 867,707,500 / 867,708,462, ~6e-5 |
 | inputs | `perf/e2e/corpus/` (gitignored). Obtained by `python3 perf/e2e/bench.py fetch`, which downloads 28 real documents plus 4 derived slices, each pinned by commit and sha256, and **fails fatally on a hash mismatch** — so a third party reproduces the exact bytes profiled here without the corpus being in the repository. `perf/gen-bench-inputs.py` is a different thing: it generates the deterministic inputs under `perf/inputs/` that the experiment cards name |
 | raw evidence | `perf/evidence/COUNTED-PROFILE.825e44de.counts.jsonl`, `…​.<scenario>.annot.txt`, `…​.keep-audit.txt` |
 | captured | 2026-09-24, Claude session 9e91730b |
@@ -35,19 +36,44 @@ or when a lever changes the ranking.
 **Correctness held in every cell.** The port's stdout sha256 equals the oracle's in all 7 scenarios,
 14 runs. A counted comparison whose arms disagree on output is measuring two different programs.
 
+## The thread count is part of the measurement (a correction)
+
+**The first version of this file was taken without `--threads 1` and every number in it was wrong.**
+The port takes runtime flags before `--`, and without one it uses the default thread count. Since
+EXP-007 the encoder's number pre-pass is a **parallel let**, so above one thread the runtime splits
+it across a worker pool. Two consequences, both measured:
+
+- **It is not reproducible.** Three identical invocations of `numbers.json --encode` gave
+  867,758,374 / 867,707,500 / 867,708,462 — a spread of ~6e-5. With `--threads 1` the same command
+  gives 839,968,998 three times, bit for bit.
+- **It is inflated, unevenly.** The same encode counts 3.3% more at the default; `citm --decode`
+  counts **10.9% more**. `WL_FID_EXIT`, which appeared at 25.3% of the expansion delta, is the
+  parallel worklist machinery and **disappears entirely** at one thread.
+
+Every earlier counted entry in `perf/NEGATIVE-EVIDENCE.md` was taken at `--threads 1`, so the first
+version of this file was also not comparable with them. The corrected numbers below cross-validate
+against one of those entries exactly: NE-027 measured path expansion's cost as **605,259,269**
+instructions, and this profile now measures **605,239,282** — a difference of 3e-5, on a different
+binary six weeks apart. The first version made that delta look like 864,715,290, and led me to write
+that expansion's cost had "grown 43%". It had not; the thread count had changed.
+
 ## The scenarios
 
-| scenario | input | port Ir | oracle Ir | ratio | port instr / input byte |
-|---|---|---|---|---|---|
-| `startup_encode` | 7 B | 549,282 | 504,657 | **1.09×** | — |
-| `encode_numbers` | `numbers.json` 150 KB | 867,670,267 | 46,751,975 | **18.56×** | 5,780 |
-| `encode_numeric_big` | `canada.json` 2.25 MB | 11,834,673,910 | 826,606,264 | **14.32×** | 5,258 |
-| `encode_strings` | `twitter.json` 632 KB | 805,574,236 | 100,700,448 | **8.00×** | 1,275 |
-| `decode_expand` | `citm_catalog.fold.toon` 666 KB, `--expand-paths safe` | 2,497,396,737 | 404,977,446 | **6.17×** | 3,751 |
-| `decode_fold_noexpand` | the same file, `--expand-paths off` | 1,632,681,447 | 379,398,453 | **4.30×** | 2,451 |
-| `decode_plain` | `citm_catalog.toon` 666 KB | 1,632,276,292 | 379,391,494 | **4.30×** | 2,451 |
+All at `--threads 1`. `trio` is `term_drop` + `rfc_wrap` + `span_fade`; `numeric` is every
+`WL_FID_BIGNAT_*` and `WL_FID_F64_*` def; `runtime` adds the `spin_N` loops and the allocator to the
+trio. Symbols are grouped by base def (see the note under the attribution table).
 
-**Fixed cost is not the story.** At 1.09× on a 7-byte input the two programs start up at almost the
+| scenario | input | port Ir | oracle Ir | ratio | p/byte | trio | numeric | runtime |
+|---|---|---|---|---|---|---|---|---|
+| `startup_encode` | 7 B | 532,601 | 504,653 | **1.06×** | — | — | — | — |
+| `encode_numbers` | `numbers.json` 150 KB | 839,987,992 | 46,751,971 | **17.97×** | 5,595 | 40.5% | **19.9%** | 69.8% |
+| `encode_numeric_big` | `canada.json` 2.25 MB | 11,031,494,760 | 826,606,260 | **13.35×** | 4,901 | 38.9% | 18.8% | 69.6% |
+| `encode_strings` | `twitter.json` 632 KB | 671,502,656 | 100,701,316 | **6.67×** | 1,063 | 36.8% | **0.1%** | 61.0% |
+| `decode_expand` | `citm_catalog.fold.toon` 666 KB, `--expand-paths safe` | 2,077,613,203 | 404,972,974 | **5.13×** | 3,120 | 49.1% | 1.6% | 74.3% |
+| `decode_fold_noexpand` | the same file, `--expand-paths off` | 1,472,373,921 | 379,401,578 | **3.88×** | 2,211 | 46.9% | 2.5% | 77.1% |
+| `decode_plain` | `citm_catalog.toon` 666 KB | 1,472,365,716 | 379,389,023 | **3.88×** | 2,211 | 46.9% | 2.5% | 77.1% |
+
+**Fixed cost is not the story.** At 1.06× on a 7-byte input the two programs start up at almost the
 same price; the entire gap is work done per byte.
 
 ## Where the instructions go
@@ -65,13 +91,17 @@ not inferred from their names:
 - `WL_FID_EXIT` is runtime-generated too (comp.ts:2757, 3305, 4356), the worklist's exit frame — not
   a port def.
 
-| scenario | refcount + teardown | worklist exit | port's numeric code (`BIGNAT`+`F64`) |
+| scenario | refcount + teardown | port's numeric code (`BIGNAT`+`F64`) | all runtime + `spin_N` |
 |---|---|---|---|
-| `decode_plain` | **42.3%** | 8.1% | 2.3% |
-| `decode_expand` | **40.8%** | 14.0% | 1.4% |
-| `encode_numbers` | **39.2%** | 2.4% | 19.2% |
-| `encode_numeric_big` | **36.3%** | 5.7% | 17.8% |
-| `encode_strings` | **30.7%** | 13.8% | 0.2% |
+| `decode_expand` | **49.1%** | 1.6% | 74.3% |
+| `decode_plain` | **46.9%** | 2.5% | 77.1% |
+| `decode_fold_noexpand` | **46.9%** | 2.5% | 77.1% |
+| `encode_numbers` | **40.5%** | 19.9% | 69.8% |
+| `encode_numeric_big` | **38.9%** | 18.8% | 69.6% |
+| `encode_strings` | **36.8%** | 0.1% | 61.0% |
+
+`WL_FID_EXIT` had a column of its own in the first version of this table, at 2.4-14.0%. It is the
+parallel worklist machinery and is absent at `--threads 1`.
 
 **This is a confirmation, not a discovery, and the prior work owns it.** NE-006 already recorded
 `span_fade` 34.6% self and `term_drop` 37.0% self and drew the conclusion that the port's time is
@@ -121,37 +151,36 @@ with the oracle as the control on the identical pair:
 
 | | port | oracle |
 |---|---|---|
-| `--expand-paths off` | 1,632,681,447 | 379,398,453 |
-| `--expand-paths safe` | 2,497,396,737 | 404,977,446 |
-| **cost of expansion alone** | **+864,715,290 (+53.0%)** | **+25,578,993 (+6.7%)** |
+| `--expand-paths off` | 1,472,373,921 | 379,401,578 |
+| `--expand-paths safe` | 2,077,613,203 | 404,972,974 |
+| **cost of expansion alone** | **+605,239,282 (+41.1%)** | **+25,571,396 (+6.7%)** |
 
-**The port pays 33.8× the oracle for the same expansion.** It is the largest single disparity in this
-profile; the next worst ratio is `encode_numbers` at 18.6×.
+**The port pays 23.7× the oracle for the same expansion.** It is the largest single disparity in this
+profile; the next worst ratio is `encode_numbers` at 18.0×. NE-027 measured this same quantity as
+605,259,269 on an earlier binary; this profile gets 605,239,282, a difference of 3e-5.
 
-Attribution of the port's 864,715,290-instruction delta:
-
-Attribution of the port's 864,715,290-instruction delta, **grouped by base def**. The compiler hoists
+Attribution of the port's 605,239,282-instruction delta, **grouped by base def**. The compiler hoists
 a def's match arms into their own worklist entries with a `_K<n>` suffix (`WL_FID_DECODE_X_NORM_K998`
 … `_K1001`), so reading the base symbol alone under-counts the def — for `x.norm` by a third. The
 first published version of this table did exactly that and is corrected here:
 
 | base def / runtime symbol | delta | share of the delta |
 |---|---|---|
-| `WL_FID_EXIT` (runtime worklist exit frame) | +218,386,148 | 25.3% |
-| `term_drop` | +196,922,367 | 22.8% |
-| **`WL_FID_DECODE_X_NORM`** (with its 4 arm entries) | **+108,506,769** | **12.5%** |
-| `rfc_wrap` | +87,757,215 | 10.1% |
-| `WL_FID_DECODE_XM_SET_GO` (with its arm entries) | +44,408,512 | 5.1% |
-| `span_fade` | +44,117,536 | 5.1% |
-| `spin_249` | +41,180,072 | 4.8% |
-| `WL_FID_DECODE_FIELD_INS` | +15,140,490 | 1.8% |
-| `WL_FID_DECODE_EXPAND` | +7,795,236 | 0.9% |
-| `heap_alloc_miss` | +8,432,200 | 1.0% |
-| `io_cstr` | +702 | 0.0% |
+| `term_drop` | +196,922,426 | **32.5%** |
+| **`WL_FID_DECODE_X_NORM`** (with its 4 arm entries) | **+89,295,460** | **14.8%** |
+| `rfc_wrap` | +87,757,215 | 14.5% |
+| `span_fade` | +44,117,536 | 7.3% |
+| `spin_249` | +41,180,072 | 6.8% |
+| `WL_FID_DECODE_XM_SET_GO` (with its arm entries) | +36,678,879 | 6.1% |
+| `WL_FID_DECODE_FIELD_INS` | +15,140,478 | 2.5% |
+| `heap_alloc_miss` | +8,973,932 | 1.5% |
+| `WL_FID_DECODE_EXPAND` | +7,282,073 | 1.2% |
+| `io_cstr` | ~0 | 0.0% |
 | `WL_FID_DECODE_SCAN_REV` | 0 | 0.0% |
 
-Rolled up: **runtime primitives and `spin_N` loops are 73.0%** of the delta, named port defs 21.4%,
-of which `x.norm` is 12.5% and every `X_*` def together 18.3%.
+Rolled up: **runtime primitives and `spin_N` loops are 67.7%** of the delta, named port defs 25.1%,
+of which `x.norm` is 14.8% and every `X_*` def together 21.7%. The refcount-and-teardown trio alone
+is **54.3%** of the delta.
 
 Two of those rows are controls that make the rest trustworthy: `io_cstr` moves by 702 instructions
 and `WL_FID_DECODE_SCAN_REV` by zero, so the delta is neither output writing nor re-scanning — it is

@@ -2404,43 +2404,43 @@ def Laws.encode_repeated_key_nested_small_objects_repeat():
 def Laws.encode_repeated_key_ten_members_repeat_of_the_oldest():
   {==}
 
-# closed: computed (round 19)
+# S4.161 closed: the whole pure core computed (round 19)
 def Laws.encode_fraction_trailing_zeros_quoted():
   {==}
 
-# closed: computed (round 19)
+# S2.113 closed: the whole pure core computed (round 19)
 def Laws.decode_final_cr_without_lf():
   {==}
 
-# closed: computed (round 19)
+# S8.7 closed: the whole pure core computed (round 19)
 def Laws.decode_bom_after_the_first_line_kept():
   {==}
 
-# closed: computed (round 19)
+# S2.121 closed: the whole pure core computed (round 19)
 def Laws.decode_escaped_quote_before_colon_in_cell():
   {==}
 
-# closed: computed (round 19)
+# S4.161 closed: computed (round 19)
 def Laws.is_like_zero_in_phase_4_1p50():
   {==}
 
-# closed: computed (round 19)
+# S4.161 closed: computed (round 19)
 def Laws.is_like_zero_in_phase_4_0p00():
   {==}
 
-# closed: computed (round 19)
+# S4.161 closed: computed (round 19)
 def Laws.is_like_zero_in_phase_4_1p05e5():
   {==}
 
-# closed: computed (EXP-031)
+# S9.10 closed: the whole pure core computed (EXP-031)
 def Laws.decode_invalid_utf8_after_toon_error():
   {==}
 
-# closed: computed (EXP-031)
+# S9.10 closed: the whole pure core computed (EXP-031)
 def Laws.decode_truncated_utf8_at_the_end():
   {==}
 
-# closed: computed (EXP-031)
+# S8.7 closed: the whole pure core computed (EXP-031)
 def Laws.decode_stats_after_mark_multibyte():
   {==}
 
@@ -2480,22 +2480,22 @@ def Laws.run_u_is_both(bytes, u, st, spec):
             case J.MErr{msg, ml, mc}:
               Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MErr{msg, ml, mc}, stack, depth, l, c, root}, b, spec), spec)
 
-# closed: computed (EXP-032)
+# S9.10 closed: the whole pure core computed (EXP-032)
 def Laws.encode_invalid_utf8_after_json_error():
   {==}
 
-# closed: computed (EXP-032)
+# S9.10 closed: the whole pure core computed (EXP-032)
 def Laws.encode_truncated_utf8_after_json_error():
   {==}
 
-# closed: computed (EXP-032)
+# S9.10 closed: the whole pure core computed (EXP-032)
 def Laws.encode_stats_invalid_utf8_in_key():
   {==}
 
-# closed: computed (EXP-032)
+# S8.7 closed: the whole pure core computed (EXP-032)
 def Laws.encode_stats_after_mark():
   {==}
 
-# closed: computed (EXP-032)
+# S8.7 closed: the whole pure core computed (EXP-032)
 def Laws.encode_stats_two_marks_is_json_error():
   {==}

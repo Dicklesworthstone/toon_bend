@@ -5,6 +5,20 @@
      lever: a lever is re-attemptable only if its do-not-retry predicate
      holds. An unresolved gain needs more evidence. Record honest losing baselines. -->
 
+The COUNTED class and its resolution (added 2026-09-23). An instruction count from
+`valgrind --tool=cachegrind --cache-sim=no` is deterministic to about 1e-8 for the SAME binary, but two
+builds are not automatically comparable. The peer session measured identical decode logic counting
+**+1.0 to +1.8%** across a change that only reordered the CONSTRUCTOR table, because the emitted
+constructor ids change dispatch. **A counted delta below about 2% between builds whose constructor
+tables differ is not attributable without `cg_annotate`.**
+
+Measured here for the other case, because most levers do not touch constructors: two trees differing
+only by ONE UNUSED DEF, never called, counted **+0.000%** — 760 instructions in 3,010,226,497 on
+`gsoc_2018` and an exact tie on `canada`. So a def-only change has no floor worth stating, and the
+sub-2% results in NE-019 (-1.4%), NE-020 (~1%), NE-027 (0.11%) and NE-033 (-0.7%) are attributable:
+none of those levers added or reordered a constructor. A lever that DOES — EXP-007 added `JTxt` and
+`JRaw` — needs the 2% caution applied.
+
 Outcome taxonomy (closed set):
 
 - **WIN** — a meaningful improvement meeting the stated success criterion,

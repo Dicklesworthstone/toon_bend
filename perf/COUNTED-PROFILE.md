@@ -120,22 +120,29 @@ binary, beside the numeric substrate, so the two can be compared as targets.
 
 `keep-audit.sh` over the whole program, per segment:
 
+Over all **460** segments — both the `FID_*` defs and the `spin_N` native loops a tail-recursive def
+compiles to. The first version of this table counted `FID_*` only and under-reported every row
+(seal 1,690, peek 1, 163 sealing segments); `spin_N` segments are as much a part of the program, and
+one of them holds half the program's borrows:
+
 | quantity | total | segments with any |
 |---|---|---|
-| `seal` (make shareable → `rfc_wrap`) | **1,690** | 163 |
-| `keep` | 279 | 92 |
-| `take` (destructure) | 182 | 76 |
-| `free` | 40 | 5 |
-| `peek` (borrow) | **1** | **1** |
+| `seal` (make shareable → `rfc_wrap`) | **2,548** | 309 |
+| `take` (destructure) | 345 | — |
+| `keep` | 344 | — |
+| `free` | 40 | — |
+| `peek` (borrow) | **2** | **2** |
 
-**163 of 163 sealing segments have `peek` == 0.** Not one segment that seals anything also borrows
-anything.
+**308 of the 309 sealing segments have `peek` == 0.** The whole program borrows in exactly two
+places: `spin_486`, which borrows once and seals four times, and `FID_DECODE_HOT_LOOK`, which borrows
+once and seals nothing. Against 2,548 seals.
 
 Read that `peek` figure precisely, because the same run prints a larger one. `keep-audit.sh` also
 reports a whole-file tally — `peek=77 keep=381 take=365 seal=2560 free=63` — and says of it
 "includes runtime definitions, NOT segment totals". The 77 counts textual matches across the entire
-emitted C, the runtime's own `ctr_peek` definitions included; the **1** above is the port's own
-segments, which is the number that describes the program. Neither figure means the port has a borrow
+emitted C, the runtime's own definitions included; the **2** above is the port's own segments, which
+is the number that describes the program. The segment seal total (2,548) sitting just under the
+whole-file one (2,560) is the cross-check that the segment sum is nearly complete. Neither figure means the port has a borrow
 worth having: per `bend guide` (Quantities) a quantity is `&0`/`&1`/`&2`, with `Type` short for
 `Kind(&1)` and `Data` for `Kind(&2)`, so a signature like `List<&2, String>` says the ELEMENTS are
 reusable — **it is not a borrow annotation, and there is no source-level borrow to write.** `peek`

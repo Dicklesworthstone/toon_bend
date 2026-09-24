@@ -253,6 +253,10 @@ Outcome taxonomy (closed set):
 - **The threshold was tuned once and the loser is recorded:** forking arrays longer than 512 items
   instead of 64 was worse everywhere (10001 doubles 152 → 240 ms, mesh 532 → 753 ms, canada 4001 →
   5665 ms) and did not remove the twitter loss, so 64 stays
+- **The first figure this entry has (2026-09-23, a4's capture, relayed):** one binary, `flights_200k --encode`,
+  1 against 8 threads, 9 interleaved pairs: 1 thread min 4.277 s, 8 threads min 3.025 s, **1.414× by min, 1.443× by
+  median**. The cv was 15.5% and 35.3%, so it is NOT cv-gated and does not change the verdict above (ratios
+  NO_EVIDENCE); both estimators agree, and min-of-9 is the robust statistic for a same-binary comparison
 - Tally: W0/L0/N1
 - Agent: Claude (author session, 2026-09-22)
 

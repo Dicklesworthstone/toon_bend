@@ -63,6 +63,13 @@ def run(cmd, data, env=None, limit=120):
         e.update(env)
     t0 = time.perf_counter()
     try:
+        # UBS's python.taint.command traces os.environ -> e -> subprocess here. The tainted value is the
+        # ENVIRONMENT, not the command: `e` is this process's own environment plus the one switch variable
+        # the caller named (--switch VAR=1), and `cmd` is the argv the caller passed after `--`. Nothing
+        # reaches a shell — there is no shell=True anywhere in this file — so an inherited environment is
+        # not an injection path. Suppressed per rule and per line rather than by a .ubsignore glob, which
+        # would skip every other check on this file (bead toon_bend-vnb).
+        # ubs:ignore[python.taint.command] the caller's argv and this process's own environment, no shell.
         r = subprocess.run(cmd, input=data, capture_output=True, cwd=ROOT, env=e, timeout=limit)
         return (r.returncode, r.stdout, r.stderr), time.perf_counter() - t0
     except subprocess.TimeoutExpired:

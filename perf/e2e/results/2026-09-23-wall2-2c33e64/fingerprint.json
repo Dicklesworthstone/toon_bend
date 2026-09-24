@@ -1,0 +1,94 @@
+{
+  "utc": "2026-09-24T03:05:17Z",
+  "host": "hetzner1",
+  "kernel": "7.0.0-30-generic",
+  "cpu": "AMD EPYC-Milan Processor",
+  "cores": 8,
+  "governor": null,
+  "mem_total_kib": 32082076,
+  "loadavg_start": [
+    3.56103515625,
+    6.787109375,
+    6.97998046875
+  ],
+  "python": "3.14.4",
+  "git_head": "dd355a7a406abcbcefb87cb443490707fa1a1dd4",
+  "git_dirty_port": true,
+  "arms": [
+    {
+      "name": "rust_z",
+      "kind": "rust",
+      "path": "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/arms2/z/toon",
+      "sha256": "821287eaf1a6d320ee1ef7604e74e3cefaa42b69445c96abb9dd310782d04030",
+      "bytes": 682872
+    },
+    {
+      "name": "rust_o3",
+      "kind": "rust",
+      "path": "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/arms2/o3/toon",
+      "sha256": "b3683f3917d51fe9bac82fde438a9d4829eb03f8a7a87f0fae14d028c25316ba",
+      "bytes": 883984
+    },
+    {
+      "name": "bend",
+      "kind": "bend",
+      "path": "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/final2c33e64/toon",
+      "sha256": "caac37086fda0ae4a9d695d4ac4cb8afe32d2c243ba6ddde736886870e7daafc",
+      "bytes": 1025816
+    }
+  ],
+  "scenarios": [
+    "encode",
+    "encode_stdin",
+    "encode_fold",
+    "encode_tab",
+    "encode_stats",
+    "decode",
+    "decode_expand"
+  ],
+  "files": [
+    "github_events",
+    "apache_builds",
+    "numbers",
+    "flights_2k",
+    "unemployment",
+    "instruments",
+    "npm_cli_lock",
+    "flights_5k",
+    "random",
+    "update_center",
+    "twitterescaped",
+    "twitter",
+    "us_10m",
+    "mesh",
+    "vscode_lock",
+    "flights_10k",
+    "jobs",
+    "football",
+    "earthquakes",
+    "movies",
+    "citm_catalog",
+    "flights_20k",
+    "canada",
+    "marine_ik",
+    "gsoc_2018",
+    "semanticscholar",
+    "flights_200k",
+    "openapi_github",
+    "semsch_625",
+    "semsch_1250",
+    "semsch_2500",
+    "semsch_5000"
+  ],
+  "budget_s": 30.0,
+  "min_runs": 5,
+  "max_runs": 30,
+  "max_cv_pct": 5.0,
+  "seed": 1,
+  "loadavg_end": [
+    2.35302734375,
+    3.0078125,
+    3.63623046875
+  ],
+  "finished_utc": "2026-09-24T03:45:12Z"
+}

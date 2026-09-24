@@ -45,7 +45,72 @@ Scenarios: `encode`, `encode_stdin`, `encode_fold` (`--key-folding safe`), `enco
   useless below about 30 MB); input MB/s. **Ratio** = arm median / reference median, with a 95% bootstrap interval (2000 resamples).
 - **cv gate 5%**, this repository's gate: a cell with any arm above it is `NOISY`, and its ratio is orientation, not evidence.
 
-## Results (2026-09-23, AMD EPYC-Milan, 8 cores, 1 thread, QUIET host — the reference run)
+## Results — THE REFERENCE RUN (2026-09-24, `2c33e64`, AMD EPYC-Milan, 8 cores, 1 thread)
+
+`results/2026-09-23-wall2-2c33e64/`. Port built from a clean `git archive` export of `2c33e64` (571 laws,
+`All terms check.`, four lanes PASS 1076/1076); original `toon_rust` `694d73b` at `opt-level=z` and
+`opt-level=3`. 204 cells. Load 2.4–3.6 throughout, because two other sessions on this machine stopped
+their own work for it — a four-lane conformance run and a 24 GB C emission.
+
+### Correctness
+
+**204 of 204 cells byte-identical across all three arms** — stdout sha256, stderr sha256 and exit code,
+over encode, encode via stdin, `--key-folding`, `--delimiter tab`, `--stats`, decode and
+`--expand-paths`. This column does not depend on load.
+
+### Speed — 66 MEASURED cells (cv ≤ 5% on every arm)
+
+| estimator | vs the pinned original (`-Oz`) | vs `-O3` |
+|---|---|---|
+| median of N | **6.05×** | 9.82× |
+| min of N | 6.09× | 9.96× |
+| median CPU | 6.09× | 9.93× |
+
+Three estimators within 0.7% of each other. 349 of 612 arms inside the cv gate.
+
+### What nine optimisation levers bought, and how we know it is real
+
+Against the previous reference run (`9ae2f2e`, before EXP-013/018/019/021/022/024 and the rest), read
+with `python3 perf/e2e/compare.py`, which prints every arm's own absolute time before any ratio:
+
+| arm | summed median, `9ae2f2e` | `2c33e64` | change |
+|---|---|---|---|
+| **port** | 134,000 ms | **103,653 ms** | **−22.6%** |
+| original `-Oz` | 15,523 ms | 15,779 ms | +1.7% |
+| original `-O3` | 9,559 ms | 9,808 ms | +2.6% |
+
+**The port's own absolute time fell 22.6% while both oracle arms stayed inside 2.6%.** That is a code
+difference. The ratio improvement is therefore real, and it is **8.06× → 6.33×, a factor of 1.27**, on
+the 37 cells MEASURED in BOTH runs — the figure to quote, rather than the 1.36× over all cells, because
+only those 37 passed the gate twice.
+
+This matters because the same comparison done badly produced the opposite conclusion. The
+`2026-09-23-six-levers-78a2588` run reported 5.81× against 7.98×, an apparent 1.37× win arriving right
+after six levers landed and agreeing with their instruction counts — and it was entirely contention:
+every arm had slowed, the oracles hardest, because a fixed scheduling cost is a larger fraction of a
+40 ms process than of a 700 ms one. See that directory's `INVALID.md`. `compare.py` now refuses that
+pattern automatically and exits 1.
+
+### Cost per byte, which is what to optimise against
+
+| scenario | port ms/MB | ratio (MEASURED) |
+|---|---|---|
+| `decode_expand` | **414.9** | 6.25× |
+| `decode` | 292.4 | 5.11× |
+| `encode_stats` | 287.0 | 5.55× |
+| `encode_fold` | 264.3 | 7.49× |
+| `encode_tab` | 223.4 | 5.02× |
+| `encode_stdin` | 222.8 | 7.23× |
+| `encode` | **201.8** | **8.20×** |
+
+The two columns disagree, and they are answering different questions. `decode_expand` costs the most per
+byte of input while carrying one of the better ratios; plain `encode` is the cheapest per byte and has
+the worst ratio. **Use ms/MB to choose a target and the ratio to report parity** — a ratio moves when
+either program moves.
+
+## The previous reference run (2026-09-23, `9ae2f2e`, before the nine levers)
+
+`results/2026-09-23-final-9ae2f2e/`. Kept because the run above is measured against it.
 
 `results/2026-09-23-final-9ae2f2e/`. Arms: `toon_rust` `694d73b` at `opt-level=z` (the pinned oracle) and at
 `opt-level=3`; the port built from a clean `git archive` export of `9ae2f2e` (EXP-007 + EXP-012 + the R16-1

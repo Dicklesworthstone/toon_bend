@@ -709,6 +709,35 @@ dot. A dotless object's VALUES may still nest arbitrarily deep, so the walk cann
 map building and the reassembly may be. A lever that skips the descent would accept a document the
 original rejects, and those two laws are what would catch it.
 
+### The bisect, done before building (2026-09-23, NE-033's rule)
+
+NE-033 cost a lever because I attributed a measured cost to the wrong half. So the 605M was split
+between expansion's two halves before any code was written, from the same cachegrind run:
+
+| half | named instructions |
+|---|---|
+| `x.norm` and its continuations (reassembly) | **89.4M** |
+| `field.ins` (insertion into the map) | 15.1M |
+| `expand` itself | 7.3M |
+
+Reassembly is about **six times** the insertion cost, and NE-027 already proved it is not the
+pass-through rebuild (0.11%). What remains is the `XObj` arm —
+`XLeaf{J.JObj{x.entries(keys, x.norm(map), J.JNil{})}}` — which walks the insertion-order key list and
+performs **one balanced-tree lookup per key**: 23,143 lookups on `citm_catalog.fold.toon`. That is the
+target, and it is named precisely now.
+
+**The bisect also raised the lever's cost.** `lit.ins` is
+`merge.all(J.JECons{k, False{}, v, J.JNil{}}, obj, strict, left)`, so a plain non-dotted key goes
+through the SAME merge machinery as a dotted one — the machinery that implements duplicate merging,
+conflicts, strict-mode errors and the S6.42 first-insertion order. Bypassing it for a dotless object
+needs duplicate detection of its own (the `qs` set is quoted keys only, not all keys), and any error
+there changes observable behaviour on the ~100 expansion goldens and must still satisfy
+`expansion_cap_on_values` and `expansion_cap_on_merges`.
+
+So this is not the small reshape the card first implied. It is a change to the merge path, and it
+**overlaps a lever the peer session is building** — a cheap duplicate check for small objects, which is the
+same machinery approached from the other side; its card lands with their push. Held for that reason, not for lack of evidence.
+
 ### Precommitted gate
 
 - **Primary (counted):** ≥ 10% fewer instructions on

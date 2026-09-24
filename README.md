@@ -158,12 +158,17 @@ is reported as a MEASURED time on the current tree:
   decode 3.31×, worst `canada` encode 13.22× (111080 doubles through a software binary64: Bend has no `f64`). Tree of
   `5511a8a`, 2026-09-23, `perf/evidence/COUNTED.e2e-corpus.5511a8a.json`. Instruction counts see no cache miss and no
   memory latency: this is work, not seconds.
-- **Time**: the last wall-clock run whose cells passed the cv gate is the quiet-host run of the tree of `9ae2f2e`
-  (2026-09-23, 72 MEASURED cells of 204); its ratios against both builds of the original are in `perf/e2e/README.md`,
-  "Results". It predates the allocation levers below, and no later wall-clock run on this shared host has passed the
-  gate, so no time ratio is claimed for the current tree.
+- **Time, MEASURED**: the reference wall-clock run is the quiet-host run of the tree of `2c33e64` (2026-09-24, 204
+  cells, every one byte-identical across the port and both builds of the original; the cells whose every arm passed the
+  cv gate are the MEASURED ones), with its ratios against both builds and the levers' corpus-wide effect in wall time
+  against the previous reference run, in `perf/e2e/README.md`, "Results — THE REFERENCE RUN". That tree carries the
+  allocation levers up to EXP-027; EXP-029, 031 and 032 came after it and are COUNTED only. The counted figure above
+  and this measured one are independent: different cells (12 against 204) and different currencies (instructions
+  against seconds), so their closeness corroborates nothing. The per-lever ratios in the table below are for one
+  document and one mode each; the corpus-wide effect is smaller because many documents give the levers less to remove.
 - **Memory**: linear in the input and several times the original's per input byte, higher for number-heavy input;
-  the figures and the ceiling they imply (a MEMORY ceiling, not a time one) are in `perf/e2e/README.md`, "Memory".
+  the copy-removing levers also cut peak memory (they stopped holding the document in several list forms at once).
+  The figures and the ceiling they imply (a MEMORY ceiling, not a time one) are in `perf/e2e/README.md`, "Memory".
 
 Every RATIO here is a capture by `scripts/incumbent-bench.sh`: AB/BA pairs, medians, a cv gate of 5 percent per arm (a capture above it is REFUSED and gives no ratio), identical stdout and stderr in every sample. Two columns are NOT such captures and say so: the earlier build's single timed runs in the second table, and the round 7 timings quoted below it. No row is admitted to `perf/PERF-LEDGER.md` yet; everything measured so far is provisional or a loss, and each has its entry (`perf/NEGATIVE-EVIDENCE.md` NE-001 to NE-007; NE-007 is EXP-005, a lever whose capture the cv gate refused and whose source was reverted, so it adds no row to any table here). Host: AMD EPYC-Milan, 8 cores, Linux, shared with other agents' work; 1 thread; bend 2.0.16, clang 21.1.8; 2026-09-20. The JSON lines are in `perf/evidence/`, the cards in `perf/EXPERIMENTS.md`.
 

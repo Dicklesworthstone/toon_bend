@@ -94,6 +94,12 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(encode_fraction_trailing_zeros_quoted|is_like_zero_in_phase_4_)", ["encoder primitives"]),
  (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
  (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
+ # round 22 (R22-4): the JSON reader's `\b` and `\f`; a `_`-initial bare key; a short row in header order; an array
+ # of objects that is itself a list item (S4.42)
+ (r"encode_json_backspace_and_form_feed_escapes$", ["JSON text input"]),
+ (r"encode_underscore_initial_keys_are_bare$", ["encoder primitives"]),
+ (r"encode_short_row_in_header_order_is_list_form$", ["array headers, joins"]),
+ (r"encode_array_of_objects_as_list_item_is_list_form$", ["list items in every shape"]),
  # round 21 (R21-1, R21-4): tabular decisions on reordered, empty and short rows; the JSON reader's `\/`
  (r"(encode_reordered_row_with_nested_(object|array)_is_list_form|encode_array_of_empty_objects_is_list_form"
   r"|encode_row_missing_a_header_key_is_list_form)$", ["array headers, joins"]),

@@ -25,7 +25,9 @@
 #   M15 a round whose `fixed` is under its finding count   -> converge.sh names the unfixed finding (R21-2)
 #   M16 a COUNTED file citing an unreachable commit under "tree" -> claims-audit.py FINDINGS (R21-3)
 #   M17 a COUNTED file that is not parseable JSON          -> claims-audit.py FINDINGS (R21-3)
-# M14 and M15 assert on converge.sh's MESSAGE, not its exit code: the gate is
+#   M18 a non-author round with no review report          -> converge.sh names it (R22-1)
+#   M19 a round's counted rows re-spelled `Medium | Behaviour` -> converge.sh names the count (R22-2)
+# M14, M15, M18 and M19 assert on converge.sh's MESSAGE, not its exit code: the gate is
 # legitimately NOT_CONVERGED on the clean tree, so an exit-code mutation test
 # would report UNTESTABLE and prove nothing. Each requires its phrase to be
 # ABSENT on the clean copy and PRESENT after the mutation, so a phrase that was
@@ -579,11 +581,33 @@ if [[ -f scripts/converge.sh ]]; then
   sed 's/^| 18 \(.*\)| 5 | 5 | no |/| 18 \1| 5 | 1 | no |/' docs/PORT_STATE.md >"$D/docs/PORT_STATE.md"
   expect_says M15_unfixed_finding 'round 18: 4 of 5 finding' "$D" \
     scripts/converge.sh docs/PORT_STATE.md
+  # M18 a round labelled non-author with no report behind it (R22-1): two such rows printed CONVERGED.
+  D="$(copy m18)"
+  awk '/^\| [0-9]+ \| / {last=NR; num=$2} {line[NR]=$0} END {for (i=1;i<=NR;i++) {print line[i]; if (i==last) print "| " num+1 " | non-author hostile review (subagent): harness-selftest M18 (non-author) | 0 | 0 | yes | 2026-09-24 |"}}' \
+    docs/PORT_STATE.md >"$D/docs/PORT_STATE.md"
+  expect_says M18_round_without_report 'is labelled non-author but has no report' "$D" \
+    scripts/converge.sh docs/PORT_STATE.md
+  # M19 a round from 20 recorded 0 | 0 | yes while its report's counted rows are re-spelled `Medium | Behaviour`
+  # (R22-2: the first check was case-sensitive and read the words anywhere in the row).
+  if [[ -f docs/reviews/round-21.md ]]; then
+    D="$(copy m19)"
+    sed 's/^\(| 21 | .*\)| 2 | 2 | no |/\1| 0 | 0 | yes |/' docs/PORT_STATE.md >"$D/docs/PORT_STATE.md"
+    sed 's/^| R21-\([0-9]*\) | MEDIUM | BEHAVIOR/| R21-\1 | Medium | Behaviour/' docs/reviews/round-21.md >"$D/docs/reviews/round-21.md"
+    expect_says M19_counted_rows_respelled 'round 21: the table says 0 counted finding' "$D" \
+      scripts/converge.sh docs/PORT_STATE.md
+  else
+    echo "UNTESTABLE M19_counted_rows_respelled docs/reviews/round-21.md is not in this port"
+    n=$((n+1)); untestable+=(M19_counted_rows_respelled)
+  fi
 else
   echo "UNTESTABLE M14_clean_with_findings   scripts/converge.sh is not in this port"
   n=$((n+1)); untestable+=(M14_clean_with_findings)
   echo "UNTESTABLE M15_unfixed_finding      scripts/converge.sh is not in this port"
   n=$((n+1)); untestable+=(M15_unfixed_finding)
+  echo "UNTESTABLE M18_round_without_report scripts/converge.sh is not in this port"
+  n=$((n+1)); untestable+=(M18_round_without_report)
+  echo "UNTESTABLE M19_counted_rows_respelled scripts/converge.sh is not in this port"
+  n=$((n+1)); untestable+=(M19_counted_rows_respelled)
 fi
 
 # M16/M17 round 21's R21-3: a COUNTED evidence file citing a commit no history contains must be found

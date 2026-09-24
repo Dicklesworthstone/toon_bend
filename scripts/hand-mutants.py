@@ -116,7 +116,7 @@ MUTANTS = [
   "the JSON escape `\\b` reads as FF (R22-4, V7)"),
  ("M56", "json.bend", "U32.is_eq(b, 102), 5n,", "U32.is_eq(b, 102), 0n,", "the JSON reader rejects the escape `\\f` (R22-4, V8)"),
  ("M57", "text.bend", "U32.is_le(c, 90)), U32.is_eq(c, 95)))", "U32.is_le(c, 90)), False{}))", "`_` can no longer start a bare key (R22-4, V10)"),
- ("M58", "encode.bend", "    case Nil{} J.JECons{key, q, v, t} True{}:\n      0n\n", "    case Nil{} J.JECons{key, q, v, t} True{}:\n      Bool.pick(Nat, prim, 1n, 2n)\n",
+ ("M58", "encode.bend", "    case Con{k, rest} other True{}:\n      0n\n", "    case Con{k, rest} other True{}:\n      Bool.pick(Nat, prim, 1n, 2n)\n",
   "a row shorter than the header, in header order, passes the lockstep test (R22-4, V14)"),
  ("M59", "encode.bend", "    case False{} False{} True{} True{}:\n", "    case False{} False{} True{} _:\n",
   "an array of objects that is a list item may be tabular (R22-4, V25)"),

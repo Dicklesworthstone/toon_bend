@@ -13,10 +13,10 @@
   "stdout_sha256_16": "76154d48b602f871"
  },
  "after": {
-  "commit": "84acaee",
-  "instructions": 11015737330,
+  "commit": "6d48fcf",
+  "instructions": 10930199115,
   "stdout_sha256_16": "76154d48b602f871"
  },
- "ratio": 1.1552596719370032,
+ "ratio": 1.1643005731282143,
  "note": "instruction counts, not times: deterministic, blind to cache misses and allocation latency; never a MEASURED ratio"
 }

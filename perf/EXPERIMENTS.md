@@ -1248,10 +1248,10 @@ identical; `gsoc_2018` and `canada` not worse by more than 0.5%; conform c-1t wi
 `convert` walks the input byte list twice in encode mode: `T.utf8.bytes` for the UTF-8 verdict (S2.2), then `J.read` for the value.
 The list has a later use when the first walk runs, so the emitted C keeps it (`term_keep`) and the decoder, which owns its argument,
 takes every shared cell apart: the frame-pointer tally of `span_fade` on `flights_200k --encode` (the binary of the EXP-029 code,
-`84acaee`) puts 9,863,892 of 64,361,865 calls in `CLI_CONVERT`, one per input byte (the file is 9.4 MB). Decode mode pays the same,
+`ac6ff70`) puts 9,863,892 of 64,361,865 calls in `CLI_CONVERT`, one per input byte (the file is 9.4 MB). Decode mode pays the same,
 because `convert` passes the bytes on to `convert.text`, which reads them only in encode mode. One walk that steps the decoder and
 the reader together owns an unshared list: no keep, no span_fade per byte, and one traversal instead of two. The instruction count
-of `--encode` on `flights_200k.json` at 1 thread falls by at least 2% against the binary of `84acaee`.
+of `--encode` on `flights_200k.json` at 1 thread falls by at least 2% against the binary of `ac6ff70`.
 
 ### Lever (one)
 `J.read.u(bytes, u, spec)`: one tail-recursive walk whose arms are `run`'s arms with `T.utf8.step(u, b)` beside each step; it returns
@@ -1264,7 +1264,7 @@ from the pinned original for invalid UTF-8 before, inside and after a JSON error
 inside a string and a key; corpus, fuzz (mutate, docs), stdio probes.
 
 ### Precommitted gate
-In INSTRUCTIONS (counted): ≥ 2% fewer than the binary of `84acaee` on `flights_200k.json` (`--encode`, `--threads 1`), stdout
+In INSTRUCTIONS (counted): ≥ 2% fewer than the binary of `ac6ff70` on `flights_200k.json` (`--encode`, `--threads 1`), stdout
 identical; `gsoc_2018` (encode and decode) and `canada` (encode) not worse by more than 0.5%; conform c-1t with and without
 `TOON_SPEC=1`; the proof green.
 
@@ -1285,16 +1285,16 @@ identical; `gsoc_2018` (encode and decode) and `canada` (encode) not worse by mo
 list is kept alive through the whole decoding and the UTF-8 decoder takes shared cells apart. NE-034 counted the decode cells of a
 lever that also removed this (gsoc 19.56%, flights 3.90%, canada 5.27% fewer), but its card did not gate them. This card tests the
 decode half ALONE, on inputs that count never ran: the instruction count of `--decode` on the e2e corpus's `semanticscholar.toon`
-at 1 thread falls by at least 5% against the binary of `84acaee`.
+at 1 thread falls by at least 5% against the binary of `ac6ff70`.
 
 ### Lever (one)
 `convert` decides the mode first. Decode: `convert.text` receives the decoder's verdict and the options, not the bytes. Encode: the
-code of `84acaee` unchanged (the UTF-8 walk, then `J.read` over the mark-dropped bytes). Laws: the existing goldens through
+code of `ac6ff70` unchanged (the UTF-8 walk, then `J.read` over the mark-dropped bytes). Laws: the existing goldens through
 `run_pure` for decode (invalid UTF-8, a mark, `--stats`), plus closed goldens from the pinned original for an invalid byte after a
 decode error and a truncated sequence at the end of a TOON text.
 
 ### Precommitted gate
-In INSTRUCTIONS (counted), stdout identical: ≥ 5% fewer than the binary of `84acaee` on `semanticscholar.toon --decode`;
+In INSTRUCTIONS (counted), stdout identical: ≥ 5% fewer than the binary of `ac6ff70` on `semanticscholar.toon --decode`;
 `twitter.toon`, `citm_catalog.toon` and `openapi_github.toon` `--decode` not worse by more than 0.5% (a prediction of their
 direction, not a gate: fewer); the encode cells `gsoc_2018`, `flights_200k`, `canada` not worse by more than 0.5%; conform c-1t
 with and without `TOON_SPEC=1`; the proof green.
@@ -1318,7 +1318,7 @@ on the e2e corpus's `semanticscholar.json` (never counted by EXP-030 or EXP-031)
 binary of the EXP-031 code.
 
 ### Lever (one)
-NE-034's code, unchanged in substance, on top of EXP-031: `J.run.u` / `J.read.u` and the quantified law `run_u_is_both`, the five
+NE-034's code, unchanged in substance, on top of EXP-031: `J.run.u` / `J.read.u` and the quantified law its quantified law (withdrawn with the revert, NE-036), the five
 closed goldens of NE-034; the encode arm of `convert.mode` runs `J.read.u` over the mark-dropped bytes and `convert.enc` decides the
 UTF-8 verdict first.
 

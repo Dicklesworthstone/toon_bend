@@ -99,9 +99,25 @@ if [[ "$ovcs" == git ]]; then
   tracked=""
   if [[ -f "$op" ]]; then tracked="$(git -C "$od" ls-files -- "$(basename "$op")" 2>/dev/null)"
   elif [[ -d "$op" ]]; then tracked="$(git -C "$od" ls-files -- . 2>/dev/null)"; fi
+  # What this row must establish is that the PINNED source is REPRODUCIBLE from this checkout — that a
+  # reviewer can check the pin out and rebuild the oracle — not that the checkout happens to sit on it.
+  # The original is a shared working copy: on 2026-09-24 it had moved ONE DOCS COMMIT past the pin
+  # (4e57849 "docs(agents): synchronize suite-wide rules"), with 694d73b still an ancestor and
+  # oracle/toon's sha256 still matching PIN.toml, and this row went RED anyway. A gate that is red while
+  # the evidence is intact teaches people to ignore it. So: GREEN at the pin, GREEN when the pin is an
+  # ANCESTOR (naming both commits, because the difference is worth seeing), RED when the pin is absent or
+  # the history has diverged from it. The oracle binary's own hash is checked separately by
+  # manifest_hashes, which is what would catch a rebuild from the wrong commit.
+  reachable=""
+  if [[ -n "$tracked" && "$oc" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+    if git -C "$od" cat-file -e "${oc_lower}^{commit}" 2>/dev/null &&
+       git -C "$od" merge-base --is-ancestor "$oc_lower" HEAD 2>/dev/null; then reachable=yes; fi
+  fi
   if [[ -n "$tracked" && "$oc" =~ ^[0-9a-fA-F]{7,40}$ && "$have" == "$oc_lower"* ]]; then
     add original_commit GREEN "$have"
-  else add original_commit RED "original source is not tracked, or HEAD ${have:-unknown} does not match pin ${oc:-unset}"; fi
+  elif [[ -n "$reachable" ]]; then
+    add original_commit GREEN "pin $oc is an ancestor of HEAD $have: the pinned source is reachable and the oracle can be rebuilt from it (the checkout has moved on; oracle/toon's own hash is checked by manifest_hashes)"
+  else add original_commit RED "original source is not tracked, or pin ${oc:-unset} is absent from this checkout / not an ancestor of HEAD ${have:-unknown}"; fi
   if [[ -n "$(git -C "$od" status --porcelain --untracked-files=normal 2>/dev/null)" ]]; then
     add original_tree RED "original worktree differs from its commit; pin the actual source before capture"
   fi

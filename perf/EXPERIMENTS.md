@@ -1298,3 +1298,31 @@ In INSTRUCTIONS (counted), stdout identical: ≥ 5% fewer than the binary of `d5
 `twitter.toon`, `citm_catalog.toon` and `openapi_github.toon` `--decode` not worse by more than 0.5% (a prediction of their
 direction, not a gate: fewer); the encode cells `gsoc_2018`, `flights_200k`, `canada` not worse by more than 0.5%; conform c-1t
 with and without `TOON_SPEC=1`; the proof green.
+
+## EXP-032 — on top of EXP-031, encoding reads the input bytes once (NE-034's fused walk, retried)
+
+| field | value |
+|---|---|
+| experiment_id | EXP-032 |
+| program / def | `port/json.bend` / `run.u`, `read.u` (S2.4, S2.45); `port/cli.bend` / `convert.mode`'s encode arm, `convert.enc` (S8.7) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | NE-034 (EXP-030, NEUTRAL: 1.18% on `flights_200k --encode` against a 2% gate); its retry predicate "EXP-031 is kept and a new count of the fused encode walk ON TOP of it clears a new card's gate" now holds (NE-035) |
+| status | CARDED |
+| precommitted | true |
+
+### Hypothesis
+After EXP-031 the encode arm alone still walks the bytes twice with the list shared, and its UTF-8 walk costs about 7 more
+instructions per byte than before (bead `toon_bend-1yf`). NE-034's fused walk removes that walk. The instruction count of `--encode`
+on `perf/e2e/corpus/semanticscholar.json` (never counted by EXP-030 or EXP-031) at 1 thread falls by at least 1.5% against the
+binary of the EXP-031 code.
+
+### Lever (one)
+NE-034's code, unchanged in substance, on top of EXP-031: `J.run.u` / `J.read.u` and the quantified law `run_u_is_both`, the five
+closed goldens of NE-034; the encode arm of `convert.mode` runs `J.read.u` over the mark-dropped bytes and `convert.enc` decides the
+UTF-8 verdict first.
+
+### Precommitted gate
+In INSTRUCTIONS (counted), stdout identical: ≥ 1.5% fewer than the EXP-031 binary on `semanticscholar.json --encode`;
+`gsoc_2018`, `flights_200k`, `canada` `--encode` not worse by more than 0.5% (predicted fewer); `semanticscholar.toon` and
+`gsoc_2018.toon` `--decode` not worse by more than 0.5%; conform c-1t with and without `TOON_SPEC=1`; the proof green.

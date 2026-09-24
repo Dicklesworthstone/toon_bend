@@ -55,6 +55,18 @@ Outcome taxonomy (closed set):
   device dispatch for a GPU claim. Compiled value-main does use the native
   runtime; quotas/cache events require diagnosis, not automatic VOID.
 
+**COUNTED deltas across builds (2026-09-23, bead `toon_bend-2ul`).** A cachegrind count is deterministic run to run
+(about 1e-8) but not build to build: clang decides per binary whether a small emitted loop (an `INLINE spin_N`) is
+inlined into the big worklist function that calls it, and the same loop costs a different number of instructions in the
+two places. Measured on unchanged Bend code: the decode arm's UTF-8 walk counts 34.3M instructions inlined into
+`WL_FID_CLI_CONVERT` in the EXP-032 binary against about 22M as its own `spin_` in the EXP-031 binary (`twitter.toon
+--decode`, +12.3M of the cell's +13.0M, +1.84%); the encode arm's walk went the other way between `d5483e5` and EXP-031
+(163.1M inlined against 186.4M as a spin, gsoc encode, +0.80%). Nothing in the Bend source predicts which way it falls: it
+changes when a def gains or loses a call site. Rule: a counted difference below about 2% between two builds is
+attributed to a lever only after a per-function comparison (`cg_annotate` of both, renamed `spin_N` matched by count);
+otherwise it is reported as a build-to-build difference, not as the lever's cost or gain. NE-035's and NE-036's guard
+failures are this effect on code the levers did not change.
+
 ---
 
 ## Entry template

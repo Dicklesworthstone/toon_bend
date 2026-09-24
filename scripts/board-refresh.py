@@ -92,11 +92,17 @@ RULES = [  # (regex on the law name, rows) — first match wins
  # round 19 (R19-1..4): the numeric-like quoting of a trailing fraction zero, a final CR without LF, a byte order mark
  # after the first line, an escaped quote before a colon in a quoted cell
  (r"(encode_fraction_trailing_zeros_quoted|is_like_zero_in_phase_4_)", ["encoder primitives"]),
+ (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
+ (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
+ # round 21 (R21-1, R21-4): tabular decisions on reordered, empty and short rows; the JSON reader's `\/`
+ (r"(encode_reordered_row_with_nested_(object|array)_is_list_form|encode_array_of_empty_objects_is_list_form"
+  r"|encode_row_missing_a_header_key_is_list_form)$", ["array headers, joins"]),
+ (r"encode_escaped_solidus_reads_as_slash$", ["JSON text input"]),
+ (r"(encode_close_bracket_quote_backslash_force_quotes|encode_signed_exponents_and_zero_mantissa_quoted"
+  r"|encode_null_true_false_strings_quoted)$", ["encoder primitives"]),
  # round 20 (R20-3): brackets and braces, edge whitespace, exponents with a 0, a digit after a leading 0
  (r"(encode_brackets_and_braces_force_quotes|encode_edge_whitespace_forces_quotes|encode_exponents_and_signed_integers_quoted"
   r"|encode_leading_zero_digits_quoted|is_like_exponent_|is_like_signed_integer|is_like_leading_zero_then_digit)$", ["encoder primitives"]),
- (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
- (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
  # EXP-029: repeated keys in small and large JSON objects, around the member that builds the key set
  (r"(encode_repeated_key_)", ["JSON text input"]),
  # round 18 (R18-2..5): delimited values with an escaped quote, the first bad escape, FF before a quoted key,

@@ -152,6 +152,7 @@ encstr_root_bool	["--encode"]	cases/inputs/hand/encstr_root_bool.json	enc-string
 encstr_long	["--encode"]	cases/inputs/hand/encstr_long.json	enc-string	
 encstr_duplicate_keys	["--encode"]	cases/inputs/hand/encstr_duplicate_keys.json	enc-string	IndexMap: last value, first position
 encstr_duplicate_keys_after_the_set_is_built	["--encode"]	cases/inputs/hand/encstr_duplicate_keys_after_the_set_is_built.json	enc-string	EXP-029: the member that builds the key set, repeated
+enc_reordered_row_with_nested_values_is_list_form	["--encode"]	cases/inputs/hand/enc_reordered_row_with_nested_values_is_list_form.json	enc-string	S4.36: a reordered row with an object or array value is not tabular
 encstr_whitespace_json	["--encode"]	cases/inputs/hand/encstr_whitespace_json.json	enc-string	
 encstr_no_trailing_newline	["--encode"]	cases/inputs/hand/encstr_no_trailing_newline.json	enc-string	
 enc_shapes_mixed	["--encode"]	cases/inputs/hand/enc_shapes_mixed.json	enc-string	

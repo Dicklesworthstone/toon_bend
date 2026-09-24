@@ -2507,3 +2507,35 @@ def Laws.encode_leading_zero_digits_quoted():
 # S4.161 closed: computed (round 20)
 def Laws.is_like_leading_zero_then_digit():
   {==}
+
+# S4.36 closed: the whole pure core computed (round 21)
+def Laws.encode_reordered_row_with_nested_object_is_list_form():
+  {==}
+
+# S4.36 closed: the whole pure core computed (round 21)
+def Laws.encode_reordered_row_with_nested_array_is_list_form():
+  {==}
+
+# S4.14 closed: the whole pure core computed (round 21)
+def Laws.encode_close_bracket_quote_backslash_force_quotes():
+  {==}
+
+# S4.161 closed: the whole pure core computed (round 21)
+def Laws.encode_signed_exponents_and_zero_mantissa_quoted():
+  {==}
+
+# S4.35 closed: the whole pure core computed (round 21)
+def Laws.encode_array_of_empty_objects_is_list_form():
+  {==}
+
+# S4.36 closed: the whole pure core computed (round 21)
+def Laws.encode_row_missing_a_header_key_is_list_form():
+  {==}
+
+# S2.18 closed: the whole pure core computed (round 21)
+def Laws.encode_escaped_solidus_reads_as_slash():
+  {==}
+
+# S4.9 closed: the whole pure core computed (round 21)
+def Laws.encode_null_true_false_strings_quoted():
+  {==}

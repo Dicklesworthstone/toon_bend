@@ -13,7 +13,7 @@ rows, folding, expansion and repeated keys (about a third of the laws, about 3 m
 usage: python3 scripts/hand-mutants.py [--all-laws] [M01 M05 ...]
 exit: 0 every mutant KILLED, 1 otherwise. Last stdout line: JSON summary. Temp copies are kept (path printed).
 
-The set holds 34 mutants and the ids run M01..M12 and M14..M35: `M13` is a numbering slip that was never
+The ids run from M01 with one gap: `M13` is a numbering slip that was never
 defined (`git log -S M13 -- scripts/hand-mutants.py` is empty), NOT a mutant that was removed for being
 INVALID. Count the set with `len(MUTANTS)`, never by reading the highest id.
 """
@@ -97,6 +97,21 @@ MUTANTS = [
  ("M42", "encode.bend", "Bool.or(T.has_edge_ws(s),", "Bool.or(False{},", "whitespace at an edge no longer forces quotes (R20-3, N12)"),
  ("M43", "f64.bend", "    case 7n 0n:\n      7n\n", "    case 7n 0n:\n      8n\n", "an exponent digit 0 leaves the numeric-like lexer (R20-3, P5)"),
  ("M44", "f64.bend", "    case 1n 1n:\n      2n\n", "    case 1n 1n:\n      8n\n", "a digit after a leading 0 leaves the numeric-like lexer (R20-3, P8)"),
+ # round 21 (R21-1, R21-4): sites no mutant of this inventory reached; each is killed by the law written for it
+ ("M45", "encode.bend", "      prim\n", "      True{}\n",
+  "has_prim.go says a key holds a primitive when it holds an object or array, so a reordered row with one goes tabular (R21-1)"),
+ ("M46", "encode.bend", "Bool.or(U32.is_eq(c, 34),", "Bool.or(False{},", "`\"` no longer forces quotes (R21-4, Q1)"),
+ ("M47", "encode.bend", "Bool.or(U32.is_eq(c, 92),", "Bool.or(False{},", "`\\` no longer forces quotes (R21-4, Q2)"),
+ ("M48", "encode.bend", "Bool.or(U32.is_eq(c, 93),", "Bool.or(False{},", "`]` no longer forces quotes (R21-4, Q3)"),
+ ("M49", "f64.bend", "    case 6n 0n:\n      7n\n", "    case 6n 0n:\n      8n\n", "an exponent after its sign leaves the numeric-like lexer (R21-4, L60)"),
+ ("M50", "f64.bend", "    case 1n 3n:\n      5n\n", "    case 1n 3n:\n      8n\n", "an exponent after a leading 0 leaves the numeric-like lexer (R21-4, L13)"),
+ ("M51", "encode.bend", "vk.tab.if(Bool.and(Bool.not(Nat.is_eq(hn, 0n)),", "vk.tab.if(Bool.and(True{},",
+  "an array of empty objects is written as a table with an empty header (R21-4, R6)"),
+ ("M52", "encode.bend", "      has_prim.go(t, k, T.str_eq(key, k), is_prim(v))\n    case _ False{}:\n      False{}\n",
+  "      has_prim.go(t, k, T.str_eq(key, k), is_prim(v))\n    case _ False{}:\n      True{}\n",
+  "has_prim.go treats a header key missing from a row as present (R21-4, R16)"),
+ ("M53", "json.bend", "Bool.pick(Nat, U32.is_eq(b, 47), 3n,", "Bool.pick(Nat, U32.is_eq(b, 47), 0n,", "the JSON reader rejects the escape `\\/` (R21-4, R12)"),
+ ("M54", "encode.bend", 'T.str_eq(s, "null"))', "False{})", "the string null is no longer a word that needs quotes (R21-4, Q7)"),
 ]
 
 def reduced(laws_text, proof_text):

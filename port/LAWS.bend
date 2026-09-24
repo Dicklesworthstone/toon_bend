@@ -2698,3 +2698,33 @@ law encode_leading_zero_digits_quoted:
 
 law is_like_leading_zero_then_digit:
   {F.is_like("01") == F.is_like.lex("01") : Bool}
+
+# Round 21 (R21-1, R21-4): behaviours whose hand mutants the corpus caught (or, for R21-1, did not) and no law did, pinned
+# with bytes from the pinned original. R21-1 (S4.36): a later row that lists the header's keys in another order and holds an
+# object or an array under one of them sends the array to list form (mutant R5: has_prim.go's arm returning True wrote it as
+# a table with `null`). R21-4: `]`, `"` and `\` force quotes (Q1-Q3); signed exponents and a 0 mantissa are numeric-like
+# (L60, L13: like.ph (6,0), (1,3)); an array of empty objects is not tabular (R6: vk.tab's empty-header test); a row missing
+# a header key is list form (R16); `\/` reads as `/` (R12); the strings null, true and false are quoted (Q7)
+law encode_reordered_row_with_nested_object_is_list_form:
+  {C.run_pure(["--encode"], T.ascii_bytes("[{\"a\":1,\"b\":2},{\"b\":{\"x\":1},\"a\":3}]", Nil{})) == C.Out{0n, "[2]:\n  - a: 1\n    b: 2\n  - b:\n      x: 1\n    a: 3\n", ""} : C.Out}
+
+law encode_reordered_row_with_nested_array_is_list_form:
+  {C.run_pure(["--encode"], T.ascii_bytes("[{\"a\":1,\"b\":2},{\"b\":[1],\"a\":3}]", Nil{})) == C.Out{0n, "[2]:\n  - a: 1\n    b: 2\n  - b[1]: 1\n    a: 3\n", ""} : C.Out}
+
+law encode_close_bracket_quote_backslash_force_quotes:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"a]b\",\"]\",\"a\\\"b\",\"a\\\\b\"]", Nil{})) == C.Out{0n, "[4]: \"a]b\",\"]\",\"a\\\"b\",\"a\\\\b\"\n", ""} : C.Out}
+
+law encode_signed_exponents_and_zero_mantissa_quoted:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"1e+0\",\"1e-05\",\"0e5\"]", Nil{})) == C.Out{0n, "[3]: \"1e+0\",\"1e-05\",\"0e5\"\n", ""} : C.Out}
+
+law encode_array_of_empty_objects_is_list_form:
+  {C.run_pure(["--encode"], T.ascii_bytes("[{},{}]", Nil{})) == C.Out{0n, "[2]:\n  -\n  -\n", ""} : C.Out}
+
+law encode_row_missing_a_header_key_is_list_form:
+  {C.run_pure(["--encode"], T.ascii_bytes("[{\"a\":1,\"b\":2},{\"c\":3,\"a\":4}]", Nil{})) == C.Out{0n, "[2]:\n  - a: 1\n    b: 2\n  - c: 3\n    a: 4\n", ""} : C.Out}
+
+law encode_escaped_solidus_reads_as_slash:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"a\\/b\"]", Nil{})) == C.Out{0n, "[1]: a/b\n", ""} : C.Out}
+
+law encode_null_true_false_strings_quoted:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"null\",\"true\",\"false\"]", Nil{})) == C.Out{0n, "[3]: \"null\",\"true\",\"false\"\n", ""} : C.Out}

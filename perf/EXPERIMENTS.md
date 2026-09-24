@@ -1209,14 +1209,14 @@ levers removed was cheap instructions and part of what remains is memory traffic
 | program / def | `port/json.bend` / `push`'s object arm, `obj.member` (S2.28, S2.29); `port/text.bend` / `kt.is_empty` |
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
-| graveyard sweep | `rg -i 'kt\|key table\|repeated\|16000' perf/NEGATIVE-EVIDENCE.md` → NE-004 (EXP-004: the key table replaced a walk of the chain per key, which made one object of 16000 keys take 20.5 s). This lever keeps that protection: the walk is used only while the object has fewer than 8 members, and the table is built once when the 8th arrives |
+| graveyard sweep | `rg -i 'kt\|key table\|repeated\|16000' perf/NEGATIVE-EVIDENCE.md` → NE-004 (EXP-004: the key table replaced a walk of the chain per key, which made one object of 16000 keys take 20.5 s). This lever keeps that protection: the walk is used only while the object has at most 8 members, and the table is built once when the 9th arrives (round 20's R20-4 corrected "fewer than 8" and "the 8th") |
 | status | COUNTED_WIN 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-032): 12.5% fewer instructions on `flights_200k --encode` against `3a6f7f6` (gate 5%); `gsoc_2018` 3.2% fewer, `canada` +0.007% (allowance 0.5%); CPU confirmation on a quiet host pending |
 | precommitted | true |
 
 ### Hypothesis
 Every member of every JSON object is looked up in and inserted into `T.KT`, a binary trie over 16 hash bits: the key is hashed twice
 and each insertion copies a path of up to 16 nodes. `flights_200k` has 200000 objects of 3 keys; the allocation profile puts about 17M
-list-cell wraps under `KT_PUT_GO` there. For an object of fewer than 8 members the chain itself answers "is this key already here"
+list-cell wraps under `KT_PUT_GO` there. For an object of at most 8 members (round 20's R20-4: the key set is built when the 9th joins) the chain itself answers "is this key already here"
 (it holds each key once, the same set the table holds) by a walk of at most 7 comparisons that allocates nothing. The instruction
 count of `--encode` on `flights_200k.json` at 1 thread falls by at least 5% against the binary of `3a6f7f6`.
 

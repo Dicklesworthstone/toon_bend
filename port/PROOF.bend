@@ -2463,3 +2463,47 @@ def Laws.encode_stats_after_mark():
 # S8.7 closed: the whole pure core computed (EXP-031/032)
 def Laws.encode_stats_two_marks_is_json_error():
   {==}
+
+# S2.28 closed: the whole pure core computed (round 20)
+def Laws.encode_repeated_key_the_member_that_builds_the_set():
+  {==}
+
+# S2.28 closed: the whole pure core computed (round 20)
+def Laws.encode_repeated_key_the_builder_and_the_next():
+  {==}
+
+# S2.28 closed: the whole pure core computed (round 20)
+def Laws.encode_repeated_key_the_builder_nested():
+  {==}
+
+# S4.14 closed: the whole pure core computed (round 20)
+def Laws.encode_brackets_and_braces_force_quotes():
+  {==}
+
+# S4.8 closed: the whole pure core computed (round 20)
+def Laws.encode_edge_whitespace_forces_quotes():
+  {==}
+
+# S4.161 closed: the whole pure core computed (round 20)
+def Laws.encode_exponents_and_signed_integers_quoted():
+  {==}
+
+# S4.161 closed: computed (round 20)
+def Laws.is_like_exponent_zero_digit():
+  {==}
+
+# S4.161 closed: computed (round 20)
+def Laws.is_like_exponent_ten():
+  {==}
+
+# S4.161 closed: computed (round 20)
+def Laws.is_like_signed_integer():
+  {==}
+
+# S4.161 closed: the whole pure core computed (round 20)
+def Laws.encode_leading_zero_digits_quoted():
+  {==}
+
+# S4.161 closed: computed (round 20)
+def Laws.is_like_leading_zero_then_digit():
+  {==}

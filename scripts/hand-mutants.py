@@ -86,6 +86,17 @@ MUTANTS = [
   "dec.ok(stats, J.write_ln(E.pre.if(spec, True{}, v), indent, spec), text)",
   "dec.ok(stats, J.write_ln(E.pre.if(spec, False{}, v), indent, spec), text)",
   "--decode renders its numbers with the TOON printer instead of the JSON one"),
+ # round 20 (R20-1, R20-3): sites no mutant of this inventory reached; each is killed by the law written for it
+ ("M38", "json.bend",
+  "def obj.member.small(short: Bool, key: String, v: Json, rev: Json, over: KM) -> Frame:\n  match short:\n    case True{}:\n      FObj{JECons{key, False{}, v, rev}, SNil{}, T.kt.empty(), over}\n    case False{}:\n      obj.member.grown(JECons{key, False{}, v, rev}, over)",
+  "def obj.member.small(short: Bool, key: String, v: Json, +rev: Json, over: KM) -> Frame:\n  match short:\n    case True{}:\n      FObj{JECons{key, False{}, v, rev}, SNil{}, T.kt.empty(), over}\n    case False{}:\n      FObj{JECons{key, False{}, v, rev}, SNil{}, kt.of_chain(rev, T.kt.empty()), over}",
+  "the key set built when the 9th member joins leaves that member out, so a later repeat of it is a second key (R20-1)"),
+ ("M39", "encode.bend", "Bool.or(U32.is_eq(c, 125),", "Bool.or(False{},", "`}` no longer forces quotes (R20-3, N8)"),
+ ("M40", "encode.bend", "Bool.or(U32.is_eq(c, 91),", "Bool.or(False{},", "`[` no longer forces quotes (R20-3, N9)"),
+ ("M41", "encode.bend", "Bool.or(U32.is_eq(c, 123),", "Bool.or(False{},", "`{` no longer forces quotes (R20-3, N10)"),
+ ("M42", "encode.bend", "Bool.or(T.has_edge_ws(s),", "Bool.or(False{},", "whitespace at an edge no longer forces quotes (R20-3, N12)"),
+ ("M43", "f64.bend", "    case 7n 0n:\n      7n\n", "    case 7n 0n:\n      8n\n", "an exponent digit 0 leaves the numeric-like lexer (R20-3, P5)"),
+ ("M44", "f64.bend", "    case 1n 1n:\n      2n\n", "    case 1n 1n:\n      8n\n", "a digit after a leading 0 leaves the numeric-like lexer (R20-3, P8)"),
 ]
 
 def reduced(laws_text, proof_text):
@@ -113,6 +124,7 @@ def run_proof(d):
         # shell, so there is no injection path: it names the compiler the operator chose to run.
         # UBS reports both as findings (python.taint.command critical, py.subprocess-no-check info) on this
         # file and on scripts/diff-fuzz.py; both are false positives for this design and predate this comment.
+        # ubs:ignore[python.taint.command] the operator's BEND_CLI as an argv list, no shell (bead toon_bend-vnb).
         r = subprocess.run(BEND + ["PROOF.bend"], cwd=d, capture_output=True, text=True, env=ENV, timeout=1200)
         return r.returncode, (r.stdout + r.stderr), time.time() - t
     except subprocess.TimeoutExpired:

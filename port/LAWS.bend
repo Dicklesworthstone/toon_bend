@@ -2576,7 +2576,9 @@ law decode_backslash_outside_quotes_in_fields:
   {C.run_pure(["--decode"], T.ascii_bytes("k[1]{a\\},b}:\n  1,2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Missing colon after key"} : C.Out}
 
 # S2.28, S2.29 (EXP-029) repeated keys in objects small and large: a repeat before, at and after the member that
-# builds the key set (the 8th), a repeat of the oldest key after it, nested small objects; bytes from the pinned original
+# builds the key set (said "the 8th"; it is the 9th: round 20's R20-4, so `_eight_members_repeat_at_the_switch` does not
+# reach the switch, and the R20-1 laws below do), a repeat of the oldest key after it, nested small objects; bytes from
+# the pinned original
 law encode_repeated_key_two_members_repeat_last:
   {C.run_pure(["--encode"], T.ascii_bytes("{\"k0\":0,\"k1\":1,\"k0\":99}", Nil{})) == C.Out{0n, "k0: 99\nk1: 1\n", ""} : C.Out}
 
@@ -2655,3 +2657,44 @@ law encode_stats_after_mark:
 
 law encode_stats_two_marks_is_json_error:
   {C.run_pure(["--encode", "--stats"], [239, 187, 191, 239, 187, 191, 123, 125]) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
+
+# Round 20 (R20-1, S2.28, S2.29): EXP-029 builds the key set when the 9th member joins (the chain already holds 8), and the
+# member that joins there must be IN the set: a later repeat of it takes the last value at its first position. Mutant N1
+# (the set built without the joining member) wrote `k8` twice and survived the corpus and the whole proof; bytes from the
+# pinned original. The second law repeats the joining member AND the next one; the third, the same inside a nested object.
+law encode_repeated_key_the_member_that_builds_the_set:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"k0\":0,\"k1\":1,\"k2\":2,\"k3\":3,\"k4\":4,\"k5\":5,\"k6\":6,\"k7\":7,\"k8\":8,\"k8\":99}", Nil{})) == C.Out{0n, "k0: 0\nk1: 1\nk2: 2\nk3: 3\nk4: 4\nk5: 5\nk6: 6\nk7: 7\nk8: 99\n", ""} : C.Out}
+
+law encode_repeated_key_the_builder_and_the_next:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"k0\":0,\"k1\":1,\"k2\":2,\"k3\":3,\"k4\":4,\"k5\":5,\"k6\":6,\"k7\":7,\"k8\":8,\"k9\":9,\"k8\":99,\"k9\":98}", Nil{})) == C.Out{0n, "k0: 0\nk1: 1\nk2: 2\nk3: 3\nk4: 4\nk5: 5\nk6: 6\nk7: 7\nk8: 99\nk9: 98\n", ""} : C.Out}
+
+law encode_repeated_key_the_builder_nested:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"a\":{\"k0\":0,\"k1\":1,\"k2\":2,\"k3\":3,\"k4\":4,\"k5\":5,\"k6\":6,\"k7\":7,\"k8\":8,\"k8\":\"x\"}}", Nil{})) == C.Out{0n, "a:\n  k0: 0\n  k1: 1\n  k2: 2\n  k3: 3\n  k4: 4\n  k5: 5\n  k6: 6\n  k7: 7\n  k8: x\n", ""} : C.Out}
+
+# Round 20 (R20-3): six hand mutants the corpus caught but no law did, pinned with bytes from the pinned original. S4.14: `}`,
+# `[` and `{` each force quotes, alone or inside a string (N8-N10); S4.8: whitespace at either edge forces quotes (N12);
+# S4.161: exponents with a 0 digit and signed integers are numeric-like (P5: phase 7 on class 0; P8: phase 1 on class 1)
+law encode_brackets_and_braces_force_quotes:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"a}b\",\"a[b\",\"a{b\",\"}\",\"[\",\"{\"]", Nil{})) == C.Out{0n, "[6]: \"a}b\",\"a[b\",\"a{b\",\"}\",\"[\",\"{\"\n", ""} : C.Out}
+
+law encode_edge_whitespace_forces_quotes:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"k\":\"x \",\"l\":\" y\",\"m\":\"\\tz\",\"n\":\"w\\u3000\"}", Nil{})) == C.Out{0n, "k: \"x \"\nl: \" y\"\nm: \"\\tz\"\nn: \"w　\"\n", ""} : C.Out}
+
+law encode_exponents_and_signed_integers_quoted:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"1e10\",\"1e0\",\"10e0\",\"1E05\",\"-1\",\"-10\",\"-0\",\"1\",\"0\"]", Nil{})) == C.Out{0n, "[9]: \"1e10\",\"1e0\",\"10e0\",\"1E05\",\"-1\",\"-10\",\"-0\",\"1\",\"0\"\n", ""} : C.Out}
+
+law is_like_exponent_zero_digit:
+  {F.is_like("1e0") == F.is_like.lex("1e0") : Bool}
+
+law is_like_exponent_ten:
+  {F.is_like("1e10") == F.is_like.lex("1e10") : Bool}
+
+law is_like_signed_integer:
+  {F.is_like("-10") == F.is_like.lex("-10") : Bool}
+
+# ... and S4.161's phase 1 (after a leading 0) on a nonzero digit (P8): a leading zero followed by digits is numeric-like
+law encode_leading_zero_digits_quoted:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"01\",\"-01\",\"012\",\"00\",\"0x\"]", Nil{})) == C.Out{0n, "[5]: \"01\",\"-01\",\"012\",\"00\",0x\n", ""} : C.Out}
+
+law is_like_leading_zero_then_digit:
+  {F.is_like("01") == F.is_like.lex("01") : Bool}

@@ -204,10 +204,26 @@ def facts():
     for name in sorted(os.listdir(evdir) if os.path.isdir(evdir) else []):
         if not (name.startswith("COUNTED.") and name.endswith(".json")):
             continue
+        # Round 19 (R19-5): six evidence files named `494ef82`, a scratch commit a rebase replaced, as the tree
+        # their "after" binary came from; the "tree of" rule reads documents only, so nothing caught it. Every
+        # commit a COUNTED file names must be one a reader can check out: in its "before"/"after" fields AND in
+        # its file name. Round 20 (R20-2): this block once sat, after an edit, inside the NEXT loop, where it read
+        # the last `j` of this one and checked a single file; it runs here for every file, before any parse can skip.
+        stem = name[:-len(".json")].split(".")[-1]
+        if re.fullmatch(r"[0-9a-f]{7,40}", stem) and not reachable(stem):
+            f.setdefault("counted_unreachable", []).append((name, "file name's", stem))
         try:
             j = json.loads(read(os.path.join("perf", "evidence", name)))
+        except ValueError:
+            continue
+        if isinstance(j, dict) and j.get("kind") == "counted":
+            for side in ("before", "after"):
+                rev = (j.get(side) or {}).get("commit") if isinstance(j.get(side), dict) else None
+                if rev and not reachable(rev):
+                    f.setdefault("counted_unreachable", []).append((name, side, rev))
+        try:
             before, after, ratio = j["before"]["instructions"], j["after"]["instructions"], j["ratio"]
-        except (ValueError, KeyError, TypeError):
+        except (KeyError, TypeError):
             continue
         if j.get("kind") == "counted" and after and abs(before / after - ratio) < 1e-9:
             f["ratios"] |= {round(ratio, d) for d in (2, 3, 4)}
@@ -235,14 +251,6 @@ def facts():
                 f["ratios"] |= {round(math.exp(sum(logs) / len(logs)), d) for d in (2, 3, 4)}
         except (ValueError, KeyError, TypeError, ZeroDivisionError):
             f["corpus_bad"].append("%s: not a list of cells with port, oracle_z, oracle_o3, ratio_z, ratio_o3" % name)
-        # Round 19 (R19-5): six evidence files named `494ef82`, a scratch commit a rebase replaced, as the tree
-        # their "after" binary came from; the "tree of" rule reads documents only, so nothing caught it. Every
-        # commit a COUNTED file names must be one a reader can check out.
-        if isinstance(j, dict) and j.get("kind") == "counted":
-            for side in ("before", "after"):
-                rev = (j.get(side) or {}).get("commit")
-                if rev and not reachable(rev):
-                    f.setdefault("counted_unreachable", []).append((name, side, rev))
     f["medians"] = {round(j[side]["median_ms"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1, 2)}
     f["cvs"] = {round(j[side]["cv_pct"], d) for j in ev.values() for side in ("original", "port") for d in (0, 1)}
     f["reviews"] = {int(m.group(1)): p for p in sorted(os.listdir(reviews_dir) if os.path.isdir(reviews_dir) else [])
@@ -800,8 +808,15 @@ def audit(files, f, gates, verbose):
             # Only THIS round's own ids (`R15-n` in round-15.md). A report's "claims that held" table cites
             # earlier rounds' ids too -- round 15 has a row "| R14-3, R14-9, R14-13 repairs |" -- and the
             # counter used to match any `R<n>-`, so it read that row as a fifteenth-round finding.
-            rows = len([m for m in re.finditer(r"(?m)^\| \*{0,2}R%d-\d+\b[^\n]*" % r, read("docs/reviews/" + path))
-                        if not re.search(r"not a finding|confirmation only", m.group(0), re.I)])
+            report_rows = [m.group(0) for m in re.finditer(r"(?m)^\| \*{0,2}R%d-\d+\b[^\n]*" % r, read("docs/reviews/" + path))
+                           if not re.search(r"not a finding|confirmation only", m.group(0), re.I)]
+            # From round 20 the owner's counting rule (docs/PORT_STATE.md "Owner decisions", 2026-09-23: the porting
+            # skill's recommended rule) counts only NEW BEHAVIOR findings of MEDIUM or HIGH; law-coverage and document
+            # findings are listed, repaired and not counted. Rounds before 20 were counted under the earlier rule.
+            if r >= 20:
+                report_rows = [row for row in report_rows
+                               if re.search(r"\bBEHAVIOR\b", row) and re.search(r"\b(?:MEDIUM|HIGH)\b", row)]
+            rows = len(report_rows)
             if rows and rows != f["round_findings"][r]:
                 findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
                                  "finding": "round %d: the table says %d findings, docs/reviews/%s lists %d"

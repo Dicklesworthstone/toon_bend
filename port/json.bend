@@ -345,7 +345,8 @@ def obj.member(dup: Bool, rev: Json, +key: String, v: Json, idx: T.KT, over: KM)
     case True{}:
       FObj{rev, SNil{}, idx, km.put(over, key, v)}
 
-# S2.28 whether an entry chain has fewer than n entries (a walk of at most n steps)
+# S2.28 whether an entry chain has AT MOST n entries (a walk of at most n steps; round 20's R20-4: an earlier
+# comment said "fewer than n")
 def obj.shorter(c: Json, n: Nat) -> Bool:
   match c n:
     case JECons{k, q, v, t} 1n+p:
@@ -367,8 +368,9 @@ def kt.of_chain(c: Json, acc: T.KT) -> T.KT:
 def obj.member.grown(+chain: Json, over: KM) -> Frame:
   FObj{chain, SNil{}, kt.of_chain(chain, T.kt.empty()), over}
 
-# S2.28, S2.29 a new key joins a SMALL object (EXP-029): no key set while the chain is shorter than 8; the
-# member that makes it 8 long builds the set from the whole chain, and later members use it as before
+# S2.28, S2.29 a new key joins a SMALL object (EXP-029): no key set while the chain holds at most 7 entries before
+# the new one; the member that joins a chain of 8 (the 9th member) builds the set from the whole chain INCLUDING
+# itself, and later members use it as before (R20-1 and R20-4 of round 20)
 def obj.member.small(short: Bool, key: String, v: Json, rev: Json, over: KM) -> Frame:
   match short:
     case True{}:

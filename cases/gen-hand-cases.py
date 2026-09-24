@@ -224,6 +224,12 @@ enc("encstr_root_null", 'null\n')
 enc("encstr_root_bool", 'false\n')
 enc("encstr_long", json.dumps({"long": "x" * 5000, "k" * 300: "v"}) + "\n")
 enc("encstr_duplicate_keys", '{"a":1,"b":2,"a":3,"c":{"x":1,"x":2}}\n', note="IndexMap: last value, first position")
+# round 20 (R20-1): EXP-029 builds the key set when the 9th member joins; a repeat of THAT member, and of the next one,
+# must still take the last value at the first position (the corpus had no repeat after the switch)
+enc("encstr_duplicate_keys_after_the_set_is_built",
+    '{"k0":0,"k1":1,"k2":2,"k3":3,"k4":4,"k5":5,"k6":6,"k7":7,"k8":8,"k9":9,"k8":99,"k9":98,'
+    '"n":{"k0":0,"k1":1,"k2":2,"k3":3,"k4":4,"k5":5,"k6":6,"k7":7,"k8":8,"k8":"x"}}\n',
+    note="EXP-029: the member that builds the key set, repeated")
 enc("encstr_whitespace_json", ' \n\t{ "a" : [ 1 , 2 ] ,\r\n "b" : { } }  \n\n')
 enc("encstr_no_trailing_newline", '{"a":1}')
 enc("enc_shapes_mixed", json.dumps({"empty_obj": {}, "empty_arr": [], "nested_empty": {"a": {}, "b": []}, "arr_of_empty": [{}, [], {}], "mixed": [1, "a", None, True, {"k": "v"}, [1, 2], []], "aoa": [[1, 2], [], ["a"]], "aoa_mixed": [[1, [2]], [3]], "objs_diff": [{"a": 1}, {"b": 2}], "objs_order": [{"a": 1, "b": 2}, {"b": 3, "a": 4}], "objs_nested": [{"a": {"x": 1}}, {"a": {"x": 2}}], "objs_first_arr": [{"items": [{"id": 1}, {"id": 2}], "n": 1}, {"items": [1, 2], "n": 2}, {"items": [], "n": 3}, {"items": [[1]], "n": 4}], "objs_first_obj": [{"o": {"p": 1}, "q": 2}, {"o": {}, "q": 3}]}) + "\n", cls="enc-string")

@@ -113,32 +113,51 @@ The port holds the whole document as a `Json` value of boxed constructors and ca
 software binary64 over big naturals, so a larger resident set is expected; the measured factors are 4.09× at
 the median cell and 3.75× at the worst, and the worst-case figure is the number to watch if the port is ever run on a document near memory.
 
-### Memory: linear, and the port's practical ceiling
+### Memory: linear, ~26 bytes per input byte, and halved by the copy-removing levers
 
 The suite records peak RSS per cell (`/usr/bin/time -f %M` on the untimed verification run, so the
-figure is the child's own high-water mark and not Python's). Fitted over the corpus's two size series —
-`flights` from 72 KB to 9.9 MB and the `semanticscholar` prefixes from 1.0 MB to 8.9 MB, five and four
-points each — **the port's peak RSS is LINEAR in the input**: slope of log RSS against log bytes
-b = **0.92 to 0.97** across all nine (family, scenario) pairs. There is no superlinear blow-up, which is
-the important negative result: the pushdown machines and the tail-recursive traversals hold.
+figure is the child's own high-water mark and not Python's).
 
-The constant is the problem, not the shape:
+**The shape is linear.** Fitted over the corpus's two size series — `flights` from 72 KB to 9.9 MB and
+the `semanticscholar` prefixes from 1.0 MB to 8.9 MB, five and four points each — the slope of log RSS
+against log bytes is **b = 0.92 to 0.97** across all nine (family, scenario) pairs. No superlinear
+blow-up: the pushdown machines and the tail-recursive traversals hold at scale, and the linearity rules
+out a leak.
 
-| | bytes of peak RSS per input byte | `openapi_github`, 13.0 MB |
-|---|---|---|
-| port | **57.9** median, 177.9 worst | **616 MB (47×)** |
-| original (`-Oz`) | 15.0 median, 75.5 worst | 89 MB (7×) |
+**The constant halved when the copy-removing levers landed, which no wall-clock or instruction
+measurement had shown.** Peak RSS of `--encode`, same inputs, same flags, two builds:
 
-**3.9× the original at the median.** Because the fit is linear over two orders of magnitude, it
-extrapolates: about **5.8 GB for a 100 MB document**, **29 GB for 500 MB**, **58 GB for 1 GB**. That is
-the port's practical ceiling, and it is a memory ceiling rather than a time one — on this 30 GB host the
-linear fit puts the limit near 400 MB of input, whatever the wall clock says.
+| document | `9ae2f2e` (before) | `2c33e64` (after) | |
+|---|---|---|---|
+| `gsoc_2018` | 163,512 KiB | 84,716 KiB | **1.93× less** |
+| `citm_catalog` | 86,496 KiB | 45,904 KiB | **1.88× less** |
 
-The cause is structural and named in the architecture: a `Json` value is a tree of boxed constructors
-and every number is a software binary64 over big naturals held as `List<&2, U32>`, so a document's
-resident form is many machine words per input byte. It is not a leak — the scaling says so — and it is
-not addressable by any lever in this directory's ledgers; it would take a different value
-representation.
+That is the same cause as their instruction win: the port had been holding the document in several list
+representations at once, and removing the redundant copies removed the memory they occupied as well as
+the work of building them. It is worth stating separately because a lever justified and gated on
+instruction counts turned out to pay a second dividend nobody measured.
+
+**Where it stands on the current tree** (`2c33e64`, documents over 1 MB so the ~7 MB fixed term is small):
+
+| document | numbers | port | original (`-Oz`) | ratio |
+|---|---|---|---|---|
+| `openapi_github` (13.0 MB) | 1% | **25.5 B/byte** | 7.2 | 3.5× |
+| `gsoc_2018` (3.3 MB) | 1% | 26.0 | 5.4 | 4.9× |
+| `citm_catalog` (1.7 MB) | 8% | 27.2 | 7.2 | 3.8× |
+| `canada` (2.3 MB) | 90% | **60.2** | 13.9 | 4.3× |
+
+A floor of about **26 bytes of resident memory per input byte** for text, rising to **60** for a
+number-heavy document — numbers cost 2.3× what text does (60.2 against 26.0), the same asymmetry the counted
+comparison found for instructions (3.25× for integers against 11.80× for decimals).
+
+**The practical ceiling is a MEMORY ceiling, not a time one.** Because the fit is linear over two orders
+of magnitude it extrapolates: about **2.6 GB for a 100 MB document** and **26 GB for 1 GB** at the text
+floor, and about 2.3× that for number-heavy input. On a 30 GB host that puts the limit near 1 GB of
+text input — and no wall-clock number would ever have revealed it.
+
+The remaining constant is structural and named in the architecture: a `Json` value is a tree of boxed
+constructors and every number is a software binary64 over big naturals held as `List<&2, U32>`. The
+levers took out the redundant copies; the one remaining copy is the representation itself.
 
 ### What this run does NOT establish
 

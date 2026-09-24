@@ -1248,10 +1248,10 @@ identical; `gsoc_2018` and `canada` not worse by more than 0.5%; conform c-1t wi
 `convert` walks the input byte list twice in encode mode: `T.utf8.bytes` for the UTF-8 verdict (S2.2), then `J.read` for the value.
 The list has a later use when the first walk runs, so the emitted C keeps it (`term_keep`) and the decoder, which owns its argument,
 takes every shared cell apart: the frame-pointer tally of `span_fade` on `flights_200k --encode` (the binary of the EXP-029 code,
-`d5483e5`) puts 9,863,892 of 64,361,865 calls in `CLI_CONVERT`, one per input byte (the file is 9.4 MB). Decode mode pays the same,
+`faaccac`) puts 9,863,892 of 64,361,865 calls in `CLI_CONVERT`, one per input byte (the file is 9.4 MB). Decode mode pays the same,
 because `convert` passes the bytes on to `convert.text`, which reads them only in encode mode. One walk that steps the decoder and
 the reader together owns an unshared list: no keep, no span_fade per byte, and one traversal instead of two. The instruction count
-of `--encode` on `flights_200k.json` at 1 thread falls by at least 2% against the binary of `d5483e5`.
+of `--encode` on `flights_200k.json` at 1 thread falls by at least 2% against the binary of `faaccac`.
 
 ### Lever (one)
 `J.read.u(bytes, u, spec)`: one tail-recursive walk whose arms are `run`'s arms with `T.utf8.step(u, b)` beside each step; it returns
@@ -1264,7 +1264,7 @@ from the pinned original for invalid UTF-8 before, inside and after a JSON error
 inside a string and a key; corpus, fuzz (mutate, docs), stdio probes.
 
 ### Precommitted gate
-In INSTRUCTIONS (counted): ≥ 2% fewer than the binary of `d5483e5` on `flights_200k.json` (`--encode`, `--threads 1`), stdout
+In INSTRUCTIONS (counted): ≥ 2% fewer than the binary of `faaccac` on `flights_200k.json` (`--encode`, `--threads 1`), stdout
 identical; `gsoc_2018` (encode and decode) and `canada` (encode) not worse by more than 0.5%; conform c-1t with and without
 `TOON_SPEC=1`; the proof green.
 
@@ -1285,16 +1285,16 @@ identical; `gsoc_2018` (encode and decode) and `canada` (encode) not worse by mo
 list is kept alive through the whole decoding and the UTF-8 decoder takes shared cells apart. NE-034 counted the decode cells of a
 lever that also removed this (gsoc 19.56%, flights 3.90%, canada 5.27% fewer), but its card did not gate them. This card tests the
 decode half ALONE, on inputs that count never ran: the instruction count of `--decode` on the e2e corpus's `semanticscholar.toon`
-at 1 thread falls by at least 5% against the binary of `d5483e5`.
+at 1 thread falls by at least 5% against the binary of `faaccac`.
 
 ### Lever (one)
 `convert` decides the mode first. Decode: `convert.text` receives the decoder's verdict and the options, not the bytes. Encode: the
-code of `d5483e5` unchanged (the UTF-8 walk, then `J.read` over the mark-dropped bytes). Laws: the existing goldens through
+code of `faaccac` unchanged (the UTF-8 walk, then `J.read` over the mark-dropped bytes). Laws: the existing goldens through
 `run_pure` for decode (invalid UTF-8, a mark, `--stats`), plus closed goldens from the pinned original for an invalid byte after a
 decode error and a truncated sequence at the end of a TOON text.
 
 ### Precommitted gate
-In INSTRUCTIONS (counted), stdout identical: ≥ 5% fewer than the binary of `d5483e5` on `semanticscholar.toon --decode`;
+In INSTRUCTIONS (counted), stdout identical: ≥ 5% fewer than the binary of `faaccac` on `semanticscholar.toon --decode`;
 `twitter.toon`, `citm_catalog.toon` and `openapi_github.toon` `--decode` not worse by more than 0.5% (a prediction of their
 direction, not a gate: fewer); the encode cells `gsoc_2018`, `flights_200k`, `canada` not worse by more than 0.5%; conform c-1t
 with and without `TOON_SPEC=1`; the proof green.
@@ -1308,7 +1308,7 @@ with and without `TOON_SPEC=1`; the proof green.
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | NE-034 (EXP-030, NEUTRAL: 1.18% on `flights_200k --encode` against a 2% gate); its retry predicate "EXP-031 is kept and a new count of the fused encode walk ON TOP of it clears a new card's gate" now holds (NE-035) |
-| status | COUNTED_WIN on the primary gate, DECODE GUARD FAILED 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-036): `semanticscholar --encode` 3.35% fewer instructions than EXP-031 (gate 1.5%); four decode cells 1.0-1.8% more on unchanged decode code; the EXP-031+032 stack is fewer than `d5483e5` on all eleven cells counted. Kept, stated in NE-036 |
+| status | COUNTED_WIN on the primary gate, DECODE GUARD FAILED 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-036): `semanticscholar --encode` 3.35% fewer instructions than EXP-031 (gate 1.5%); four decode cells 1.0-1.8% more on unchanged decode code; the EXP-031+032 stack is fewer than `faaccac` on all eleven cells counted. Kept, stated in NE-036 |
 | precommitted | true |
 
 ### Hypothesis

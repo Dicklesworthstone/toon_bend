@@ -5,18 +5,18 @@
  "host": "AMD EPYC-Milan, 8 cores, Linux x86_64, shared",
  "bend": "2.0.16 @ 15ae0c8",
  "threads": 1,
- "input": "perf/e2e/corpus/flights_200k.json (gitignored; the corpus is described in perf/e2e/README.md)",
+ "input": "perf/e2e/corpus/canada.json (gitignored; the corpus is described in perf/e2e/README.md)",
  "mode": "--encode",
  "before": {
   "commit": "722991e",
-  "instructions": 39442102850,
-  "stdout_sha256_16": "fd8e2e839a31536f"
+  "instructions": 12726037094,
+  "stdout_sha256_16": "76154d48b602f871"
  },
  "after": {
-  "commit": "d5483e5",
-  "instructions": 28679609592,
-  "stdout_sha256_16": "fd8e2e839a31536f"
+  "commit": "f3314a3",
+  "instructions": 10930199115,
+  "stdout_sha256_16": "76154d48b602f871"
  },
- "ratio": 1.3752663795326605,
+ "ratio": 1.1643005731282143,
  "note": "instruction counts, not times: deterministic, blind to cache misses and allocation latency; never a MEASURED ratio"
 }

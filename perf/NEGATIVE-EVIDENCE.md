@@ -5,19 +5,36 @@
      lever: a lever is re-attemptable only if its do-not-retry predicate
      holds. An unresolved gain needs more evidence. Record honest losing baselines. -->
 
-The COUNTED class and its resolution (added 2026-09-23). An instruction count from
-`valgrind --tool=cachegrind --cache-sim=no` is deterministic to about 1e-8 for the SAME binary, but two
-builds are not automatically comparable. The peer session measured identical decode logic counting
-**+1.0 to +1.8%** across a change that only reordered the CONSTRUCTOR table, because the emitted
-constructor ids change dispatch. **A counted delta below about 2% between builds whose constructor
-tables differ is not attributable without `cg_annotate`.**
+The COUNTED class and its resolution (added 2026-09-23, CORRECTED the same day). An instruction count
+from `valgrind --tool=cachegrind --cache-sim=no` is deterministic to about 1e-8 for the SAME binary, but
+two builds are not automatically comparable.
 
-Measured here for the other case, because most levers do not touch constructors: two trees differing
-only by ONE UNUSED DEF, never called, counted **+0.000%** — 760 instructions in 3,010,226,497 on
-`gsoc_2018` and an exact tie on `canada`. So a def-only change has no floor worth stating, and the
-sub-2% results in NE-019 (-1.4%), NE-020 (~1%), NE-027 (0.11%) and NE-033 (-0.7%) are attributable:
-none of those levers added or reordered a constructor. A lever that DOES — EXP-007 added `JTxt` and
-`JRaw` — needs the 2% caution applied.
+**The mechanism is clang's inlining of an emitted `INLINE` spin loop, which flips when a def's CALL-SITE
+COUNT changes** — not, as I first wrote here, the constructor table. The peer session's evidence, from
+`cg_annotate` per function on `twitter.toon --decode` across two trees with IDENTICAL decode Bend code:
+`WL_FID_CLI_CONVERT` goes 0 → 34.27M because `utf8.bytes`' spin loop is now inlined into the worklist
+function (one call site left), while spin totals go 207.4M → 185.4M — net +12.3M of that cell's +13.0M.
+In the other direction a change that added only DEFS (no constructor) moved unchanged encode code by
++0.80%, because a def gained a second call site and its loop stopped being inlined.
+
+So **a def-only change CAN move unchanged code by about 1–2%** whenever it alters how many places call a
+loop def. My control here — two trees differing only by ONE UNUSED DEF, never called — counted
+**+0.000%** (760 instructions in 3,010,226,497 on `gsoc_2018`, an exact tie on `canada`). That is a
+correct measurement of the wrong thing: an unused def changes no call site, so it does not test the
+mechanism and **does not clear a sub-2% result**.
+
+What that means for the four sub-2% entries below, stated per entry rather than in general:
+
+| entry | counted | did it change a loop def's call sites? | is the FIGURE attributable? | is the CONCLUSION affected? |
+|---|---|---|---|---|
+| NE-019 | −1.4% | yes — an inlined `Bool.pick` chain became 16 defs | **no** | no: gate was 10%, and an independent CPU capture agreed (0.975 min) |
+| NE-020 | ~1% | no — one literal changed, no def added or removed | yes | no: gate was 8% |
+| NE-027 | 0.11% | possibly — two match arms removed | **no** | no: gate was 5% |
+| NE-033 | −0.7% | yes — `token.short`'s arm now calls `token.dec`, giving `token.literal` a second site | **no** | no: gate was 25% |
+
+Every one of those levers missed its gate by a wide margin, so no verdict changes. But three of the four
+FIGURES fall within the inlining band and are not measurements of the lever. A counted claim must say which
+kind of change it was, and a sub-2% claim needs a per-function `cg_annotate` check before it is believed.
 
 Outcome taxonomy (closed set):
 

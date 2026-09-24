@@ -1362,3 +1362,91 @@ UTF-8 verdict first.
 In INSTRUCTIONS (counted), stdout identical: ≥ 1.5% fewer than the EXP-031 binary on `semanticscholar.json --encode`;
 `gsoc_2018`, `flights_200k`, `canada` `--encode` not worse by more than 0.5% (predicted fewer); `semanticscholar.toon` and
 `gsoc_2018.toon` `--decode` not worse by more than 0.5%; conform c-1t with and without `TOON_SPEC=1`; the proof green.
+
+## EXP-033 — path expansion normalises and converts in one walk instead of two
+
+| field | value |
+|---|---|
+| experiment_id | EXP-033 |
+| program / def | `port/decode.bend` / `obj.fin` (S3.28) `x.json(x.norm(x))`, and the `x.norm` (S3.27) and `x.json` walks it composes |
+| created (UTC) | 2026-09-24 |
+| agent | Claude (session 9e91730b), author |
+| graveyard sweep | `rg -i 'x\.norm\|x\.json\|expand\|XV\b' perf/NEGATIVE-EVIDENCE.md` → **NE-027** is the only entry on this pass and it is the decisive prior: it made an OPERATION inside `x.norm` cheaper (the pass-through rebuild `case XLeaf{v}: XLeaf{v}`), precommitted 5% and counted **0.11%, missed by a factor of 45**. Its own conclusion, drawn with NE-019 and NE-020 against the peer session's two wins, is the rule this card obeys: *eliminate a pass over the data, not an operation within one*. No entry proposes fusing the two walks, and no do-not-retry applies. NE-012 (borrow inference never lent a `List`) forbids a borrowing lever, not this one |
+| status | CARDED 2026-09-24, NOT BUILT. `port/` is frozen for review rounds 21–22; this card exists so the lever is chosen from evidence rather than from the stale attribution it replaces |
+| precommitted | true |
+
+### Motivation (counted, `perf/COUNTED-PROFILE.md`, port binary `sha256 825e44de69c3a4e6c0d442ea`)
+
+`--expand-paths safe` is the port's costliest path per byte in the e2e reference run (414.9 ms/MB against
+plain `--decode` at 292.4). Isolated on ONE input with the oracle as the control on the identical pair
+(`citm_catalog.fold.toon`, 666 KB, `--expand-paths off` vs `safe`):
+
+| | port | oracle |
+|---|---|---|
+| `off` | 1,632,681,447 | 379,398,453 |
+| `safe` | 2,497,396,737 | 404,977,446 |
+| expansion alone | **+864,715,290 (+53.0%)** | **+25,578,993 (+6.7%)** |
+
+The port pays **33.8×** the oracle for the same expansion, the largest disparity in the profile. Of its
+864,715,290-instruction delta, `WL_FID_EXIT` is 25.3%, `term_drop` 22.8%, `rfc_wrap` 10.1%, `span_fade`
+5.1% — **63.3% is worklist frames, reference counting and teardown** — while `WL_FID_DECODE_X_NORM`, the
+expansion's own logic, is **7.9%**. `io_cstr` moves by 702 instructions and `WL_FID_DECODE_SCAN_REV` by
+zero, so the delta is neither output writing nor re-scanning: it is the extra walks and the tree they
+build and drop.
+
+### Hypothesis
+
+After `decode` has built the `Json` value, `--expand-paths safe` walks it three more times:
+`expand` (S4.240) builds an `XV`, then `obj.fin` computes `x.json(x.norm(x))` — `x.norm` walks the whole
+`XV` and **materialises a second `XV`**, which `x.json` immediately walks and discards while building the
+`Json`. Every interior node of that intermediate tree is sealed on construction (`rfc_wrap`), taken apart
+when `x.json` destructures it (`span_fade`) and torn down (`term_drop`), which is the traffic the
+attribution shows, and none of it reaches the output.
+
+One walk that normalises AND converts — a single structurally recursive def over `XV` returning `Json`,
+carrying what `x.norm` decides into the node `x.json` would have built — never materialises the middle
+tree. It removes a whole traversal of a structure the size of the input, which is the shape NE-027's rule
+says pays (two pass-eliminating levers counted 18.3% and 11.6%; three operation levers counted 2%, 1%
+and 0.11%).
+
+This does not touch `expand` itself, so it is one lever, not two.
+
+### Lever (one)
+
+`obj.fin` calls a new `x.json.norm(x: XV) -> J.Json` in place of `x.json(x.norm(x))`. `x.norm` and
+`x.json` both remain in the file as the spec twins the law is written against. Behind `F.twin.on`, so
+`TOON_SPEC=1` runs `x.json(x.norm(x))` unchanged.
+
+### Binding
+
+A quantified law is reachable here, unlike the numeric twins of NE-001..003: both sides are structural
+walks over a `Data` type with no `Nat` arithmetic, so the checker has no 10^5-scale literal to normalise.
+The law to write is `for x: XV { x.json.norm(x) == x.json(x.norm(x)) : J.Json }`, proved by induction on
+`XV`, plus the gate law `x_json_norm_gate` (the fused walk runs exactly when the switch is open). If the
+quantified law does not check, the lever is NOT kept on closed instances alone: the whole point of
+choosing this lever over a numeric one is that its equivalence is provable.
+
+### Precommitted gate
+
+Stated in INSTRUCTIONS (counted), because no cv-gated wall capture has been obtainable on this host since
+2026-09-20 and this card is written in the currency it will be judged in — not retro-fitted to an easier
+one:
+
+- ≥ **15%** fewer instructions than the pre-lever binary on `citm_catalog.fold.toon --decode --expand-paths safe`
+  (the delta above is 864,715,290 on a 2,497,396,737 total, so 15% of the total is well inside what one of
+  three post-decode passes can account for, and the 7.9% that is expansion's own logic is out of reach);
+- not worse by more than **0.5%** on `citm_catalog.fold.toon --decode --expand-paths off`, which must not
+  execute the lever at all, and on `canada.json --encode`;
+- stdout sha256 identical to the pre-lever binary AND to `oracle/toon` on every case above;
+- `conform.sh` on c-1t with `TOON_SPEC` unset and set, and all four lanes before it lands, because this
+  changes the shape of a traversal (the lane rule in `AGENTS.md`, and NE-036, where a fused walk
+  type-checked, proved and passed c-1t yet aborted on JS and the interpreter);
+- `bend PROOF.bend` → `All terms check.` with the quantified law above present;
+- `scripts/hand-mutants.py` gains a mutant in the fused walk, and it is KILLED by that law.
+
+### One-line invocation
+
+```bash
+python3 perf/e2e/counted.py --arm pre=<pre-lever binary> --arm post=<lever binary> \
+  -- --decode --expand-paths safe perf/e2e/corpus/citm_catalog.fold.toon
+```

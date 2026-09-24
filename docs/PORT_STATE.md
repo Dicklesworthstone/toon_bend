@@ -17,7 +17,7 @@
 
 | gate | command | result | date |
 |---|---|---|---|
-| proofs | `bend port/PROOF.bend` on the tree of `68920ad` (585 laws; 7 min 26 s, peak RSS 5.1 GB) | All terms check. (unsafe 0 = 0 @unsafe + 0 template instances; bend 2.0.16) | 2026-09-23 |
+| proofs | `bend port/PROOF.bend` on the tree of `8087890` (585 laws; 7 min 26 s, peak RSS 5.1 GB) | All terms check. (unsafe 0 = 0 @unsafe + 0 template instances; bend 2.0.16) | 2026-09-23 |
 | lanes | `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` on the tree of `cbdfba6` (1076 cases; local 16:28 to 18:15, load 4-10; the commits after it change laws, harness scripts and documents only) | {"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1076,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1076,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1076,"failed":0},{"lane":"js","verdict":"PASS","passed":1076,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":60.0,"compiled":5.0,"build":600},"verdict":"PASS"} | 2026-09-23 |
 | parity | `scripts/parity-board.sh docs/FEATURE_PARITY.md` | rows=33 present=27 partial=0 missing=0 excluded=6 n/a=0 no-evidence=0 verdict=DEBT | 2026-09-22 |
 | floor | `scripts/floor.sh goldens/cases.tsv goldens --repeat 2 -- ./oracle/toon` | {"repeat":2,"stable":1076,"unstable":[],"inconclusive":[],"oracle_identity_checked":true,"verdict":"STABLE"} | 2026-09-22 |

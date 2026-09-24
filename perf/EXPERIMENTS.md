@@ -1308,7 +1308,7 @@ with and without `TOON_SPEC=1`; the proof green.
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | NE-034 (EXP-030, NEUTRAL: 1.18% on `flights_200k --encode` against a 2% gate); its retry predicate "EXP-031 is kept and a new count of the fused encode walk ON TOP of it clears a new card's gate" now holds (NE-035) |
-| status | CARDED |
+| status | COUNTED_WIN on the primary gate, DECODE GUARD FAILED 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-036): `semanticscholar --encode` 3.35% fewer instructions than EXP-031 (gate 1.5%); four decode cells 1.0-1.8% more on unchanged decode code; the EXP-031+032 stack is fewer than `d5483e5` on all eleven cells counted. Kept, stated in NE-036 |
 | precommitted | true |
 
 ### Hypothesis

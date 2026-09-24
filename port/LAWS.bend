@@ -2635,3 +2635,30 @@ law decode_truncated_utf8_at_the_end:
 
 law decode_stats_after_mark_multibyte:
   {C.run_pure(["--decode", "--stats"], [239, 187, 191, 97, 58, 32, 195, 169, 10]) == C.Out{0n, "{\n  \"a\": \"é\"\n}\n", "\nToken estimates: ~4 (JSON) → ~2 (TOON)\nSaved ~2 tokens (-50.0%)"} : C.Out}
+
+# EXP-032 (NE-034's walk, retried on top of EXP-031; S2.2, S2.45, S8.7): encoding reads the bytes once, the UTF-8 decoder and the JSON reader stepping together.
+# The fused walk IS the two walks it replaces, for every input, decoder state and reader state:
+law run_u_is_both:
+  for bytes: List<&2, U32>
+  for u: T.UTF8
+  for st: J.St
+  for +spec: Bool
+  {J.run.u(bytes, u, st, spec) == J.RU{T.utf8.bytes(bytes, u), J.run(bytes, st, spec)} : J.RU}
+
+# ... and the UTF-8 verdict still decides first (S9.10), with bytes from the pinned original: an invalid byte after a JSON
+# error, a truncated sequence inside a string after a JSON error, an invalid byte in a key under --stats
+law encode_invalid_utf8_after_json_error:
+  {C.run_pure(["--encode"], [123, 34, 97, 34, 32, 49, 125, 255]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
+
+law encode_truncated_utf8_after_json_error:
+  {C.run_pure(["--encode"], [123, 34, 97, 34, 32, 49, 44, 32, 34, 98, 34, 58, 34, 195, 34, 125]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
+
+law encode_stats_invalid_utf8_in_key:
+  {C.run_pure(["--encode", "--stats"], [123, 34, 255, 34, 58, 49, 125]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
+
+# S8.7 the mark is dropped before the one walk: --stats counts the text without it, and only ONE mark is dropped
+law encode_stats_after_mark:
+  {C.run_pure(["--encode", "--stats"], [239, 187, 191, 123, 34, 97, 34, 58, 49, 125]) == C.Out{0n, "a: 1\n", "\nToken estimates: ~1 (JSON) → ~2 (TOON)\nTOON is larger by ~1 token (+100.0%)"} : C.Out}
+
+law encode_stats_two_marks_is_json_error:
+  {C.run_pure(["--encode", "--stats"], [239, 187, 191, 239, 187, 191, 123, 125]) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 1"} : C.Out}

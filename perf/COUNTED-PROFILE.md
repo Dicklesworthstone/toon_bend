@@ -22,7 +22,7 @@ or when a lever changes the ranking.
 
 | field | value |
 |---|---|
-| port binary | `sha256 825e44de69c3a4e6c0d442ea` (the frozen `port/` tree; byte-identical across `9c9039e`, `55ec958`, `c5f3b46`) |
+| port binary | `sha256 825e44de69c3a4e6c0d442ea`. **The BINARY is identical across `9c9039e`, `55ec958` and `c5f3b46`; the TREE is not, and this row said otherwise until it was checked.** `git diff 9c9039e 55ec958 -- port/` is empty. `git diff 55ec958 c5f3b46 -- port/` is 3 files and 93 insertions: `LAWS.bend` and `PROOF.bend`, which `port/main.bend`'s import graph never reaches (it imports `Base`, `./cli.bend`, `./text.bend`), and three COMMENT lines in `json.bend` (round 20's R20-4 wording). None of it reaches codegen, which is why one hash covers all three — but "the tree is byte-identical" was the wrong sentence for it |
 | oracle | `oracle/toon`, the pinned `toon 0.2.4` from `toon_rust` `694d73b` (`sha256 821287ea…` per `docs/PIN.toml`) |
 | tool | `valgrind --tool=cachegrind --cache-sim=no --branch-sim=no`, the `I refs` line; `cg_annotate` for per-symbol attribution |
 | static ownership | `keep-audit.sh` of the bend2-mega-skill over `port/main.bend` |

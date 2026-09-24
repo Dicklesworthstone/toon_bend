@@ -724,3 +724,15 @@ likewise do not establish universal performance rules.
 - **Do-not-retry unless:** (a win, kept) — revert only if the CPU capture shows no gain; the threshold 8 is not tuned (a count at 4 and 16 would say whether it matters)
 - Tally: W1/L0/N0 (counted)
 - Agent: Claude (session ef481f9c, 2026-09-23)
+
+### NE-034 — encoding reads the input bytes once: the UTF-8 gate and the JSON reader step together (EXP-030)   [2026-09-23 | NEUTRAL, parked]
+- Program / def: `port/json.bend` / a fused `run.u` (the arms of `run`, each with `T.utf8.step` beside it), `read.u`; `port/cli.bend` / `convert` deciding the mode first, `convert.enc` (the UTF-8 verdict first, S9.10)
+- Provenance: as NE-022; base = the binary of the EXP-029 code (`d5483e5`), `--threads 1`
+- Mechanism: the second walk and the `span_fade` per input byte (9,863,892 on `flights_200k --encode`, the frame-pointer tally) disappear when one walk owns the list
+- Counted (cachegrind Ir), stdout identical in all six cells: `flights_200k --encode` 28,679,609,592 → 28,340,783,667, **1.18% fewer** (the gate was 2%); `gsoc_2018 --encode` 2,913,444,694 → 2,813,786,898 (3.42% fewer); `canada --encode` 11,015,737,330 → 10,930,199,395 (0.78% fewer); and the decode cells the card did not gate: `gsoc_2018 --decode` 4,125,565,216 → 3,318,525,950 (19.56% fewer), `flights_200k --decode` 28,366,283,493 → 27,259,753,148 (3.90% fewer), `canada --decode` 13,543,063,702 → 12,830,013,857 (5.27% fewer)
+- Binding (in the parked code): the quantified law `run_u_is_both` (`run.u(bytes, u, st, spec) == RU{utf8.bytes(bytes, u), run(bytes, st, spec)}` for every input and both states, by induction on the bytes with a split on the reader's mode), five closed `run_pure` goldens from the pinned original (an invalid byte after a JSON error, a truncated sequence after one, an invalid byte in a key under `--stats`, `--stats` after a mark, two marks); in a reduced proof two hand mutants were killed (the decoder step dropped from one arm: `run_u_is_both`; the reader's error preferred to the UTF-8 verdict: `encode_invalid_utf8_after_json_error`)
+- Correctness evidence: conform c-1t 1076/1076 with `TOON_SPEC` unset and set
+- Disposition: not merged; the code is parked on a branch of the author's scratch clone. The decode gains were not what the card gated, so they are not claimed here: the decode half alone (decode mode stops handing the bytes to the encode arm) is carded as EXP-031 with a gate on inputs this count did not touch
+- **Do-not-retry unless:** EXP-031 is kept and a new count of the fused encode walk ON TOP of it clears a new card's gate, or another lever on the input path (reading, BOM, `run`) is combined with it
+- Tally: W0/L0/N1 (neutral)
+- Agent: Claude (session ef481f9c, 2026-09-23)

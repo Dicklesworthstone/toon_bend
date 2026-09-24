@@ -1241,7 +1241,7 @@ identical; `gsoc_2018` and `canada` not worse by more than 0.5%; conform c-1t wi
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | `rg -i 'utf8\|utf-8 gate\|fus(e\|ed\|ion)\|one walk\|single pass' perf/NEGATIVE-EVIDENCE.md perf/PERF-LEDGER.md` → no entry; EXP-018 (NE-022) is the neighbour: it stopped building the decoded text when nothing reads it, and kept the second walk |
-| status | CARDED |
+| status | NEUTRAL 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-034): 1.18% fewer instructions on `flights_200k --encode` (gate 2%, not met); not merged, parked; the decode half is carded separately as EXP-031 |
 | precommitted | true |
 
 ### Hypothesis

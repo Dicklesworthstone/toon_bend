@@ -29,6 +29,16 @@ def _double(i):
 def _sci(i):
     x = _lcg(i + 1000003)
     return "%d.%06de%+d" % (x % 9 + 1, (x >> 8) % 10 ** 6, (x >> 30) % 501 - 250)
+
+
+def _big_rows(n):
+    """A tabular document of n rows, the SAME shape as `big_rows` in cases/gen-hand-cases.py (which
+    builds the `large_tabular_1500` case), so a capture on this one differs from the earlier attempts
+    only in length. Keep the two formulas identical; a divergence would make the lengths incomparable."""
+    rows = [{"id": k, "name": "user%d" % k, "email": "user%d@example.com" % k,
+             "score": (k * 37 % 1000) / 10, "active": k % 3 == 0,
+             "note": None if k % 7 else "has, comma"} for k in range(n)]
+    return json.dumps({"rows": rows}, ensure_ascii=False) + "\n"
 OUT = os.path.join(HERE, "inputs")
 DOCS = {
     "ints_24000.json": json.dumps(list(range(100000, 100000 + 24000))),
@@ -43,6 +53,14 @@ DOCS = {
     # the same bytes on every Python.
     "doubles_20000.json": "[" + ",".join(_double(i) for i in range(20000)) + "]",
     "sci_5000.json": "[" + ",".join(_sci(i) for i in range(5000)) + "]",
+    # The tabular encode capture's input, scaled so the ORIGINAL's arm is long enough to gate.
+    # `cases/inputs/hand/large_tabular_1500.json` gives the original a 5.2 ms median, and a capture at
+    # that length was REFUSED_CV twice (beads toon_bend-udw and toon_bend-0i8, whose predicate is "an
+    # arm of at least 100 ms"). The row shape is EXACTLY `big_rows` of cases/gen-hand-cases.py, so the
+    # two inputs differ only in length and a capture on this one is comparable with the earlier attempts.
+    # It is a perf input, not a case: as a case its 3 MB would be re-read by every lane of every
+    # conformance run and would force a golden re-capture, for no extra coverage over the 1500-row case.
+    "tabular_30000.json": _big_rows(30000),
 }
 
 

@@ -5,18 +5,18 @@
  "host": "AMD EPYC-Milan, 8 cores, Linux x86_64, shared",
  "bend": "2.0.16 @ 15ae0c8",
  "threads": 1,
- "input": "perf/e2e/corpus/gsoc_2018.toon (gitignored; the corpus is described in perf/e2e/README.md)",
- "mode": "--decode",
+ "input": "perf/e2e/corpus/canada.json (gitignored; the corpus is described in perf/e2e/README.md)",
+ "mode": "--encode",
  "before": {
   "commit": "722991e",
-  "instructions": 7356818902,
-  "stdout_sha256_16": "7197f23bf0386944"
+  "instructions": 12726037094,
+  "stdout_sha256_16": "76154d48b602f871"
  },
  "after": {
-  "commit": "f3314a3",
-  "instructions": 3318526350,
-  "stdout_sha256_16": "7197f23bf0386944"
+  "commit": "84acaee",
+  "instructions": 11015737330,
+  "stdout_sha256_16": "76154d48b602f871"
  },
- "ratio": 2.21689332133825,
+ "ratio": 1.1552596719370032,
  "note": "instruction counts, not times: deterministic, blind to cache misses and allocation latency; never a MEASURED ratio"
 }

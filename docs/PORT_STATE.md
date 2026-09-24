@@ -17,7 +17,7 @@
 
 | gate | command | result | date |
 |---|---|---|---|
-| proofs | `bend port/PROOF.bend` on the tree of `8c19c49` (585 laws; 7 min 26 s, peak RSS 5.1 GB) | All terms check. (unsafe 0 = 0 @unsafe + 0 template instances; bend 2.0.16) | 2026-09-23 |
+| proofs | `bend port/PROOF.bend` on the tree of `a801d50` (594 laws; 7 min 21 s, peak RSS 5.2 GB; the run was made in the scratch clone of that tree before the rebase, whose `port/` is byte-identical) | All terms check. (unsafe 0 = 0 @unsafe + 0 template instances; bend 2.0.16) | 2026-09-23 |
 | lanes | `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` on the tree of `cbdfba6` (1076 cases; local 16:28 to 18:15, load 4-10; the commits after it change laws, harness scripts and documents only) | {"lanes":[{"lane":"interpreter","verdict":"PASS","passed":1076,"failed":0},{"lane":"c-1t","verdict":"PASS","passed":1076,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1076,"failed":0},{"lane":"js","verdict":"PASS","passed":1076,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":60.0,"compiled":5.0,"build":600},"verdict":"PASS"} | 2026-09-23 |
 | parity | `scripts/parity-board.sh docs/FEATURE_PARITY.md` | rows=33 present=27 partial=0 missing=0 excluded=6 n/a=0 no-evidence=0 verdict=DEBT | 2026-09-22 |
 | floor | `scripts/floor.sh goldens/cases.tsv goldens --repeat 2 -- ./oracle/toon` | {"repeat":2,"stable":1076,"unstable":[],"inconclusive":[],"oracle_identity_checked":true,"verdict":"STABLE"} | 2026-09-22 |
@@ -43,7 +43,7 @@ Notes on these lines:
 - `python3 cases/build-cases.py --check` → `{"cases": 1076, "verdict": "OK"}`; `./scripts/cases-lint.sh goldens/cases.tsv` → `{"cases": 1076, "errors": 0, "notes": 20, "classes_missing": "", "verdict": "OK"}`.
 - `./scripts/pin-check.sh docs/PIN.toml` → `pin-check: YELLOW` (only `manifest_version`, as before: `golden-capture.sh` writes no `version:` line); `original_commit` GREEN with `legacy/Toon` → `/dp/toon_rust` fast-forwarded to `694d73b`.
 - what no case can express: `python3 scripts/stdio-probe.py -- <native port binary> --` → `{'rows': 27, 'same': 13, 'fixed': ['stderr is /dev/full, a conversion error'], 'new': [], 'verdict': 'PASS'}` with 13 KNOWN rows (DISC-003, 006, 007, 014, 015). The FIXED row matches now because the original no longer aborts on a failing stderr (DISC-003 amended).
-- the documents' own numbers: `python3 scripts/claims-audit.py` → `{"files": 16, "absent": [], "findings": 0, "historical_lines_exempt": 5, "laws": 585, "cases": 1076, "disc": {"accepted": 11, "resolved": 4, "open": 0}, "verdict": "OK"}` (every count and every reference of the claim-bearing documents checked against the repository)
+- the documents' own numbers: `python3 scripts/claims-audit.py` → `{"files": 16, "absent": [], "findings": 0, "historical_lines_exempt": 5, "laws": 594, "cases": 1076, "disc": {"accepted": 11, "resolved": 4, "open": 0}, "verdict": "OK"}` (every count and every reference of the claim-bearing documents checked against the repository)
 - `./scripts/claims-lint.sh README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md` → `claims-lint: 0 hit(s) in 11 file(s)`.
 
 ## What the bug-fix re-pin changed (2026-09-22)

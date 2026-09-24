@@ -13,10 +13,10 @@
   "stdout_sha256_16": "fd8e2e839a31536f"
  },
  "after": {
-  "commit": "faaccac",
-  "instructions": 28679609592,
+  "commit": "5511a8a",
+  "instructions": 28340783307,
   "stdout_sha256_16": "fd8e2e839a31536f"
  },
- "ratio": 1.3752663795326605,
+ "ratio": 1.3917082821157607,
  "note": "instruction counts, not times: deterministic, blind to cache misses and allocation latency; never a MEASURED ratio"
 }

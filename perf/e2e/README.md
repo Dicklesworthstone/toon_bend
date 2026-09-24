@@ -408,6 +408,16 @@ goldens re-captured and `port/decode.bend` fixed (S2.130). All four lanes pass 1
 
 ## Where the port's time goes (`perf`, 2026-09-22)
 
+> **Superseded for choosing a lever by `perf/COUNTED-PROFILE.md` (2026-09-24).** This section
+> attributes WALL share on the 2026-09-22 binary. The counted profile does the same across five
+> scenarios on the frozen binary `sha256 825e44de69c3a4e6c0d442ea`, deterministically and
+> load-independently, and it ranks the targets differently: the port's whole numeric substrate is
+> 19.2% of instructions on the most number-dense input and 0.2% on string input, so the
+> shortest-digit rewrite this campaign had named as its next lever has about a fifth of one
+> scenario as its ceiling. Refcount and teardown are 30.7–42.3% of EVERY scenario, and path
+> expansion alone costs the port 33.8× the oracle. The rows below remain accurate about that
+> binary's wall shares.
+
 `results/2026-09-22-full/profiles/`: flat profiles of 14 cells (`<cell>.txt`) and caller attributions of three (`<cell>.callers.txt`,
 from the emitted C rebuilt with frame pointers); `perf/evidence/EXP-006.wall-profile.txt` is the one for `perf/inputs/doubles_20000.json`.
 BendRT's own symbols dominate: `term_drop` frees a dead term tree node by node; `span_fade` takes apart a SHARED (`+`) value by bumping

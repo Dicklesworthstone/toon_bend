@@ -20,3 +20,9 @@ oracle/
 /perf/e2e/corpus/
 # bench.py run: the verification run's /usr/bin/time scratch file
 perf/e2e/results/*/.rss
+
+# git's own merge/rebase leftovers (*.orig) and gprof's output. Both are tool artifacts that appear in
+# the working checkout and should never be tracked; ignoring them is not deleting them, and the files
+# already present are left in place.
+*.orig
+gmon.out

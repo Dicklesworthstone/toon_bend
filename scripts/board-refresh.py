@@ -77,6 +77,11 @@ RULES = [  # (regex on the law name, rows) — first match wins
  # EXP-018: the decoder that only validates, and the conversion that asks for the text only when it reads it
  (r"(utf8_verdict_|encode_invalid_utf8_refused$)", ["strict UTF-8"]),
  (r"(encode_non_ascii_without_stats|encode_stats_reads_the_text)$", ["strict UTF-8", "--stats"]),
+ # EXP-031/032: the UTF-8 verdict decides before any decode or JSON failure; the mark with --stats; the one walk
+ (r"(decode_invalid_utf8_after_toon_error|decode_truncated_utf8_at_the_end|encode_invalid_utf8_after_json_error"
+  r"|encode_truncated_utf8_after_json_error|encode_stats_invalid_utf8_in_key)$", ["strict UTF-8"]),
+ (r"(decode_stats_after_mark_multibyte|encode_stats_after_mark|encode_stats_two_marks_is_json_error)$", ["strict UTF-8", "--stats"]),
+ (r"run_u_is_both$", ["strict UTF-8", "JSON text input"]),
  # EXP-021: the TOON text built forward from reversed lines (the final LF, line order, every line shape)
  (r"(encode_text_)", ["output framing"]),
  # EXP-022: trim_end on every shape, and the decoder's values trimmed through the whole pure core

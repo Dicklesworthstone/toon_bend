@@ -1,0 +1,134 @@
+[
+ {
+  "doc": "github_events",
+  "mode": "encode",
+  "bytes": 65132,
+  "port": 63640096,
+  "oracle_z": 11212882,
+  "oracle_o3": 6972619,
+  "ratio_z": 5.68,
+  "ratio_o3": 9.13,
+  "sha": "111e1258e85c502c"
+ },
+ {
+  "doc": "github_events",
+  "mode": "decode",
+  "bytes": 65132,
+  "port": 75738902,
+  "oracle_z": 15325631,
+  "oracle_o3": 8595656,
+  "ratio_z": 4.94,
+  "ratio_o3": 8.81,
+  "sha": "8a3eabeddf28d1ec"
+ },
+ {
+  "doc": "apache_builds",
+  "mode": "encode",
+  "bytes": 127275,
+  "port": 120341572,
+  "oracle_z": 21164012,
+  "oracle_o3": 14082800,
+  "ratio_z": 5.69,
+  "ratio_o3": 8.55,
+  "sha": "54ad9cd588f6b7fc"
+ },
+ {
+  "doc": "apache_builds",
+  "mode": "decode",
+  "bytes": 127275,
+  "port": 109159459,
+  "oracle_z": 32985081,
+  "oracle_o3": 17422225,
+  "ratio_z": 3.31,
+  "ratio_o3": 6.27,
+  "sha": "d0fb0f7759ed65ee"
+ },
+ {
+  "doc": "twitter",
+  "mode": "encode",
+  "bytes": 631515,
+  "port": 646685697,
+  "oracle_z": 100702697,
+  "oracle_o3": 66315481,
+  "ratio_z": 6.42,
+  "ratio_o3": 9.75,
+  "sha": "2be97cb5e5db4b0f"
+ },
+ {
+  "doc": "twitter",
+  "mode": "decode",
+  "bytes": 631515,
+  "port": 718199230,
+  "oracle_z": 152175306,
+  "oracle_o3": 87100811,
+  "ratio_z": 4.72,
+  "ratio_o3": 8.25,
+  "sha": "549fce17ccd0ecc9"
+ },
+ {
+  "doc": "citm_catalog",
+  "mode": "encode",
+  "bytes": 1727204,
+  "port": 1607917834,
+  "oracle_z": 216214935,
+  "oracle_o3": 134740499,
+  "ratio_z": 7.44,
+  "ratio_o3": 11.93,
+  "sha": "49a984b46d65ee8c"
+ },
+ {
+  "doc": "citm_catalog",
+  "mode": "decode",
+  "bytes": 1727204,
+  "port": 1487685277,
+  "oracle_z": 379392083,
+  "oracle_o3": 191217532,
+  "ratio_z": 3.92,
+  "ratio_o3": 7.78,
+  "sha": "dab1596b2cba61e7"
+ },
+ {
+  "doc": "gsoc_2018",
+  "mode": "encode",
+  "bytes": 3327831,
+  "port": 2813787258,
+  "oracle_z": 359329330,
+  "oracle_o3": 191728864,
+  "ratio_z": 7.83,
+  "ratio_o3": 14.68,
+  "sha": "82d0b726779974e0"
+ },
+ {
+  "doc": "gsoc_2018",
+  "mode": "decode",
+  "bytes": 3327831,
+  "port": 3318526350,
+  "oracle_z": 424313564,
+  "oracle_o3": 229000412,
+  "ratio_z": 7.82,
+  "ratio_o3": 14.49,
+  "sha": "7197f23bf0386944"
+ },
+ {
+  "doc": "canada",
+  "mode": "encode",
+  "bytes": 2251051,
+  "port": 10930199115,
+  "oracle_z": 826582787,
+  "oracle_o3": 441322378,
+  "ratio_z": 13.22,
+  "ratio_o3": 24.77,
+  "sha": "76154d48b602f871"
+ },
+ {
+  "doc": "canada",
+  "mode": "decode",
+  "bytes": 2251051,
+  "port": 12830013817,
+  "oracle_z": 1874185975,
+  "oracle_o3": 832299498,
+  "ratio_z": 6.85,
+  "ratio_o3": 15.42,
+  "sha": "407db6383aee869f"
+ }
+]

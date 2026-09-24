@@ -1284,7 +1284,7 @@ identical; `gsoc_2018` (encode and decode) and `canada` (encode) not worse by mo
 `convert` passes the input bytes to `convert.text` in every mode, and only the encode arm reads them there; so in decode mode the
 list is kept alive through the whole decoding and the UTF-8 decoder takes shared cells apart. NE-034 counted the decode cells of a
 lever that also removed this (gsoc 19.56%, flights 3.90%, canada 5.27% fewer), but its card did not gate them. This card tests the
-decode half ALONE, on inputs that count never ran: the instruction count of `--decode` on `perf/e2e/corpus/semanticscholar.toon`
+decode half ALONE, on inputs that count never ran: the instruction count of `--decode` on the e2e corpus's `semanticscholar.toon`
 at 1 thread falls by at least 5% against the binary of `d5483e5`.
 
 ### Lever (one)
@@ -1314,7 +1314,7 @@ with and without `TOON_SPEC=1`; the proof green.
 ### Hypothesis
 After EXP-031 the encode arm alone still walks the bytes twice with the list shared, and its UTF-8 walk costs about 7 more
 instructions per byte than before (bead `toon_bend-1yf`). NE-034's fused walk removes that walk. The instruction count of `--encode`
-on `perf/e2e/corpus/semanticscholar.json` (never counted by EXP-030 or EXP-031) at 1 thread falls by at least 1.5% against the
+on the e2e corpus's `semanticscholar.json` (never counted by EXP-030 or EXP-031) at 1 thread falls by at least 1.5% against the
 binary of the EXP-031 code.
 
 ### Lever (one)

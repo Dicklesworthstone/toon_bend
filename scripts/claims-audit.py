@@ -38,6 +38,7 @@ usage: python3 scripts/claims-audit.py [--files F...] [--verbose]
 exit: 0 no finding, 1 findings, 2 usage. Last stdout line: JSON.
 """
 import json
+import math
 import os
 import re
 import subprocess
@@ -210,6 +211,30 @@ def facts():
             continue
         if j.get("kind") == "counted" and after and abs(before / after - ratio) < 1e-9:
             f["ratios"] |= {round(ratio, d) for d in (2, 3, 4)}
+    # COUNTED corpus comparisons (2026-09-23): `COUNTED.e2e-corpus.<commit>.json` is a list of cells, each with the port's
+    # count and the original's at opt-level z and 3. A cell's ratio is admitted only when it IS the quotient of its counts
+    # (to the 2 decimals written), and the geometric means (all cells, encode cells, decode cells, both builds) are
+    # admitted only as recomputed from those counts, so a README summary is computed from counts on disk, never typed.
+    f["corpus_bad"] = []
+    for name in sorted(os.listdir(evdir) if os.path.isdir(evdir) else []):
+        if not (name.startswith("COUNTED.e2e-corpus.") and name.endswith(".json")):
+            continue
+        try:
+            cells = json.loads(read(os.path.join("perf", "evidence", name)))
+            groups = {}
+            for c in cells:
+                for key, base in (("ratio_z", "oracle_z"), ("ratio_o3", "oracle_o3")):
+                    exact = c["port"] / c[base]
+                    if abs(round(exact, 2) - c[key]) > 1e-9:
+                        f["corpus_bad"].append("%s: %s %s says %s, the counts give %.4f" % (name, c["doc"], c["mode"], c[key], exact))
+                        continue
+                    f["ratios"] |= {round(exact, d) for d in (2, 3, 4)}
+                    for group in ("all", c["mode"]):
+                        groups.setdefault((key, group), []).append(math.log(exact))
+            for logs in groups.values():
+                f["ratios"] |= {round(math.exp(sum(logs) / len(logs)), d) for d in (2, 3, 4)}
+        except (ValueError, KeyError, TypeError, ZeroDivisionError):
+            f["corpus_bad"].append("%s: not a list of cells with port, oracle_z, oracle_o3, ratio_z, ratio_o3" % name)
         # Round 19 (R19-5): six evidence files named `494ef82`, a scratch commit a rebase replaced, as the tree
         # their "after" binary came from; the "tree of" rule reads documents only, so nothing caught it. Every
         # commit a COUNTED file names must be one a reader can check out.
@@ -738,6 +763,9 @@ def audit(files, f, gates, verbose):
         findings.append({"file": "perf/evidence/" + name, "line": 0, "text": "",
                          "finding": "the %s binary's commit %s is not reachable from HEAD: a reader cannot check that tree out"
                                     % (side, rev)})
+    for bad in f.get("corpus_bad", []):
+        findings.append({"file": "perf/evidence/" + bad.split(":")[0], "line": 0, "text": "",
+                         "finding": "a corpus cell's ratio is not the quotient of its counts: " + bad})
     # every number of README's performance section must come from perf/evidence/
     readme = read("README.md")
     a = readme.find("## Performance")

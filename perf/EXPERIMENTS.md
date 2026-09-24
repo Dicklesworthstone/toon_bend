@@ -331,7 +331,7 @@ The reader keeps a token RAW when it cannot overflow (`num.safe`: at most 50 int
 | created (UTC) | 2026-09-22 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | `rg -i 'fold\|fctx\|prefix\|path' perf/NEGATIVE-EVIDENCE.md` → NE-004 (the folding capture, `--key-folding safe`: a different mode; this lever acts only with folding OFF) |
-| status | BUILT 2026-09-22, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-011). Carded AFTER the lever was built, from bead `toon_bend-gzg` and the profile below; the precommitted gate is stated now and not moved |
+| status | BUILT 2026-09-22, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-011). Carded AFTER the lever was built, from `toon_bend-gzg`, the tracker item that raised it, closed 2026-09-24, and the profile below; the precommitted gate is stated now and not moved |
 | precommitted | false (see status) |
 
 ### Hypothesis
@@ -364,7 +364,7 @@ has not run (NE-011).
 | created (UTC) | 2026-09-22 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | `rg -i 'precheck\|header\|has_char\|cut' perf/NEGATIVE-EVIDENCE.md` → no entry (the hits are NE-004's unrelated text and NE-010's "call census" note) |
-| status | BUILT 2026-09-22, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-013): orientation 1.157× by the least favourable estimator, above the 5% gate, but the lever arm's cv (8.8%) is above the capture's bound. Carded before the lever (bead `toon_bend-z3z`) |
+| status | BUILT 2026-09-22, PROVISIONAL (`perf/NEGATIVE-EVIDENCE.md` NE-013): orientation 1.157× by the least favourable estimator, above the 5% gate, but the lever arm's cv (8.8%) is above the capture's bound. Carded before the lever (raised by `toon_bend-z3z`, closed 2026-09-24) |
 | precommitted | true |
 
 ### Hypothesis

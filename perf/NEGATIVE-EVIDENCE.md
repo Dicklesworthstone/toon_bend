@@ -334,7 +334,7 @@ Outcome taxonomy (closed set):
 - Tally: W0/L0/N0 (negative finding, nothing built)
 - Agent: Claude (session ef481f9c, 2026-09-22)
 
-### NE-013 — the header parser looks for '[' before it cuts the line (EXP-009, bead toon_bend-z3z)   [2026-09-22 | PROVISIONAL]
+### NE-013 — the header parser looks for '[' before it cuts the line (EXP-009; raised by `toon_bend-z3z`, closed 2026-09-24, the lever being built, proved and counted)   [2026-09-22 | PROVISIONAL]
 - Program / def: `port/decode.bend` / `hdr.a.plain.pre`, `hdr.a.first`. Not behind the switch: both branches compute the same verdict (with no `[` the cut misses and `hdr.a.plain` answers `HNot`)
 - Provenance: bend 2.0.16 commit `15ae0c8`, clang 21.1.8, Linux x86_64, AMD EPYC-Milan 8 cores, SHARED HOST AT LOAD 11 (other agents' builds, one of them 14 GB); base = the zgb binary sha256 `dbf3edf2f9a4c9c2…` (the NE-011 tree plus the toon_bend-zgb carrier), lever binary `a63151ed793e6164…`, `--threads 1`
 - Binding (the weaker kind): four closed laws, one per path of the unquoted branch (`hdr_precheck_miss`, `_hit`, `_colon_first` (a `[` after the colon belongs to the value), `_unclosed`), `All terms check.` in a scratch book of the eight new laws; no quantified law (it needs a lemma that `T.has_char(s, 91)` false makes `T.cut(s, 91)` miss, by induction over both loops' accumulators; not attempted)

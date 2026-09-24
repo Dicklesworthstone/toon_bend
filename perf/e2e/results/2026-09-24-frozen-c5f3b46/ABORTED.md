@@ -18,13 +18,21 @@ B1 of the quiet-window batch: the e2e wall suite on the frozen port binary
 
 Stopped at 87 cells, 2026-09-24. The cv gate is `--max-cv 5`:
 
-| | this run (87 cells) | the published run (2026-09-23-wall2) |
+| | this run (87 cells) | the published reference run (`results/2026-09-23-wall2-2c33e64/`, 204 cells) |
 |---|---|---|
 | cells `MEASURED` | **0** | 66 |
-| cells `NOISY` | **87 (all of them)** | 24 |
-| arms inside cv 5% | **14 of 261** | 57 of 90 |
+| cells `NOISY` | **87 (all of them)** | 138 |
+| arms inside cv 5% | **14 of 261 (5.4%)** | 349 of 612 (**57.0%**) |
 | arm cv, median | **10.6%** | 4.6% |
-| arm cv, p90 / max | **19.0% / 65.5%** | — |
+| arm cv, p90 | **19.0%** | 12.8% |
+| arm cv, max | **65.5%** | 111.3% |
+
+*(Corrected 2026-09-24. This table first read "57 of 90" and "24 NOISY" for the published run. Those
+were an IN-FLIGHT progress reading I took while that run was still going, carried into a finished
+comparison as though final. Re-derived from its `cells.jsonl`, the figures are the ones above. The
+comparison they support is unchanged and slightly stronger — 57.0% of arms inside the gate against
+5.4% — but the published run was not pristine either: 138 of its 204 cells are `NOISY` and its worst
+arm is 111.3%. What separates the two runs is that 66 of its cells PASSED and none of mine did.)*
 
 Not one cell passed. At that rate the suite's remaining ~35 minutes would have
 produced an artifact whose every row was `NOISY`.

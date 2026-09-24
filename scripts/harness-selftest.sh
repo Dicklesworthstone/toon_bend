@@ -21,6 +21,15 @@
 #   M11 a re-capture without --repin/--disc              -> golden-capture.sh refused (exit 3); needs -- <original cmd>
 #   M12 a case added, the documents' counts left behind  -> claims-audit.py FINDINGS (exit 1)
 #   M13 one more REFUSED_CV capture, the count left behind -> claims-audit.py FINDINGS (exit 1)
+#   M14 a post-20 round with counted findings marked clean -> converge.sh names the contradiction (R21-2)
+#   M15 a round whose `fixed` is under its finding count   -> converge.sh names the unfixed finding (R21-2)
+#   M16 a COUNTED file citing an unreachable commit under "tree" -> claims-audit.py FINDINGS (R21-3)
+#   M17 a COUNTED file that is not parseable JSON          -> claims-audit.py FINDINGS (R21-3)
+# M14 and M15 assert on converge.sh's MESSAGE, not its exit code: the gate is
+# legitimately NOT_CONVERGED on the clean tree, so an exit-code mutation test
+# would report UNTESTABLE and prove nothing. Each requires its phrase to be
+# ABSENT on the clean copy and PRESENT after the mutation, so a phrase that was
+# already there cannot pass the test for it.
 # The port under test is the native binary built once from port/main.bend
 # (--lane c-1t, the default) or the interpreter through scripts/interp-lane.sh
 # (--lane interpreter). PARITY-GATE "Anti-gaming" lists what these lies are.
@@ -539,6 +548,76 @@ if [[ -f scripts/claims-audit.py && -d perf/evidence ]]; then
 else
   echo "UNTESTABLE M13_stale_refused_count  scripts/claims-audit.py or perf/evidence/ is not in this port"
   n=$((n+1)); untestable+=(M13_stale_refused_count)
+fi
+
+# A gate that is legitimately red on the clean tree cannot be tested by its exit code. This asserts on
+# the MESSAGE instead, and proves the mutation caused it: the phrase must be absent on the clean copy.
+expect_says() {  # name pattern dir command...
+  local name="$1" pat="$2" d="$3"; shift 3; n=$((n+1))
+  ( cd "$B" && "$@" ) >"$T/$name.clean.log" 2>&1
+  if grep -qE -- "$pat" "$T/$name.clean.log"; then
+    printf 'UNTESTABLE %-24s the phrase is already present on the clean copy\n' "$name"; untestable+=("$name"); return
+  fi
+  ( cd "$d" && "$@" ) >"$T/$name.log" 2>&1
+  if grep -qE -- "$pat" "$T/$name.log"; then
+    printf 'CAUGHT     %-24s %s\n' "$name" "$(grep -oE -- "$pat" "$T/$name.log" | head -1)"; caught=$((caught+1))
+  else
+    printf 'LEAK       %-24s no match for /%s/: %s\n' "$name" "$pat" "$(grep -v '^$' "$T/$name.log" | tail -1 | head -c 110)"; leaked+=("$name")
+  fi
+}
+
+# M14 a post-20 round that carries counted findings but is marked clean (R21-2). Every finding a round
+# from 20 counts is a MEDIUM-or-HIGH BEHAVIOR finding, so "clean" and a non-zero count contradict.
+if [[ -f scripts/converge.sh ]]; then
+  D="$(copy m14)"
+  awk '{print} /^\| 20 \| non-author/ {print "| 21 | non-author hostile review (subagent): harness-selftest M14 (non-author) | 2 | 2 | yes | 2026-09-24 |"}' \
+    docs/PORT_STATE.md >"$D/docs/PORT_STATE.md"
+  expect_says M14_clean_with_findings 'round 21 is marked clean but records 2' "$D" \
+    scripts/converge.sh docs/PORT_STATE.md
+  # M15 a finding neither repaired nor registered: `fixed` under the finding count.
+  D="$(copy m15)"
+  sed 's/^| 18 \(.*\)| 5 | 5 | no |/| 18 \1| 5 | 1 | no |/' docs/PORT_STATE.md >"$D/docs/PORT_STATE.md"
+  expect_says M15_unfixed_finding 'round 18: 4 of 5 finding' "$D" \
+    scripts/converge.sh docs/PORT_STATE.md
+else
+  echo "UNTESTABLE M14_clean_with_findings   scripts/converge.sh is not in this port"
+  n=$((n+1)); untestable+=(M14_clean_with_findings)
+  echo "UNTESTABLE M15_unfixed_finding      scripts/converge.sh is not in this port"
+  n=$((n+1)); untestable+=(M15_unfixed_finding)
+fi
+
+# M16/M17 round 21's R21-3: a COUNTED evidence file citing a commit no history contains must be found
+# whatever shape it takes. M16 hides the commit under "tree" (the rule read only "commit"); M17 makes the
+# file unparseable (it was `continue`d in silence, so nothing in it was ever read).
+DEADREV=deadbee1234567890abcdef1234567890abcdef1
+if [[ -f scripts/claims-audit.py && -d perf/evidence ]]; then
+  # M16 needs git: `reachable()` answers True when git cannot run (by design — the check may add
+  # findings, never stop the audit), and `copy` does not copy `.git`, so without it EVERY commit looks
+  # reachable and this mutation cannot be caught. The copy therefore links the real `.git` (the audit's
+  # only git use is `merge-base --is-ancestor` and `check-ignore`, both read-only).
+  # Its control is the SAME tree before the file is planted, not the shared baseline: with `.git` present
+  # the audit may report other things the baseline never sees, and then a leak would read as a catch.
+  D="$(copy m16)"; n=$((n+1)); ln -s "$PWD/.git" "$D/.git" 2>/dev/null
+  ( cd "$D" && python3 scripts/claims-audit.py --verbose ) >"$T/M16.control.log" 2>&1
+  printf '{"kind":"counted","after":{"tree":"%s","instructions":10}}\n' "$DEADREV" >"$D/perf/evidence/COUNTED.selftest-m16.json"
+  ( cd "$D" && python3 scripts/claims-audit.py --verbose ) >"$T/M16.log" 2>&1
+  if grep -q 'COUNTED.selftest-m16.json' "$T/M16.control.log"; then
+    printf 'UNTESTABLE %-24s the control run already names the planted file\n' M16_counted_tree_unreachable
+    untestable+=(M16_counted_tree_unreachable)
+  elif grep -q 'COUNTED.selftest-m16.json' "$T/M16.log"; then
+    printf 'CAUGHT     %-24s %s\n' M16_counted_tree_unreachable "an unreachable commit under \"tree\""; caught=$((caught+1))
+  else
+    printf 'LEAK       %-24s the unreachable commit under "tree" was not reported\n' M16_counted_tree_unreachable
+    leaked+=(M16_counted_tree_unreachable)
+  fi
+  D="$(copy m17)"
+  printf '{"kind":"counted", this is not json\n' >"$D/perf/evidence/COUNTED.selftest-m17.json"
+  expect M17_counted_unparseable "$b_audit" 1 "$D" python3 scripts/claims-audit.py
+else
+  echo "UNTESTABLE M16_counted_tree_unreachable  scripts/claims-audit.py or perf/evidence/ is not in this port"
+  n=$((n+1)); untestable+=(M16_counted_tree_unreachable)
+  echo "UNTESTABLE M17_counted_unparseable       scripts/claims-audit.py or perf/evidence/ is not in this port"
+  n=$((n+1)); untestable+=(M17_counted_unparseable)
 fi
 
 verdict=OK

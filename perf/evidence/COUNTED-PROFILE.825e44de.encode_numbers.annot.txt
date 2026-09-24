@@ -1,0 +1,237 @@
+--------------------------------------------------------------------------------
+-- Metadata
+--------------------------------------------------------------------------------
+Invocation:       /usr/bin/cg_annotate /data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/counted-profile/encode_numbers.port.cg
+Command:          /data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/frozenc5f3b46/toon -- --encode /data/projects/toon_bend/perf/e2e/corpus/numbers.json
+Events recorded:  Ir
+Events shown:     Ir
+Event sort order: Ir
+Threshold:        0.1%
+Annotation:       on
+
+--------------------------------------------------------------------------------
+-- Summary
+--------------------------------------------------------------------------------
+Ir__________________ 
+
+867,670,267 (100.0%)  PROGRAM TOTALS
+
+--------------------------------------------------------------------------------
+-- File:function summary
+--------------------------------------------------------------------------------
+  Ir________________________  file:function
+
+< 867,141,309 (99.9%, 99.9%)  ???:
+  129,084,514 (14.9%)           term_drop
+  112,878,012 (13.0%)           rfc_wrap
+   98,140,203 (11.3%)           span_fade
+   53,634,141  (6.2%)           spin_313
+   51,589,008  (5.9%)           spin_234
+   26,421,761  (3.0%)           WL_FID_JSON_STEP
+   22,923,195  (2.6%)           WL_FID_BIGNAT_ADD
+   22,778,591  (2.6%)           WL_FID_BIGNAT_CMP
+   21,122,863  (2.4%)           WL_FID_EXIT
+   21,117,470  (2.4%)           spin_49
+   21,017,396  (2.4%)           WL_FID_JSON_RUN
+   20,037,019  (2.3%)           spin_101
+   18,800,727  (2.2%)           WL_FID_BIGNAT_MUL_SMALL
+   17,676,041  (2.0%)           spin_8
+   12,362,540  (1.4%)           spin_31
+   10,586,605  (1.2%)           WL_FID_BIGNAT_SHR_BITS
+    9,138,066  (1.1%)           spin_372
+    8,770,060  (1.0%)           spin_200
+    8,459,149  (1.0%)           WL_FID_BIGNAT_P5_STEP
+    8,406,988  (1.0%)           spin_499
+    8,109,844  (0.9%)           io_cstr
+    7,763,159  (0.9%)           spin_178
+    7,436,433  (0.9%)           WL_FID_F64_TOKEN_LITERAL
+    6,831,784  (0.8%)           WL_FID_F64_TOKEN_RANGE
+    6,749,634  (0.8%)           WL_FID_BIGNAT_FROM_DEC
+    6,050,437  (0.7%)           spin_437
+    5,590,227  (0.6%)           WL_FID_F64_DIGITS_TEXT
+    5,447,065  (0.6%)           WL_FID_BIGNAT_STRIP
+    5,317,332  (0.6%)           WL_FID_BIGNAT_SHL_BITS
+    4,869,450  (0.6%)           WL_FID_BIGNAT_MUL_SMALL_K1405
+    4,335,760  (0.5%)           spin_232
+    4,310,932  (0.5%)           heap_alloc_miss
+    4,203,472  (0.5%)           WL_FID_JSON_RUN_K1518
+    4,150,415  (0.5%)           WL_FID_BIGNAT_MUL
+    3,903,531  (0.4%)           file_read_bytes_pack
+    3,756,051  (0.4%)           WL_FID_BIGNAT_SHR_BITS_K921
+    3,657,021  (0.4%)           WL_FID_BIGNAT_CMP_K1580
+    3,620,362  (0.4%)           WL_FID_F64_DG_FIX
+    3,617,164  (0.4%)           WL_FID_F64_DIGITS_TEXT_K806
+    3,350,360  (0.4%)           spin_233
+    2,981,970  (0.3%)           WL_FID_BIGNAT_ADD_K1408
+    2,975,222  (0.3%)           WL_FID_F64_SHORTEST_FAST_K1151
+    2,934,592  (0.3%)           WL_FID_LIST_LENGTH
+    2,818,244  (0.3%)           spin_231
+    2,710,271  (0.3%)           WL_FID_BIGNAT_SHR_K1166
+    2,605,388  (0.3%)           spin_427
+    2,261,732  (0.3%)           WL_FID_ENCODE_PRE
+    2,020,202  (0.2%)           spin_310
+    1,873,696  (0.2%)           WL_FID_F64_DG_FIX_K792
+    1,810,235  (0.2%)           WL_FID_JSON_PUSH
+    1,751,865  (0.2%)           WL_FID_BIGNAT_ADD_K1409
+    1,738,425  (0.2%)           WL_FID_BIGNAT_STRIP_K1265
+    1,602,895  (0.2%)           spin_46
+    1,530,325  (0.2%)           WL_FID_JSON_AFTER
+    1,450,145  (0.2%)           WL_FID_F64_DG_FIX_K793
+    1,320,465  (0.2%)           WL_FID_BIGNAT_SHL_BITS_K1420
+    1,189,410  (0.1%)           WL_FID_LIST_LENGTH_K1025
+    1,130,113  (0.1%)           spin_99
+    1,100,110  (0.1%)           WL_FID_F64_DG_FIX_K794
+    1,090,109  (0.1%)           WL_FID_F64_SHORTEST_FAST_K1146
+    1,000,079  (0.1%)           WL_FID_BIGNAT_SHL_K1507
+      929,535  (0.1%)           WL_FID_BIGNAT_SUB
+      900,108  (0.1%)           WL_FID_ENCODE_PUT_JOIN
+      871,337  (0.1%)           WL_FID_STRING_APPEND
+      870,087  (0.1%)           WL_FID_F64_TOKEN_VALUE
+
+--------------------------------------------------------------------------------
+-- Function:file summary
+--------------------------------------------------------------------------------
+  Ir________________________  function:file
+
+> 129,084,514 (14.9%, 14.9%)  term_drop:???
+
+> 112,878,012 (13.0%, 27.9%)  rfc_wrap:???
+
+>  98,140,203 (11.3%, 39.2%)  span_fade:???
+
+>  53,634,141  (6.2%, 45.4%)  spin_313:???
+
+>  51,589,008  (5.9%, 51.3%)  spin_234:???
+
+>  26,421,761  (3.0%, 54.4%)  WL_FID_JSON_STEP:???
+
+>  22,923,195  (2.6%, 57.0%)  WL_FID_BIGNAT_ADD:???
+
+>  22,778,591  (2.6%, 59.6%)  WL_FID_BIGNAT_CMP:???
+
+>  21,122,863  (2.4%, 62.1%)  WL_FID_EXIT:???
+
+>  21,117,470  (2.4%, 64.5%)  spin_49:???
+
+>  21,017,396  (2.4%, 66.9%)  WL_FID_JSON_RUN:???
+
+>  20,037,019  (2.3%, 69.2%)  spin_101:???
+
+>  18,800,727  (2.2%, 71.4%)  WL_FID_BIGNAT_MUL_SMALL:???
+
+>  17,676,041  (2.0%, 73.4%)  spin_8:???
+
+>  12,362,540  (1.4%, 74.9%)  spin_31:???
+
+>  10,586,605  (1.2%, 76.1%)  WL_FID_BIGNAT_SHR_BITS:???
+
+>   9,138,066  (1.1%, 77.1%)  spin_372:???
+
+>   8,770,060  (1.0%, 78.1%)  spin_200:???
+
+>   8,459,149  (1.0%, 79.1%)  WL_FID_BIGNAT_P5_STEP:???
+
+>   8,406,988  (1.0%, 80.1%)  spin_499:???
+
+>   8,109,844  (0.9%, 81.0%)  io_cstr:???
+
+>   7,763,159  (0.9%, 81.9%)  spin_178:???
+
+>   7,436,433  (0.9%, 82.8%)  WL_FID_F64_TOKEN_LITERAL:???
+
+>   6,831,784  (0.8%, 83.6%)  WL_FID_F64_TOKEN_RANGE:???
+
+>   6,749,634  (0.8%, 84.3%)  WL_FID_BIGNAT_FROM_DEC:???
+
+>   6,050,437  (0.7%, 85.0%)  spin_437:???
+
+>   5,590,227  (0.6%, 85.7%)  WL_FID_F64_DIGITS_TEXT:???
+
+>   5,447,065  (0.6%, 86.3%)  WL_FID_BIGNAT_STRIP:???
+
+>   5,317,332  (0.6%, 86.9%)  WL_FID_BIGNAT_SHL_BITS:???
+
+>   4,869,450  (0.6%, 87.5%)  WL_FID_BIGNAT_MUL_SMALL_K1405:???
+
+>   4,335,760  (0.5%, 88.0%)  spin_232:???
+
+>   4,310,932  (0.5%, 88.5%)  heap_alloc_miss:???
+
+>   4,203,472  (0.5%, 89.0%)  WL_FID_JSON_RUN_K1518:???
+
+>   4,150,415  (0.5%, 89.4%)  WL_FID_BIGNAT_MUL:???
+
+>   3,903,531  (0.4%, 89.9%)  file_read_bytes_pack:???
+
+>   3,756,051  (0.4%, 90.3%)  WL_FID_BIGNAT_SHR_BITS_K921:???
+
+>   3,657,021  (0.4%, 90.8%)  WL_FID_BIGNAT_CMP_K1580:???
+
+>   3,620,362  (0.4%, 91.2%)  WL_FID_F64_DG_FIX:???
+
+>   3,617,164  (0.4%, 91.6%)  WL_FID_F64_DIGITS_TEXT_K806:???
+
+>   3,350,360  (0.4%, 92.0%)  spin_233:???
+
+>   2,981,970  (0.3%, 92.3%)  WL_FID_BIGNAT_ADD_K1408:???
+
+>   2,975,222  (0.3%, 92.7%)  WL_FID_F64_SHORTEST_FAST_K1151:???
+
+>   2,934,592  (0.3%, 93.0%)  WL_FID_LIST_LENGTH:???
+
+>   2,818,244  (0.3%, 93.3%)  spin_231:???
+
+>   2,710,271  (0.3%, 93.6%)  WL_FID_BIGNAT_SHR_K1166:???
+
+>   2,605,388  (0.3%, 93.9%)  spin_427:???
+
+>   2,261,732  (0.3%, 94.2%)  WL_FID_ENCODE_PRE:???
+
+>   2,020,202  (0.2%, 94.4%)  spin_310:???
+
+>   1,873,696  (0.2%, 94.6%)  WL_FID_F64_DG_FIX_K792:???
+
+>   1,810,235  (0.2%, 94.9%)  WL_FID_JSON_PUSH:???
+
+>   1,751,865  (0.2%, 95.1%)  WL_FID_BIGNAT_ADD_K1409:???
+
+>   1,738,425  (0.2%, 95.3%)  WL_FID_BIGNAT_STRIP_K1265:???
+
+>   1,602,895  (0.2%, 95.4%)  spin_46:???
+
+>   1,530,325  (0.2%, 95.6%)  WL_FID_JSON_AFTER:???
+
+>   1,450,145  (0.2%, 95.8%)  WL_FID_F64_DG_FIX_K793:???
+
+>   1,320,465  (0.2%, 95.9%)  WL_FID_BIGNAT_SHL_BITS_K1420:???
+
+>   1,189,410  (0.1%, 96.1%)  WL_FID_LIST_LENGTH_K1025:???
+
+>   1,130,113  (0.1%, 96.2%)  spin_99:???
+
+>   1,100,110  (0.1%, 96.3%)  WL_FID_F64_DG_FIX_K794:???
+
+>   1,090,109  (0.1%, 96.5%)  WL_FID_F64_SHORTEST_FAST_K1146:???
+
+>   1,000,079  (0.1%, 96.6%)  WL_FID_BIGNAT_SHL_K1507:???
+
+>     929,535  (0.1%, 96.7%)  WL_FID_BIGNAT_SUB:???
+
+>     900,108  (0.1%, 96.8%)  WL_FID_ENCODE_PUT_JOIN:???
+
+>     871,337  (0.1%, 96.9%)  WL_FID_STRING_APPEND:???
+
+>     870,087  (0.1%, 97.0%)  WL_FID_F64_TOKEN_VALUE:???
+
+--------------------------------------------------------------------------------
+-- Annotation summary
+--------------------------------------------------------------------------------
+Ir_________________ 
+
+          0            annotated: files known & above threshold & readable, line numbers known
+          0            annotated: files known & above threshold & readable, line numbers unknown
+          0          unannotated: files known & above threshold & two or more non-identical
+          0          unannotated: files known & above threshold & unreadable 
+    528,958  (0.1%)  unannotated: files known & below threshold
+867,141,309 (99.9%)  unannotated: files unknown
+

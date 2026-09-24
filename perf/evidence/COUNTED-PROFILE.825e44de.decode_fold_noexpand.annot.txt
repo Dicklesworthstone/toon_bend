@@ -1,0 +1,271 @@
+--------------------------------------------------------------------------------
+-- Metadata
+--------------------------------------------------------------------------------
+Invocation:       /usr/bin/cg_annotate /data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/counted-profile/decode_fold_noexpand.port.cg
+Command:          /data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/frozenc5f3b46/toon -- --decode --expand-paths off /data/projects/toon_bend/perf/e2e/corpus/citm_catalog.fold.toon
+Events recorded:  Ir
+Events shown:     Ir
+Event sort order: Ir
+Threshold:        0.1%
+Annotation:       on
+
+--------------------------------------------------------------------------------
+-- Summary
+--------------------------------------------------------------------------------
+Ir____________________ 
+
+1,632,681,447 (100.0%)  PROGRAM TOTALS
+
+--------------------------------------------------------------------------------
+-- File:function summary
+--------------------------------------------------------------------------------
+  Ir___________________________  file:function
+
+< 1,630,566,982 (99.9%,  99.9%)  ???:
+    329,189,429 (20.2%)            term_drop
+    277,504,500 (17.0%)            rfc_wrap
+    131,426,083  (8.0%)            WL_FID_EXIT
+     84,244,278  (5.2%)            span_fade
+     69,827,334  (4.3%)            spin_8
+     64,596,340  (4.0%)            spin_499
+     62,200,078  (3.8%)            io_cstr
+     54,691,584  (3.3%)            WL_FID_DECODE_SCAN_REV
+     35,843,468  (2.2%)            spin_162
+     30,397,230  (1.9%)            heap_alloc_miss
+     22,676,292  (1.4%)            spin_429
+     19,287,907  (1.2%)            WL_FID_TEXT_KT_PUT_GO
+     17,848,699  (1.1%)            WL_FID_DECODE_SCAN_LEAD
+     17,329,380  (1.1%)            WL_FID_DECODE_DECIDE
+     17,316,283  (1.1%)            file_read_bytes_pack
+     15,421,065  (0.9%)            spin_168
+     14,856,677  (0.9%)            spin_430
+     14,650,509  (0.9%)            spin_31
+     12,939,646  (0.8%)            spin_11
+     12,316,667  (0.8%)            WL_FID_DECODE_HEADER
+     11,805,775  (0.7%)            spin_10
+     11,129,060  (0.7%)            spin_105
+     10,568,680  (0.6%)            WL_FID_F64_SHORTEST_FAST_K1146
+     10,151,607  (0.6%)            spin_49
+      9,936,203  (0.6%)            WL_FID_TEXT_KT_PUT_GO_K958
+      9,841,381  (0.6%)            WL_FID_TEXT_KT_PUT_GO_K960
+      9,840,399  (0.6%)            WL_FID_ENCODE_PRE
+      9,568,314  (0.6%)            spin_188
+      9,168,227  (0.6%)            WL_FID_DECODE_RUN
+      8,578,939  (0.5%)            spin_54
+      8,068,188  (0.5%)            WL_FID_F64_TOKEN_VALUE
+      7,569,414  (0.5%)            WL_FID_DECODE_ATTACH
+      7,040,931  (0.4%)            ctr_take
+      6,998,782  (0.4%)            WL_FID_STRING_APPEND
+      6,982,108  (0.4%)            spin_64
+      6,672,562  (0.4%)            WL_FID_F64_DIGITS_TEXT
+      6,658,235  (0.4%)            WL_FID_JSON_W
+      6,547,793  (0.4%)            WL_FID_DECODE_EAT
+      6,474,855  (0.4%)            task_node
+      6,218,852  (0.4%)            spin_170
+      6,100,299  (0.4%)            spin_101
+      4,865,338  (0.3%)            WL_FID_DECODE_EAT_K738
+      4,812,008  (0.3%)            spin_313
+      4,744,285  (0.3%)            WL_FID_DECODE_ATTACH_K589
+      4,519,053  (0.3%)            WL_FID_DECODE_EAT_KV
+      4,470,013  (0.3%)            WL_FID_TEXT_KT_PUT
+      4,330,021  (0.3%)            WL_FID_DECODE_POP
+      4,224,384  (0.3%)            spin_306
+      4,139,011  (0.3%)            spin_178
+      3,979,350  (0.2%)            spin_2
+      3,934,506  (0.2%)            WL_FID_LIST_LENGTH
+      3,841,691  (0.2%)            spin_74
+      3,749,361  (0.2%)            spin_26
+      3,707,116  (0.2%)            WL_FID_STRING_APPEND_K1938
+      3,671,789  (0.2%)            WL_FID_F64_DIGITS_TEXT_K806
+      3,628,132  (0.2%)            WL_FID_DECODE_ARRAY
+      3,126,140  (0.2%)            WL_FID_BIGNAT_SHR_BITS
+      2,838,499  (0.2%)            WL_FID_DECODE_SCAN_SEGS
+      2,819,264  (0.2%)            WL_FID_DECODE_EAT_KV_PLAIN
+      2,718,249  (0.2%)            WL_FID_DECODE_SCAN_END_WITH_K974
+      2,648,148  (0.2%)            WL_FID_BIGNAT_STRIP
+      2,621,995  (0.2%)            WL_FID_DECODE_SCAN_END_WITH
+      2,496,626  (0.2%)            WL_FID_BIGNAT_SHL_BITS
+      2,091,712  (0.1%)            WL_FID_DECODE_PRIM
+      2,066,424  (0.1%)            WL_FID_DECODE_HDR_B
+      2,020,052  (0.1%)            spare_free
+      1,951,155  (0.1%)            WL_FID_DECODE_RUN_K871
+      1,925,198  (0.1%)            WL_FID_ENCODE_PRE_K1369
+      1,868,663  (0.1%)            WL_FID_DECODE_ITEM_KV
+      1,755,950  (0.1%)            spin_279
+      1,657,062  (0.1%)            WL_FID_DECODE_EAT_K730
+      1,650,478  (0.1%)            WL_FID_DECODE_HDR_E
+      1,643,329  (0.1%)            spin_118
+
+<     1,777,875  (0.1%, 100.0%)  ./string/../sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S:__memset_avx2_unaligned_erms
+
+--------------------------------------------------------------------------------
+-- Function:file summary
+--------------------------------------------------------------------------------
+  Ir________________________  function:file
+
+> 329,189,429 (20.2%, 20.2%)  term_drop:???
+
+> 277,504,500 (17.0%, 37.2%)  rfc_wrap:???
+
+> 131,426,083  (8.0%, 45.2%)  WL_FID_EXIT:???
+
+>  84,244,278  (5.2%, 50.4%)  span_fade:???
+
+>  69,827,334  (4.3%, 54.6%)  spin_8:???
+
+>  64,596,340  (4.0%, 58.6%)  spin_499:???
+
+>  62,200,078  (3.8%, 62.4%)  io_cstr:???
+
+>  54,691,584  (3.3%, 65.8%)  WL_FID_DECODE_SCAN_REV:???
+
+>  35,843,468  (2.2%, 68.0%)  spin_162:???
+
+>  30,397,230  (1.9%, 69.8%)  heap_alloc_miss:???
+
+>  22,676,292  (1.4%, 71.2%)  spin_429:???
+
+>  19,287,907  (1.2%, 72.4%)  WL_FID_TEXT_KT_PUT_GO:???
+
+>  17,848,699  (1.1%, 73.5%)  WL_FID_DECODE_SCAN_LEAD:???
+
+>  17,329,380  (1.1%, 74.5%)  WL_FID_DECODE_DECIDE:???
+
+>  17,316,283  (1.1%, 75.6%)  file_read_bytes_pack:???
+
+>  15,421,065  (0.9%, 76.5%)  spin_168:???
+
+>  14,856,677  (0.9%, 77.5%)  spin_430:???
+
+>  14,650,509  (0.9%, 78.4%)  spin_31:???
+
+>  12,939,646  (0.8%, 79.1%)  spin_11:???
+
+>  12,316,667  (0.8%, 79.9%)  WL_FID_DECODE_HEADER:???
+
+>  11,805,775  (0.7%, 80.6%)  spin_10:???
+
+>  11,129,060  (0.7%, 81.3%)  spin_105:???
+
+>  10,568,680  (0.6%, 82.0%)  WL_FID_F64_SHORTEST_FAST_K1146:???
+
+>  10,151,607  (0.6%, 82.6%)  spin_49:???
+
+>   9,936,203  (0.6%, 83.2%)  WL_FID_TEXT_KT_PUT_GO_K958:???
+
+>   9,841,381  (0.6%, 83.8%)  WL_FID_TEXT_KT_PUT_GO_K960:???
+
+>   9,840,399  (0.6%, 84.4%)  WL_FID_ENCODE_PRE:???
+
+>   9,568,314  (0.6%, 85.0%)  spin_188:???
+
+>   9,168,227  (0.6%, 85.5%)  WL_FID_DECODE_RUN:???
+
+>   8,578,939  (0.5%, 86.1%)  spin_54:???
+
+>   8,068,188  (0.5%, 86.6%)  WL_FID_F64_TOKEN_VALUE:???
+
+>   7,569,414  (0.5%, 87.0%)  WL_FID_DECODE_ATTACH:???
+
+>   7,040,931  (0.4%, 87.5%)  ctr_take:???
+
+>   6,998,782  (0.4%, 87.9%)  WL_FID_STRING_APPEND:???
+
+>   6,982,108  (0.4%, 88.3%)  spin_64:???
+
+>   6,672,562  (0.4%, 88.7%)  WL_FID_F64_DIGITS_TEXT:???
+
+>   6,658,235  (0.4%, 89.1%)  WL_FID_JSON_W:???
+
+>   6,547,793  (0.4%, 89.5%)  WL_FID_DECODE_EAT:???
+
+>   6,474,855  (0.4%, 89.9%)  task_node:???
+
+>   6,218,852  (0.4%, 90.3%)  spin_170:???
+
+>   6,100,299  (0.4%, 90.7%)  spin_101:???
+
+>   4,865,338  (0.3%, 91.0%)  WL_FID_DECODE_EAT_K738:???
+
+>   4,812,008  (0.3%, 91.3%)  spin_313:???
+
+>   4,744,285  (0.3%, 91.6%)  WL_FID_DECODE_ATTACH_K589:???
+
+>   4,519,053  (0.3%, 91.8%)  WL_FID_DECODE_EAT_KV:???
+
+>   4,470,013  (0.3%, 92.1%)  WL_FID_TEXT_KT_PUT:???
+
+>   4,330,021  (0.3%, 92.4%)  WL_FID_DECODE_POP:???
+
+>   4,224,384  (0.3%, 92.6%)  spin_306:???
+
+>   4,139,011  (0.3%, 92.9%)  spin_178:???
+
+>   3,979,350  (0.2%, 93.1%)  spin_2:???
+
+>   3,934,506  (0.2%, 93.4%)  WL_FID_LIST_LENGTH:???
+
+>   3,841,691  (0.2%, 93.6%)  spin_74:???
+
+>   3,749,361  (0.2%, 93.8%)  spin_26:???
+
+>   3,707,116  (0.2%, 94.1%)  WL_FID_STRING_APPEND_K1938:???
+
+>   3,671,789  (0.2%, 94.3%)  WL_FID_F64_DIGITS_TEXT_K806:???
+
+>   3,628,132  (0.2%, 94.5%)  WL_FID_DECODE_ARRAY:???
+
+>   3,126,140  (0.2%, 94.7%)  WL_FID_BIGNAT_SHR_BITS:???
+
+>   2,838,499  (0.2%, 94.9%)  WL_FID_DECODE_SCAN_SEGS:???
+
+>   2,819,264  (0.2%, 95.1%)  WL_FID_DECODE_EAT_KV_PLAIN:???
+
+>   2,718,249  (0.2%, 95.2%)  WL_FID_DECODE_SCAN_END_WITH_K974:???
+
+>   2,648,148  (0.2%, 95.4%)  WL_FID_BIGNAT_STRIP:???
+
+>   2,621,995  (0.2%, 95.5%)  WL_FID_DECODE_SCAN_END_WITH:???
+
+>   2,496,626  (0.2%, 95.7%)  WL_FID_BIGNAT_SHL_BITS:???
+
+>   2,091,712  (0.1%, 95.8%)  WL_FID_DECODE_PRIM:???
+
+>   2,066,424  (0.1%, 95.9%)  WL_FID_DECODE_HDR_B:???
+
+>   2,020,052  (0.1%, 96.1%)  spare_free:???
+
+>   1,951,155  (0.1%, 96.2%)  WL_FID_DECODE_RUN_K871:???
+
+>   1,925,198  (0.1%, 96.3%)  WL_FID_ENCODE_PRE_K1369:???
+
+>   1,868,663  (0.1%, 96.4%)  WL_FID_DECODE_ITEM_KV:???
+
+>   1,777,875  (0.1%, 96.5%)  __memset_avx2_unaligned_erms:./string/../sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+
+>   1,755,950  (0.1%, 96.6%)  spin_279:???
+
+>   1,657,062  (0.1%, 96.7%)  WL_FID_DECODE_EAT_K730:???
+
+>   1,650,478  (0.1%, 96.8%)  WL_FID_DECODE_HDR_E:???
+
+>   1,643,329  (0.1%, 96.9%)  spin_118:???
+
+--------------------------------------------------------------------------------
+-- Annotated source file: ./string/../sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+--------------------------------------------------------------------------------
+Unannotated because one or more of these original files are unreadable:
+- ./string/../sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+
+--------------------------------------------------------------------------------
+-- Annotation summary
+--------------------------------------------------------------------------------
+Ir___________________ 
+
+            0            annotated: files known & above threshold & readable, line numbers known
+            0            annotated: files known & above threshold & readable, line numbers unknown
+            0          unannotated: files known & above threshold & two or more non-identical
+    1,777,875  (0.1%)  unannotated: files known & above threshold & unreadable 
+      336,590  (0.0%)  unannotated: files known & below threshold
+1,630,566,982 (99.9%)  unannotated: files unknown
+

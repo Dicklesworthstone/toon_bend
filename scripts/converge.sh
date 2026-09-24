@@ -5,8 +5,39 @@
 # PORT_STATE or --tier), open OQ rows in docs/OPEN_QUESTIONS.md (resolution
 # explicitly RESOLVED, EXCLUDED or WITHDRAWN) and unresolved DISC entries.
 # Rule (PARITY-GATE): T1 >= 3 rounds and >= 1 clean round; T2 >= 5 and >= 2
-# clean since the last reset; T3 >= 10 and the LAST TWO rounds clean; a
-# clean round has < 3 findings and no reopened finding/counterexample.
+# clean since the last reset; T3 >= 10 and the LAST TWO rounds clean; a clean
+# round has no reopened finding/counterexample and a finding count under the
+# threshold its COUNTING RULE was calibrated for (below). Every round's
+# findings must also be fixed.
+#
+# R21-2 (round 21, MEDIUM). The threshold and the counting rule were changed
+# independently, and the pair became unsound.
+#   - The method's threshold is "< 3 new genuine findings" (the porting skill,
+#     PORT-LOOP "Converge by the tier's rule"). It was calibrated when the
+#     count was findings OF ANY KIND, so "< 3" meant a round that turned up
+#     almost nothing.
+#   - At round 20 the owner adopted a stricter counting rule (PORT_STATE
+#     "Owner decisions", 2026-09-23): only NEW BEHAVIOR findings of MEDIUM or
+#     HIGH are counted; law-coverage and document findings are listed and
+#     repaired but not counted. `scripts/claims-audit.py` already switches on
+#     `r >= 20` for exactly this.
+# Under the new counting rule the SAME "< 3" admits a round carrying two
+# MEDIUM-or-HIGH behaviour defects, and two such rounds in a row satisfy T2 and
+# T3. The number got smaller while the threshold consuming it did not, so the
+# gate grew more permissive in substance while looking unchanged.
+#
+# So the threshold is version-matched to the counting rule that produced the
+# number: rounds before 20 keep "< 3" (their counts are comparable to what it
+# was calibrated for), rounds from 20 on must be ZERO, because every finding
+# they still count is a MEDIUM-or-HIGH behaviour defect. This deliberately
+# diverges from the skill's single "< 3"; the skill's own text assumes the
+# old counting rule, and the two cannot both be applied as written.
+#
+# A `yes` beside a count over the round's own threshold is a row that
+# contradicts itself: it is reported by name, not silently downgraded, so the
+# author learns which row disagrees with itself. Independently, an unfixed
+# finding (fixed < findings: neither repaired nor registered as a DISC) blocks
+# convergence wherever it sits, not only in the last two rounds.
 # Every OQ is resolved or excluded; every DISC is accepted, reverted or resolved
 # by a fidelity repair with a recorded Resolution and regression evidence. A round
 # whose lens is "author" does not count as the required non-author round
@@ -67,7 +98,10 @@ def col(row, *names):
         for k in row:
             if k.rstrip('?').strip() == n: return row[k]
     return ""
-rounds, clean_flags, lenses, round_ids = 0, [], [], set()
+# The round from which the owner's stricter counting rule applies (only NEW BEHAVIOR findings of
+# MEDIUM or HIGH are counted). scripts/claims-audit.py switches on the same number; keep them equal.
+COUNTING_RULE_ROUND = 20
+rounds, clean_flags, lenses, round_ids, unfixed = 0, [], [], set(), []
 normalized = [k.rstrip('?').strip() for k in header or []]
 if not header or len(set(normalized)) != len(header) or not all(n in normalized for n in ('round', 'lens', 'clean')) or sum(k in ('new genuine findings', 'findings') for k in normalized) != 1:
     malformed.append('missing or ambiguous round table header')
@@ -84,9 +118,23 @@ for r in rows:
     f = col(r, "new genuine findings", "findings"); m = re.match(r"^(\d+)(?:\s*:|\s*$)", f); n = int(m.group(1)) if m else None
     c = col(r, "clean").lower()
     clean_value = re.fullmatch(r'(yes|no)(?:\s*\([^\n]*\))?', c)
-    clean = n is not None and n < 3 and bool(clean_value and clean_value.group(1) == 'yes')
+    said_clean = bool(clean_value and clean_value.group(1) == 'yes')
+    # R21-2: the threshold is version-matched to the counting rule that produced the number.
+    # Rounds from 20 count only MEDIUM/HIGH behaviour findings, so any of them makes the round dirty.
+    limit = 1 if rid >= COUNTING_RULE_ROUND else 3
+    clean = n is not None and n < limit and said_clean
     if n is None: malformed.append(f"round {rid} has no numeric finding count")
     if not clean_value: malformed.append(f'round {rid} needs an explicit yes/no clean value')
+    # A `yes` over the round's own threshold is a row that contradicts itself: say so, do not just downgrade it.
+    if said_clean and n is not None and n >= limit:
+        malformed.append(f'round {rid} is marked clean but records {n} new genuine finding(s)'
+                         + (' (from round %d every counted finding is a MEDIUM-or-HIGH behaviour finding, so a clean round has none)' % COUNTING_RULE_ROUND
+                            if rid >= COUNTING_RULE_ROUND else ' (the threshold is under 3)'))
+    # `fixed` counts findings repaired OR registered as a DISC; fewer than found means one is still open.
+    fx = col(r, "fixed"); fm = re.match(r"^(\d+)(?:\s*:|\s*$)", fx)
+    if n is not None and fm and int(fm.group(1)) < n:
+        unfixed.append(f'round {rid}: {n - int(fm.group(1))} of {n} finding(s) neither repaired nor registered')
+    elif n and not fm: malformed.append(f'round {rid} has no numeric fixed count')
     # Reopened findings and adversarial counterexamples reset even a <3 round.
     if re.search(r"\bRE_OPENED\b|\badversarial counterexample\b", " ".join(r.values()), re.I): clean = False
     if reset_findings.intersection(re.findall(r'\bF-\d+-\d+\b', ' '.join(r.values()))): clean = False
@@ -158,6 +206,7 @@ if tier == "T3":
     if not last_two_clean: missing.append("last two rounds not both clean")
 elif clean_tail < need[1]: missing.append(f"clean rounds since last reset {clean_tail} < {need[1]}")
 if tier == "T3" and re.search(r"\bNEEDS_REFINEMENT\b", txt): missing.append("hypothesis NEEDS_REFINEMENT remains")
+for u in unfixed: missing.append("unfixed finding: " + u)
 if open_oq: missing.append("open OQ: " + ", ".join(open_oq))
 if open_disc: missing.append("open DISC: " + ", ".join(sorted(set(open_disc))))
 for r in registers_missing: missing.append(f"register not found: {r}")
@@ -169,6 +218,6 @@ for m in missing: print(f"  missing: {m}")
 print(f"convergence: {verdict}")
 print(json.dumps({"tier": tier, "rounds": rounds, "clean": clean_total, "clean_tail": clean_tail, "last_two_clean": last_two_clean,
                   "non_author_round": non_author, "open_oq": open_oq, "open_disc": open_disc,
-                  "verdict": verdict, "missing": missing}))
+                  "unfixed": unfixed, "verdict": verdict, "missing": missing}))
 sys.exit(0 if verdict == "CONVERGED" else 1)
 PY

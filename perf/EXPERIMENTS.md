@@ -485,6 +485,42 @@ on states at each branch of the loop (low end, high end, both with the tie, the 
 ≥ 20% below the `31e46fd` binary on `canada.toon` (`--decode`, `--threads 1`), cv ≤ 5% on both arms; the 10^6-number differential
 0 differences; 1071/1071 on c-1t with `TOON_SPEC` unset and set; the proof green.
 
+### Amendment 1 — a counted gate added beside the wall gate (2026-09-24, Claude session 9e91730b)
+
+**The wall gate above is UNMET and stays unmet.** It is not withdrawn, not weakened, and not
+reinterpreted: no cv-gated capture of this lever has ever been obtained, because every attempt since
+2026-09-20 has been on a host under other agents' load (the capture attempts are NE-016's own record,
+and a further e2e attempt was aborted on 2026-09-24 at 87 cells, all `NOISY` — see
+`perf/e2e/results/2026-09-24-frozen-c5f3b46/ABORTED.md`). This amendment does **not** promote the lever
+to MEASURED and does not let it be described as a wall-clock speedup.
+
+Why amend at all: the `counted` class did not exist when this card was written on 2026-09-23. The card
+is gated in wall-clock because wall-clock was the only currency the campaign had. Adding the class the
+campaign later adopted is disclosed here rather than applied silently, because silently swapping an
+easier currency into a standing gate is the exact failure a claims apparatus exists to prevent.
+
+**Counted gate (stated now, before reading the numbers against it):** ≥ 25% fewer instructions
+(cachegrind `Ir`, `--cache-sim=no`, `--threads 1`) than the baseline binary on `canada.json --encode`
+AND on `canada.toon --decode`, with stdout sha256 identical per mode on both arms, the two binaries
+differing only by this lever.
+
+**Verdict against it: MET.** `canada --encode` 30,477,033,742 → 12,726,037,467 (**58.2% fewer**);
+`canada --decode` 34,421,509,459 → 16,671,049,899 (**51.6% fewer**); stdout sha identical per mode
+(NE-016's Counted line, binaries `ef15400197d1ad85…` → `beca7cf43e91eedf…`).
+
+**What this verdict is worth, exactly.** It says the lever does substantially less WORK. It does not
+say the program is 2.39× faster: instruction counts carry no cache miss and no memory latency, and
+this lever trades list traversal for scalar arithmetic, which is precisely the direction where
+instructions and cycles can diverge. The magnitude is far above the ±1.0–1.8% resolution that
+clang's inlining flip imposes on counted comparisons, so the sign and the order of magnitude are safe
+even though the exact factor is not a cycle ratio.
+
+**Consequently NE-016 stays PROVISIONAL and its tally stays W0/L0/N1.** A counted gate cannot produce
+a W in a campaign whose W means a wall-clock win. What changes is that the lever is no longer
+unsupported: it has a met gate in a named, weaker currency, so a future graveyard sweep has a reason
+not to revert it and a reason not to re-attempt it. Retirement condition for this amendment: delete it
+when the wall capture lands and NE-016 moves to MEASURED or LOSS on the real gate.
+
 ## EXP-016 — the JSON reader's byte classifier as a lazy chain
 
 | field | value |

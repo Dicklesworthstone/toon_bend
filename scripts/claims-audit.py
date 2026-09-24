@@ -209,18 +209,39 @@ def facts():
         # commit a COUNTED file names must be one a reader can check out: in its "before"/"after" fields AND in
         # its file name. Round 20 (R20-2): this block once sat, after an edit, inside the NEXT loop, where it read
         # the last `j` of this one and checked a single file; it runs here for every file, before any parse can skip.
-        stem = name[:-len(".json")].split(".")[-1]
-        if re.fullmatch(r"[0-9a-f]{7,40}", stem) and not reachable(stem):
-            f.setdefault("counted_unreachable", []).append((name, "file name's", stem))
+        # Round 21 (R21-3): four shapes this rule used to walk straight past.
+        #  (a) a commit under a key other than "commit" -- "tree", or a "commits" list -- was never read;
+        #  (b) the reachability test was gated on `kind == "counted"`, so a COUNTED.*.json with no `kind`,
+        #      or "Counted", skipped it entirely (the ratio admission below still needs the exact kind:
+        #      that gate is conservative and stays, but a CITED COMMIT must be checkable either way);
+        #  (c) an unparseable file was `continue`d in silence, so a bad commit inside it went unread and
+        #      nobody was told the evidence was unreadable;
+        #  (d) the file name's hash was taken as the LAST dotted field only and matched lower-case hex,
+        #      so `COUNTED.494ef82.canada.encode.json` and `COUNTED.e2e-corpus.494EF82.json` both passed.
+        # git resolves a rev case-insensitively for a hex id, but the test is normalised anyway so the
+        # message quotes what the file says.
+        for field in name[:-len(".json")].split("."):
+            if re.fullmatch(r"[0-9a-fA-F]{7,40}", field) and not reachable(field.lower()):
+                f.setdefault("counted_unreachable", []).append((name, "file name's", field))
         try:
             j = json.loads(read(os.path.join("perf", "evidence", name)))
-        except ValueError:
+        except ValueError as exc:
+            f.setdefault("counted_unparseable", []).append((name, str(exc)))
             continue
-        if isinstance(j, dict) and j.get("kind") == "counted":
-            for side in ("before", "after"):
-                rev = (j.get(side) or {}).get("commit") if isinstance(j.get(side), dict) else None
-                if rev and not reachable(rev):
-                    f.setdefault("counted_unreachable", []).append((name, side, rev))
+        if isinstance(j, dict):
+            # every commit this file names, wherever it sits, and whatever `kind` says
+            revs = []
+            for holder, label in [(j, "top-level")] + [(j.get(s), s) for s in ("before", "after")]:
+                if not isinstance(holder, dict):
+                    continue
+                for key in ("commit", "tree"):
+                    if isinstance(holder.get(key), str):
+                        revs.append((holder[key], "%s %s" % (label, key)))
+                if isinstance(holder.get("commits"), list):
+                    revs += [(c, "%s commits[]" % label) for c in holder["commits"] if isinstance(c, str)]
+            for rev, where in revs:
+                if re.fullmatch(r"[0-9a-fA-F]{7,40}", rev) and not reachable(rev.lower()):
+                    f.setdefault("counted_unreachable", []).append((name, where, rev))
         try:
             before, after, ratio = j["before"]["instructions"], j["after"]["instructions"], j["ratio"]
         except (KeyError, TypeError):
@@ -769,8 +790,14 @@ def audit(files, f, gates, verbose):
 
     for name, side, rev in f.get("counted_unreachable", []):
         findings.append({"file": "perf/evidence/" + name, "line": 0, "text": "",
-                         "finding": "the %s binary's commit %s is not reachable from HEAD: a reader cannot check that tree out"
+                         "finding": "the %s commit %s is not reachable from HEAD: a reader cannot check that tree out"
                                     % (side, rev)})
+    # R21-3(c): an unreadable evidence file is a finding, not a skip. Silently passing over it hid every
+    # commit inside it, and a file that cannot be parsed cannot support the claim that cites it.
+    for name, why in f.get("counted_unparseable", []):
+        findings.append({"file": "perf/evidence/" + name, "line": 0, "text": "",
+                         "finding": "COUNTED evidence that is not parseable JSON (%s): nothing in it can support a claim, "
+                                    "and any commit it names goes unchecked" % why})
     for bad in f.get("corpus_bad", []):
         findings.append({"file": "perf/evidence/" + bad.split(":")[0], "line": 0, "text": "",
                          "finding": "a corpus cell's ratio is not the quotient of its counts: " + bad})

@@ -1267,3 +1267,34 @@ inside a string and a key; corpus, fuzz (mutate, docs), stdio probes.
 In INSTRUCTIONS (counted): ≥ 2% fewer than the binary of `d5483e5` on `flights_200k.json` (`--encode`, `--threads 1`), stdout
 identical; `gsoc_2018` (encode and decode) and `canada` (encode) not worse by more than 0.5%; conform c-1t with and without
 `TOON_SPEC=1`; the proof green.
+
+## EXP-031 — decode mode stops handing the input bytes on to the encode arm
+
+| field | value |
+|---|---|
+| experiment_id | EXP-031 |
+| program / def | `port/cli.bend` / `convert`, `convert.text` (S8.7, S8.8) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'utf8\|convert\|bytes' perf/NEGATIVE-EVIDENCE.md` → NE-034 (EXP-030, NEUTRAL: the fused encode walk; its uncarded decode cells are what this card tests, OUT OF SAMPLE) and NE-022 (EXP-018) |
+| status | CARDED |
+| precommitted | true |
+
+### Hypothesis
+`convert` passes the input bytes to `convert.text` in every mode, and only the encode arm reads them there; so in decode mode the
+list is kept alive through the whole decoding and the UTF-8 decoder takes shared cells apart. NE-034 counted the decode cells of a
+lever that also removed this (gsoc 19.56%, flights 3.90%, canada 5.27% fewer), but its card did not gate them. This card tests the
+decode half ALONE, on inputs that count never ran: the instruction count of `--decode` on `perf/e2e/corpus/semanticscholar.toon`
+at 1 thread falls by at least 5% against the binary of `d5483e5`.
+
+### Lever (one)
+`convert` decides the mode first. Decode: `convert.text` receives the decoder's verdict and the options, not the bytes. Encode: the
+code of `d5483e5` unchanged (the UTF-8 walk, then `J.read` over the mark-dropped bytes). Laws: the existing goldens through
+`run_pure` for decode (invalid UTF-8, a mark, `--stats`), plus closed goldens from the pinned original for an invalid byte after a
+decode error and a truncated sequence at the end of a TOON text.
+
+### Precommitted gate
+In INSTRUCTIONS (counted), stdout identical: ≥ 5% fewer than the binary of `d5483e5` on `semanticscholar.toon --decode`;
+`twitter.toon`, `citm_catalog.toon` and `openapi_github.toon` `--decode` not worse by more than 0.5% (a prediction of their
+direction, not a gate: fewer); the encode cells `gsoc_2018`, `flights_200k`, `canada` not worse by more than 0.5%; conform c-1t
+with and without `TOON_SPEC=1`; the proof green.

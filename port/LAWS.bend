@@ -2728,3 +2728,20 @@ law encode_escaped_solidus_reads_as_slash:
 
 law encode_null_true_false_strings_quoted:
   {C.run_pure(["--encode"], T.ascii_bytes("[\"null\",\"true\",\"false\"]", Nil{})) == C.Out{0n, "[3]: \"null\",\"true\",\"false\"\n", ""} : C.Out}
+
+# Round 22 (R22-4): four behaviours whose hand mutants the corpus caught and no law did, pinned with bytes from the pinned
+# original. S2.18: the JSON escapes \b and \f read as U+0008 and U+000C (V7 read \b as FF, V8 refused \f); the encoder
+# writes both raw. S4.21: `_` may start a bare key (V10). S4.36: a row SHORTER than the header, its keys in header order,
+# is list form (V14: row.lock's arm for a short row returned the lockstep verdict and wrote a one-cell row). S4.42: an array
+# of objects that is itself a list item is list form, never tabular (V25: vk.arr's tab_ok test)
+law encode_json_backspace_and_form_feed_escapes:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"a\\bb\",\"a\\fb\"]", Nil{})) == C.Out{0n, "[2]: a\u{8}b,a\u{c}b\n", ""} : C.Out}
+
+law encode_underscore_initial_keys_are_bare:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"_a\":1,\"a_\":2,\"_\":3}", Nil{})) == C.Out{0n, "_a: 1\na_: 2\n_: 3\n", ""} : C.Out}
+
+law encode_short_row_in_header_order_is_list_form:
+  {C.run_pure(["--encode"], T.ascii_bytes("[{\"a\":1,\"b\":2},{\"a\":3}]", Nil{})) == C.Out{0n, "[2]:\n  - a: 1\n    b: 2\n  - a: 3\n", ""} : C.Out}
+
+law encode_array_of_objects_as_list_item_is_list_form:
+  {C.run_pure(["--encode"], T.ascii_bytes("[[{\"a\":1},{\"a\":2}]]", Nil{})) == C.Out{0n, "[1]:\n  - [2]:\n    - a: 1\n    - a: 2\n", ""} : C.Out}

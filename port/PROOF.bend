@@ -2539,3 +2539,19 @@ def Laws.encode_escaped_solidus_reads_as_slash():
 # S4.9 closed: the whole pure core computed (round 21)
 def Laws.encode_null_true_false_strings_quoted():
   {==}
+
+# S2.18 closed: the whole pure core computed (round 22)
+def Laws.encode_json_backspace_and_form_feed_escapes():
+  {==}
+
+# S4.21 closed: the whole pure core computed (round 22)
+def Laws.encode_underscore_initial_keys_are_bare():
+  {==}
+
+# S4.36 closed: the whole pure core computed (round 22)
+def Laws.encode_short_row_in_header_order_is_list_form():
+  {==}
+
+# S4.42 closed: the whole pure core computed (round 22)
+def Laws.encode_array_of_objects_as_list_item_is_list_form():
+  {==}

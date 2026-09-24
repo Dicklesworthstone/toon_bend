@@ -1268,14 +1268,14 @@ def utf8.msg(has_in: Bool, input: String) -> String:
     case True{}:
       T.cat(["Failed to read file '", input, "': stream did not contain valid UTF-8"])
 
-# S8.7 the UTF-8 verdict decides first (S9.10) although the reader walked the same bytes (EXP-032); S8.8 then
-# the encoding. The bytes had their mark dropped before the walk, so the text is already the one S8.7 reads
-def convert.enc(r: J.RR, o: Opts, +spec: Bool) -> CR:
-  match r o:
-    case J.RR{None{}, p} Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
+# S8.7 the complete input is validated as UTF-8 before any parsing (S9.10); S8.8 then the encoding, which
+# reads the bytes again
+def convert.enc(m: Maybe<&2, String>, o: Opts, bytes: List<&2, U32>, +spec: Bool) -> CR:
+  match m o:
+    case None{} Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
       CErr{utf8.msg(has_in, input)}
-    case J.RR{Some{rev}, p} Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
-      enc.read(p, E.Opts{indent, delim, fold, budget, spec}, stats, String.reverse(rev))
+    case Some{rev} Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
+      enc.read(J.read(bom.bytes(bytes), spec), E.Opts{indent, delim, fold, budget, spec}, stats, bom.text(String.reverse(rev)))
 
 # S8.7 the same gate; S8.8 then the decoding, a pure function of the text and the options: the bytes are
 # not passed on, so nothing keeps them alive while the text is decoded (EXP-031)
@@ -1307,16 +1307,14 @@ def o.stats(o: Opts) -> Bool:
     case Opts{has_in, input, has_out, output, decode, delim, indent, strict, fold, budget, expand, stats}:
       stats
 
-# S8.7 the mode decides first: decode reads the text alone (EXP-031); encode reads the mark-dropped bytes ONCE,
-# for the UTF-8 verdict and the value together (EXP-032). A mark is one complete valid scalar, so dropping it
-# first changes no verdict, and the text decoded without it is the text S8.7 would have read. The bytes have
-# no later use in either arm
-def convert.mode(decode: Bool, +o: Opts, bytes: List<&2, U32>, +spec: Bool) -> CR:
+# S8.7 the mode decides first: decode reads the text alone and the bytes have no later use; encode reads the
+# bytes twice, for the UTF-8 verdict and then for the value (EXP-031)
+def convert.mode(decode: Bool, +o: Opts, +bytes: List<&2, U32>, +spec: Bool) -> CR:
   match decode:
     case True{}:
       convert.text(T.utf8.finish(T.utf8.bytes(bytes, T.utf8.init())), o, spec)
     case False{}:
-      convert.enc(J.read.u(bom.bytes(bytes), utf8.start.keep(o.stats(o)), spec), o, spec)
+      convert.enc(T.utf8.finish(T.utf8.bytes(bytes, utf8.start.keep(o.stats(o)))), o, bytes, spec)
 
 # S8.7, S8.8 input bytes to output text. spec is the numeric kill-switch (TOON_SPEC=1, read once by the
 # shell): with it every number takes its spec twin; the bytes are the same either way.

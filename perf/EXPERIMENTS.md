@@ -1308,7 +1308,7 @@ with and without `TOON_SPEC=1`; the proof green.
 | created (UTC) | 2026-09-23 |
 | agent | Claude (session ef481f9c) |
 | graveyard sweep | NE-034 (EXP-030, NEUTRAL: 1.18% on `flights_200k --encode` against a 2% gate); its retry predicate "EXP-031 is kept and a new count of the fused encode walk ON TOP of it clears a new card's gate" now holds (NE-035) |
-| status | COUNTED_WIN on the primary gate, DECODE GUARD FAILED 2026-09-23 (`perf/NEGATIVE-EVIDENCE.md` NE-036): `semanticscholar --encode` 3.35% fewer instructions than EXP-031 (gate 1.5%); four decode cells 1.0-1.8% more on unchanged decode code; the EXP-031+032 stack is fewer than `84acaee` on all eleven cells counted. Kept, stated in NE-036 |
+| status | REVERTED 2026-09-24 (`perf/NEGATIVE-EVIDENCE.md` NE-036): the counts met the primary gate (`semanticscholar --encode` 3.35% fewer than EXP-031), but the four-lane run FAILED on the JavaScript and interpreter lanes: run on invalid UTF-8, the fused walk's reader built a Char from a surrogate (`bend: 55296 is not a Unicode scalar value`), which those runtimes refuse; the C lanes do not check. Reverted to EXP-031's code |
 | precommitted | true |
 
 ### Hypothesis

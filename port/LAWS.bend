@@ -2636,17 +2636,10 @@ law decode_truncated_utf8_at_the_end:
 law decode_stats_after_mark_multibyte:
   {C.run_pure(["--decode", "--stats"], [239, 187, 191, 97, 58, 32, 195, 169, 10]) == C.Out{0n, "{\n  \"a\": \"é\"\n}\n", "\nToken estimates: ~4 (JSON) → ~2 (TOON)\nSaved ~2 tokens (-50.0%)"} : C.Out}
 
-# EXP-032 (NE-034's walk, retried on top of EXP-031; S2.2, S2.45, S8.7): encoding reads the bytes once, the UTF-8 decoder and the JSON reader stepping together.
-# The fused walk IS the two walks it replaces, for every input, decoder state and reader state:
-law run_u_is_both:
-  for bytes: List<&2, U32>
-  for u: T.UTF8
-  for st: J.St
-  for +spec: Bool
-  {J.run.u(bytes, u, st, spec) == J.RU{T.utf8.bytes(bytes, u), J.run(bytes, st, spec)} : J.RU}
-
-# ... and the UTF-8 verdict still decides first (S9.10), with bytes from the pinned original: an invalid byte after a JSON
-# error, a truncated sequence inside a string after a JSON error, an invalid byte in a key under --stats
+# EXP-031/032 (S2.2, S8.7, S9.10): encoding decides the UTF-8 verdict before the JSON reader reads anything, with bytes from
+# the pinned original: an invalid byte after a JSON error, a truncated sequence inside a string after a JSON error, an
+# invalid byte in a key under --stats. (EXP-032's fused walk and its law `run_u_is_both` were REVERTED on 2026-09-24: run
+# on invalid UTF-8, the reader built a Char from a surrogate, which the JavaScript and interpreter lanes refuse; NE-036.)
 law encode_invalid_utf8_after_json_error:
   {C.run_pure(["--encode"], [123, 34, 97, 34, 32, 49, 125, 255]) == C.Out{1n, "", "Failed to read stdin: stream did not contain valid UTF-8"} : C.Out}
 

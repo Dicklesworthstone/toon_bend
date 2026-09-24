@@ -2444,58 +2444,22 @@ def Laws.decode_truncated_utf8_at_the_end():
 def Laws.decode_stats_after_mark_multibyte():
   {==}
 
-# EXP-032: induction on the bytes; at a byte, the reader state is split to the mode run matches on, both sides take
-# one step of each machine, and the rest is the hypothesis at the stepped states
-# S2.2 S2.45
-def Laws.run_u_is_both(bytes, u, st, spec):
-  match bytes:
-    case Nil{}:
-      {==}
-    case Con{+b, rest}:
-      match st:
-        case J.St{mode, stack, depth, l, c, root}:
-          match mode:
-            case J.MVal{ctx}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MVal{ctx}, stack, depth, l, c, root}, b, spec), spec)
-            case J.MKey{first}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MKey{first}, stack, depth, l, c, root}, b, spec), spec)
-            case J.MColon{}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MColon{}, stack, depth, l, c, root}, b, spec), spec)
-            case J.MAfter{}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MAfter{}, stack, depth, l, c, root}, b, spec), spec)
-            case J.MLit{lr, lv}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MLit{lr, lv}, stack, depth, l, c, root}, b, spec), spec)
-            case J.MStr{rev, key, need, part}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step.in_str(F.twin.on(spec, J.plain(b)), rev, key, need, part, stack, depth, l, c, root, b), spec)
-            case J.MEsc{rev, key}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MEsc{rev, key}, stack, depth, l, c, root}, b, spec), spec)
-            case J.MHex{rev, key, n, v, bad, hi}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MHex{rev, key, n, v, bad, hi}, stack, depth, l, c, root}, b, spec), spec)
-            case J.MHiBs{rev, key, hi}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MHiBs{rev, key, hi}, stack, depth, l, c, root}, b, spec), spec)
-            case J.MHiU{rev, key, hi}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MHiU{rev, key, hi}, stack, depth, l, c, root}, b, spec), spec)
-            case J.MNum{num}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MNum{num}, stack, depth, l, c, root}, b, spec), spec)
-            case J.MErr{msg, ml, mc}:
-              Laws.run_u_is_both(rest, T.utf8.step(u, b), J.step(J.St{J.MErr{msg, ml, mc}, stack, depth, l, c, root}, b, spec), spec)
-
-# S9.10 closed: the whole pure core computed (EXP-032)
+# S9.10 closed: the whole pure core computed (EXP-031/032)
 def Laws.encode_invalid_utf8_after_json_error():
   {==}
 
-# S9.10 closed: the whole pure core computed (EXP-032)
+# S9.10 closed: the whole pure core computed (EXP-031/032)
 def Laws.encode_truncated_utf8_after_json_error():
   {==}
 
-# S9.10 closed: the whole pure core computed (EXP-032)
+# S9.10 closed: the whole pure core computed (EXP-031/032)
 def Laws.encode_stats_invalid_utf8_in_key():
   {==}
 
-# S8.7 closed: the whole pure core computed (EXP-032)
+# S8.7 closed: the whole pure core computed (EXP-031/032)
 def Laws.encode_stats_after_mark():
   {==}
 
-# S8.7 closed: the whole pure core computed (EXP-032)
+# S8.7 closed: the whole pure core computed (EXP-031/032)
 def Laws.encode_stats_two_marks_is_json_error():
   {==}

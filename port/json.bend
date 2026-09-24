@@ -1061,36 +1061,6 @@ def finish(st: St, spec: Bool) -> Parsed:
 def read(bytes: List<&2, U32>, +spec: Bool) -> Parsed:
   finish(run(bytes, St{MVal{0n}, Nil{}, 0n, 1n, 0n, None{}}, spec), spec)
 
-# S2.2, S2.45 the UTF-8 decoder's state and the reader's state after one walk over the same bytes (EXP-032)
-type RU is Data:
-  RU{u: T.UTF8, st: St}
-
-# S2.2, S2.45 one walk, two machines: `run`'s arms, each with the UTF-8 decoder's step beside it, so the input
-# is read once and has one owner (EXP-032). `run_u_is_both` binds it to the two walks it replaces.
-def run.u(bytes: List<&2, U32>, u: T.UTF8, st: St, +spec: Bool) -> RU:
-  match bytes st:
-    case Nil{} s:
-      RU{u, s}
-    case Con{+b, rest} St{MStr{rev, key, need, part}, stack, depth, l, c, root}:
-      run.u(rest, T.utf8.step(u, b), step.in_str(F.twin.on(spec, plain(b)), rev, key, need, part, stack, depth, l, c, root, b), spec)
-    case Con{+b, rest} s:
-      run.u(rest, T.utf8.step(u, b), step(s, b, spec), spec)
-
-# S2.2, S2.4 the gate's verdict (the decoded text, reversed, or None) and the reading, from one walk
-type RR is Data:
-  RR{text: Maybe<&2, String>, p: Parsed}
-
-# S2.2, S2.4 both machines finished
-def read.u.fin(r: RU, +spec: Bool) -> RR:
-  match r:
-    case RU{u, st}:
-      RR{T.utf8.finish(u), finish(st, spec)}
-
-# S2.2, S2.4 read ONE JSON text and judge the same bytes' UTF-8 in the same walk (EXP-032); the caller
-# decides the gate first (S8.7)
-def read.u(bytes: List<&2, U32>, u: T.UTF8, +spec: Bool) -> RR:
-  read.u.fin(run.u(bytes, u, St{MVal{0n}, Nil{}, 0n, 1n, 0n, None{}}, spec), spec)
-
 # ---------------------------------------------------------------- S5.50–S5.78 the JSON writer
 # S5.73: one writer for every decoded value, with one escape table (S5.63); the value it receives has
 # unique keys (S3.26). The text is accumulated reversed and reversed once.

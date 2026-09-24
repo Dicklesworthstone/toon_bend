@@ -183,7 +183,12 @@ def standard_stream_operand(value):
     Follow path components without reading stream contents. Resolving the whole
     path first would turn /dev/stdin into the harness caller's backing file,
     even though the case subprocess receives its own separately pinned stdin.
+    A bare "-" is the conventional stdin operand (clap's, and so the original's):
+    it names a stream, never the file "./-", even when a stray file of that name
+    exists in the working directory (it made pin-check RED on 2026-09-23).
     """
+    if value == "-":
+        return True
     aliases = {"/dev/stdin", "/dev/stdout", "/dev/stderr"}
     aliases.update(f"{directory}/{fd}" for directory in
                    ("/dev/fd", "/proc/self/fd", "/proc/thread-self/fd") for fd in range(3))

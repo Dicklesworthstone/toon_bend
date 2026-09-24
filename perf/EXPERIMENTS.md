@@ -1231,3 +1231,39 @@ first and at the last position, a repeat after the switch of a key seen before i
 ### Precommitted gate
 In INSTRUCTIONS (counted): ≥ 5% fewer than the binary of `3a6f7f6` on `flights_200k.json` (`--encode`, `--threads 1`), stdout
 identical; `gsoc_2018` and `canada` not worse by more than 0.5%; conform c-1t with and without `TOON_SPEC=1`; the proof green.
+
+## EXP-030 — encoding reads the input bytes once: the UTF-8 gate and the JSON reader step together
+
+| field | value |
+|---|---|
+| experiment_id | EXP-030 |
+| program / def | `port/json.bend` / `run` and `read` (S2.4, S2.45); `port/text.bend` / `utf8.bytes`, `utf8.step` (S2.2); `port/cli.bend` / `convert`, `convert.text` (S8.7, S8.8) |
+| created (UTC) | 2026-09-23 |
+| agent | Claude (session ef481f9c) |
+| graveyard sweep | `rg -i 'utf8\|utf-8 gate\|fus(e\|ed\|ion)\|one walk\|single pass' perf/NEGATIVE-EVIDENCE.md perf/PERF-LEDGER.md` → no entry; EXP-018 (NE-022) is the neighbour: it stopped building the decoded text when nothing reads it, and kept the second walk |
+| status | CARDED |
+| precommitted | true |
+
+### Hypothesis
+`convert` walks the input byte list twice in encode mode: `T.utf8.bytes` for the UTF-8 verdict (S2.2), then `J.read` for the value.
+The list has a later use when the first walk runs, so the emitted C keeps it (`term_keep`) and the decoder, which owns its argument,
+takes every shared cell apart: the frame-pointer tally of `span_fade` on `flights_200k --encode` (the binary of the EXP-029 code,
+`d5483e5`) puts 9,863,892 of 64,361,865 calls in `CLI_CONVERT`, one per input byte (the file is 9.4 MB). Decode mode pays the same,
+because `convert` passes the bytes on to `convert.text`, which reads them only in encode mode. One walk that steps the decoder and
+the reader together owns an unshared list: no keep, no span_fade per byte, and one traversal instead of two. The instruction count
+of `--encode` on `flights_200k.json` at 1 thread falls by at least 2% against the binary of `d5483e5`.
+
+### Lever (one)
+`J.read.u(bytes, u, spec)`: one tail-recursive walk whose arms are `run`'s arms with `T.utf8.step(u, b)` beside each step; it returns
+the decoder's final state and the reader's result. `convert` decides the mode first: decode walks the bytes once with the decoder
+alone (the bytes have no later use); encode runs `J.read.u` over the BOM-stripped bytes (EF BB BF is one complete valid scalar, so
+the verdict with and without it is the same, and `bom.text` drops the U+FEFF the other path would have decoded). The UTF-8 verdict
+still decides first: an invalid input prints S2.2's message whatever the reader found. Laws: the quantified
+`run.u(bytes, u, st, spec) == RU{utf8.bytes(bytes, u), run(bytes, st, spec)}` by induction on the bytes; closed `run_pure` goldens
+from the pinned original for invalid UTF-8 before, inside and after a JSON error, a BOM with and without `--stats`, an invalid byte
+inside a string and a key; corpus, fuzz (mutate, docs), stdio probes.
+
+### Precommitted gate
+In INSTRUCTIONS (counted): ≥ 2% fewer than the binary of `d5483e5` on `flights_200k.json` (`--encode`, `--threads 1`), stdout
+identical; `gsoc_2018` (encode and decode) and `canada` (encode) not worse by more than 0.5%; conform c-1t with and without
+`TOON_SPEC=1`; the proof green.

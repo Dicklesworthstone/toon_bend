@@ -50,6 +50,13 @@ it across a worker pool. Two consequences, both measured:
   counts **10.9% more**. `WL_FID_EXIT`, which appeared at 25.3% of the expansion delta, is the
   parallel worklist machinery and **disappears entirely** at one thread.
 
+**The avoidable part: the project already had a correct harness and I wrote my own.**
+`perf/e2e/counted.py:22` builds the port's argv as `[PORT, '--threads', '1', '--', …]`. I wrote a
+separate shell script for this profile because I wanted a different set of scenarios, and dropped the
+flag that script already had. The rule that follows is not "remember `--threads 1`" but **diff a new
+measurement invocation against the existing one before trusting it** — the existing one encodes
+decisions someone already got wrong once.
+
 Every earlier counted entry in `perf/NEGATIVE-EVIDENCE.md` was taken at `--threads 1`, so the first
 version of this file was also not comparable with them. The corrected numbers below cross-validate
 against one of those entries exactly: NE-027 measured path expansion's cost as **605,259,269**
@@ -122,7 +129,18 @@ binary, beside the numeric substrate, so the two can be compared as targets.
 | `peek` (borrow) | **1** | **1** |
 
 **163 of 163 sealing segments have `peek` == 0.** Not one segment that seals anything also borrows
-anything. The top sealers, all with zero borrows:
+anything.
+
+Read that `peek` figure precisely, because the same run prints a larger one. `keep-audit.sh` also
+reports a whole-file tally — `peek=77 keep=381 take=365 seal=2560 free=63` — and says of it
+"includes runtime definitions, NOT segment totals". The 77 counts textual matches across the entire
+emitted C, the runtime's own `ctr_peek` definitions included; the **1** above is the port's own
+segments, which is the number that describes the program. Neither figure means the port has a borrow
+worth having: per `bend guide` (Quantities) a quantity is `&0`/`&1`/`&2`, with `Type` short for
+`Kind(&1)` and `Data` for `Kind(&2)`, so a signature like `List<&2, String>` says the ELEMENTS are
+reusable — **it is not a borrow annotation, and there is no source-level borrow to write.** `peek`
+versus `take` is a compiler inference, which is exactly what NE-012 found when no shape it tried
+persuaded the compiler to lend a `List`. The top sealers, all with zero borrows:
 
 | segment | seal | keep | take |
 |---|---|---|---|

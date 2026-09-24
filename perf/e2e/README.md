@@ -247,8 +247,18 @@ levers took out the redundant copies; the one remaining copy is the representati
 
 `results/` holds wall-clock runs; this section holds **instruction counts**, which this shared host
 can actually produce. Every cv-gated wall capture here has been refused for two days (the last full
-run had **28 of 612 arms within cv 5%**), while `valgrind --tool=cachegrind --cache-sim=no` is
-deterministic to about 1e-8 run to run and does not care about load at all.
+run had **28 of 612 arms within cv 5%**), while `valgrind --tool=cachegrind --cache-sim=no` does not
+care about host load at all.
+
+**The determinism is conditional on the thread count, and "about 1e-8" was wrong.** Measured on this
+port, 2026-09-24, same binary and input, three runs each: `--encode --threads 1` is **bit-identical**
+(839,968,998 ×3); `--decode --threads 1` spreads ~2.4e-7; and **without** `--threads 1` it spreads
+~6e-5 (867,758,374 / 867,707,500 / 867,708,462), because above one thread the encoder's number
+pre-pass (EXP-007) is a parallel let run on a worker pool. The default is also inflated unevenly — an
+encode by 3.3%, a decode by 10.9%. `perf/e2e/counted.py` passes `--threads 1` for the port arm, so
+every number in the table below is taken correctly; a hand-rolled invocation that omits it is neither
+reproducible nor comparable with these rows (that mistake, and its correction, are recorded in
+`perf/COUNTED-PROFILE.md`).
 
 **This is a `counted` claim, not a `measured` one.** Cachegrind counts instructions, not stalls: it
 sees no cache miss and no memory latency. It answers "how much more WORK does the port do than the

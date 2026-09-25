@@ -38,6 +38,9 @@
 #   M28 a rounds-table row whose round cell is not a number (`24b`)         -> claims-audit.py
 #   M29 an unreachable commit hidden from a raw scan by `\u` escapes        -> claims-audit.py (R25-2)
 #   M30 an ACCEPTED DISC that lost its `Approver:` line                     -> converge.sh
+#   M31 a findings table behind a FULLWIDTH fence, with a fullwidth decoy    -> converge.sh (R26-1)
+#   M32 an unreachable commit hidden behind a DUPLICATE `commit` key         -> claims-audit.py (R26-2)
+#   M33 a wrong closed-law count in README's own phrasing                    -> claims-audit.py (R26-5)
 # and one CONTROL, counted on its own axis, never as a mutation:
 #   C1  a hidden excerpt with a DIFFERENT count while the visible table stays correct -> every gate SILENT
 # M14, M15, M18, M19, M21, M23 and M25 assert on converge.sh's MESSAGE, not its exit code: the gate is
@@ -898,6 +901,91 @@ p.write_text(t[:m.start(2)] + m.group(2).replace(line + '\n', '', 1) + t[m.end(2
 assert '- Approver:' not in Path(sys.argv[1]).read_text(encoding='utf-8')[m.start(2):m.end(2)]
 PLANT
   expect_says M30_accepted_disc_no_approver 'without a .Approver' "$D" scripts/converge.sh docs/PORT_STATE.md
+  # M31 a findings table hidden behind a FULLWIDTH fence, with a fullwidth decoy (R26-1, a defect INSIDE
+  # R25-1's repair). NFKC folds U+FF40 to a backtick and U+FF5C/U+FF0D to a pipe and a hyphen, so a reader
+  # of the RENDERED report sees literal fullwidth text where a reader that folds BEFORE parsing sees a fence
+  # and a table: folding is right for comparing cell TEXT and wrong before structural parsing. Both halves
+  # are planted because neither leaks alone -- the fence by itself makes the reader find 0 tables and fail
+  # CLOSED, and a decoy whose counted total differs from the rounds row is caught by the count rule, which
+  # has nothing to do with folding. Leak confirmed on b5ac14b: the reader read one LOW/DOCUMENT row and
+  # counted 0 where markdown-it renders HIGH/BEHAVIOR from the raw text.
+  D="$(copy m31)"
+  python3 - "$D/docs/reviews/round-23.md" "$D/docs/PORT_STATE.md" <<'PLANT'
+import re, sys
+from pathlib import Path
+rep, state = Path(sys.argv[1]), Path(sys.argv[2])
+P, H, T = '｜', '－', '｀'          # fullwidth pipe, hyphen-minus, grave accent
+t = rep.read_text(encoding='utf-8')
+lines = t.split('\n')
+i = next(k for k, l in enumerate(lines) if re.match(r'^\|\s*id\s*\|\s*sev\s*\|\s*class\s*\|', l))
+j = i
+while j < len(lines) and lines[j].startswith('|'):
+    j += 1
+real = lines[i:j]
+ids = [r.split('|')[1].strip() for r in real[2:]]
+assert ids, 'no findings rows to hide'
+decoy = ([P + ' id ' + P + ' sev ' + P + ' class ' + P, P + (H * 3 + P) * 3]
+         + [P + ' ' + ident.replace('-', H) + ' ' + P + ' LOW ' + P + ' DOCUMENT ' + P for ident in ids])
+# The blank lines are load-bearing and cost this mutation one LEAK to learn: with the fullwidth fence
+# flush against the table, raw parsing absorbs that line as a table ROW whose id folds to backticks, and
+# the report is refused for an unparseable id -- a catch, but of "a stray row breaks parsing" rather than
+# of the property under test. Separated, the real table parses cleanly, the fullwidth decoy is not a table
+# at all, and what is tested is that the reader reads the REAL table: its count then contradicts the row's.
+lines[i:j] = decoy + [''] + [T * 3] + [''] + real + [''] + [T * 3]
+rep.write_text('\n'.join(lines), encoding='utf-8')
+s = state.read_text(encoding='utf-8')
+row = next(l for l in s.split('\n') if re.match(r'^\|\s*23\s*\|', l))
+c = row.split('|'); c[3], c[4], c[5] = ' 0 ', ' 0 ', ' yes '
+assert '|'.join(c) != row
+state.write_text(s.replace(row, '|'.join(c), 1), encoding='utf-8')
+PLANT
+  expect_says M31_fullwidth_fence_decoy 'says 0 counted finding' "$D" scripts/converge.sh docs/PORT_STATE.md
+  # M32 an unreachable commit hidden behind DUPLICATE keys (R26-2, a defect INSIDE R25-2's repair): a second
+  # `commit` key hides the first, because `json.loads` keeps only the LAST. It must be COMPOSED with M29's
+  # escape construction, or the raw scan still sees a plain 40-character hash and the gate goes red WITHOUT
+  # naming the hidden commit -- which would test the raw scan instead of the duplicate key. The plant asserts
+  # both halves of that composition, and the assertion is on the hidden commit being NAMED.
+  D="$(copy m32)"; n=$((n+1)); ln -s "$PWD/.git" "$D/.git" 2>/dev/null
+  ( cd "$D" && python3 scripts/claims-audit.py --verbose ) >"$T/M32.control.log" 2>&1
+  python3 - "$D/perf/evidence/COUNTED.selftest-m32.json" "$DEADREV" "$(git rev-parse HEAD)" <<'PLANT'
+import json, re, sys
+from pathlib import Path
+out, dead, live = sys.argv[1], sys.argv[2], sys.argv[3]
+esc = ''.join('\\u%04x' % ord(c) if k % 3 == 2 else c for k, c in enumerate(dead))
+Path(out).write_text('{"kind":"counted","after":{"commit":"%s","commit":"%s","instructions":10}}\n'
+                     % (esc, live), encoding='utf-8')
+raw = Path(out).read_text(encoding='utf-8')
+assert dead not in raw, 'the hidden commit is literal in the raw text'
+assert not [r for r in re.findall(r'(?<![0-9A-Fa-f])[0-9A-Fa-f]{7,}(?![0-9A-Fa-f])', raw) if r != live], \
+    'a fragment of the hidden commit reached the raw floor: this would be caught for the wrong reason'
+assert json.loads(raw)['after']['commit'] == live, 'the last key is not the reachable one'
+PLANT
+  ( cd "$D" && python3 scripts/claims-audit.py --verbose ) >"$T/M32.log" 2>&1
+  if grep -q "$DEADREV" "$T/M32.control.log"; then
+    printf 'UNTESTABLE %-24s the control run already names the planted commit\n' M32_duplicate_commit_key
+    untestable+=(M32_duplicate_commit_key)
+  elif grep -q "$DEADREV" "$T/M32.log"; then
+    printf 'CAUGHT     %-24s %s\n' M32_duplicate_commit_key "the commit hidden behind a duplicate key"; caught=$((caught+1))
+  else
+    printf 'LEAK       %-24s the commit behind the duplicate key was not named\n' M32_duplicate_commit_key
+    leaked+=(M32_duplicate_commit_key)
+  fi
+  # M33 a wrong closed-law count in README, in the phrasing R26-5's repair widened the pattern to cover.
+  # The count patterns required the digits IMMEDIATELY before the noun and knew only "closed laws", so
+  # "N are closed instances" -- the sentence README actually uses -- was checked by nothing and a split that
+  # did not sum to the total printed OK. Three variants isolated it on b5ac14b: "999 closed laws" was
+  # already caught, while "999 are closed laws" and "999 closed instances" were both QUIET, so the plant
+  # must use the real sentence's shape or it tests the spelling that already worked.
+  D="$(copy m33)"
+  python3 - "$D/README.md" <<'PLANT'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); t = p.read_text(encoding='utf-8')
+m = re.search(r'\b(\d+) are closed instances\b', t)
+assert m, 'README no longer says "<n> are closed instances"; re-derive this plant against its new wording'
+p.write_text(t[:m.start(1)] + str(int(m.group(1)) + 7) + t[m.end(1):], encoding='utf-8')
+PLANT
+  expect M33_readme_closed_count "$b_audit" 1 "$D" python3 scripts/claims-audit.py
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -912,7 +1000,8 @@ else
   n=$((n+1)); untestable+=(M24_evidence_symlinked_dir)
   echo "UNTESTABLE M25_report_table_in_quote    scripts/review_report.py or docs/reviews/round-23.md is not in this port"
   n=$((n+1)); untestable+=(M25_report_table_in_quote)
-  for m in M26_rounds_row_prose_only M27_report_without_row M28_round_cell_not_a_number M29_escaped_commit M30_accepted_disc_no_approver; do
+  for m in M26_rounds_row_prose_only M27_report_without_row M28_round_cell_not_a_number M29_escaped_commit M30_accepted_disc_no_approver \
+              M31_fullwidth_fence_decoy M32_duplicate_commit_key M33_readme_closed_count; do
     echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
     n=$((n+1)); untestable+=("$m")
   done

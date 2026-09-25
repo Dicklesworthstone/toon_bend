@@ -9,8 +9,11 @@ leading space, bullets. This reader fails CLOSED: a report it cannot read comple
 
 The contract a report from round 20 on must meet (the review brief states the same one):
   - it is not empty, and a header row `| reviewed commit | <hex> ... |` names the commit it reviewed;
+  - only what a reader of the RENDERED report sees is read (round 24): HTML comments, fenced code and indented
+    code blocks are removed first, and block HTML is refused;
   - it has exactly ONE findings table, found by its header cells `id`, `sev` and `class` (any order, any other
-    columns, with or without outer pipes, indented or not), possibly with no rows;
+    columns, with or without outer pipes, indented up to three spaces), possibly with no rows, and no other table
+    lists this round's ids in its first column;
   - every row of that table has an id `R<n>-<k>` of THIS round, a sev HIGH, MEDIUM or LOW, and a class that
     starts BEHAVIOR (or BEHAVIOUR), LAW-COVERAGE or DOCUMENT, after markup is removed;
   - every `R<n>-<k>` of this round named anywhere in the report has a row in that table (a finding written as
@@ -59,6 +62,33 @@ def is_non_author(lens):
     return re.search(r"non\s*-\s*author", fold(lens), re.I) is not None
 
 
+def visible(text):
+    """The text a reader of the RENDERED report sees, as lines. Round 24 (R24-1): read line by line, the raw file
+    let a findings table hidden in an HTML comment, a code fence or an indented code block stand in for the visible
+    one; with every row copied into the hidden decoy and the visible table re-headed, every count still agreed.
+    So HTML comments, fenced blocks (``` or ~~~) and indented code blocks (4 spaces or a TAB, which Markdown shows
+    as code, not as a table) are removed before anything is read."""
+    t = re.sub(r"<!--.*?(?:-->|\Z)", "", text, flags=re.S)
+    out, fence = [], None
+    for line in t.splitlines():
+        m = re.match(r"\s{0,3}(`{3,}|~{3,})", line)
+        if fence:
+            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence):
+                fence = None
+            continue
+        if m:
+            fence = m.group(1)
+            continue
+        if re.match(r"(?: {4}|\t)", line):
+            continue
+        out.append(line)
+    return out
+
+
+# Block HTML a Markdown renderer shows (or hides) in ways a line reader cannot follow: refused, not guessed at.
+BLOCK_HTML = re.compile(r"<\s*(?:table|div|details|summary|template|noscript|script|style|span[^>]*style|p[^>]*hidden)\b", re.I)
+
+
 def parse(text, rnd):
     """{"commit", "rows", "counted", "errors"} of one report of round `rnd`."""
     out = {"commit": None, "rows": [], "counted": 0, "errors": []}
@@ -67,7 +97,10 @@ def parse(text, rnd):
     if not t.strip():
         err("the report is empty")
         return out
-    lines = t.splitlines()
+    lines = visible(t)
+    t = "\n".join(lines)
+    if BLOCK_HTML.search(t):
+        err("the report uses block HTML (`%s`), which this reader does not interpret" % BLOCK_HTML.search(t).group(0))
     for line in lines:
         if "|" in line:
             c = [clean(x) for x in cells(line)]
@@ -96,9 +129,11 @@ def parse(text, rnd):
         return out
     start, cols = tables[0]
     seen = set()
+    end = start + 2
     for line in lines[start + 2:]:
         if "|" not in line:
             break
+        end += 1
         c = cells(line)
         if len(c) <= max(cols.values()):
             err("a findings row has fewer cells than the table's header: %s" % line.strip()[:80])
@@ -121,6 +156,13 @@ def parse(text, rnd):
         out["rows"].append({"id": ident, "sev": sev_word, "class": cls_word})
         if sev_word in ("HIGH", "MEDIUM") and cls_word.startswith("BEHAVIO"):
             out["counted"] += 1
+    # Only the findings table may list this round's findings: another visible table whose FIRST cell is one of this
+    # round's ids (a re-headed copy, R24-1) is refused rather than read around.
+    for n, line in enumerate(lines):
+        if "|" in line and not (start <= n < end):
+            first = clean((cells(line) or [""])[0])
+            if re.fullmatch(r"R%d[-.]0*\d+" % rnd, first, re.I):
+                err("line %d: a table other than the findings table lists %s" % (n + 1, first))
     named = {"R%d-%d" % (rnd, int(k)) for k in
              re.findall(r"(?<![A-Za-z0-9])R%d[-.]0*(\d+)(?![0-9])" % rnd, t, re.I)}
     for ident in sorted(named - seen, key=lambda s: int(s.split("-")[1])):

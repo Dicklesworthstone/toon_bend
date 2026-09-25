@@ -234,6 +234,8 @@ def facts():
                 digest = (not below and digest_key.search(str(k)) and isinstance(v, str)
                           and re.fullmatch(r"[0-9a-fA-F]{12}|[0-9a-fA-F]{16}|[0-9a-fA-F]{64}", v))
                 out[k] = None if digest else drop_digests(v, below)
+                if digest:
+                    exempt_values.append(v)
                 if digest and len(v) == 64:
                     recorded.add(v.lower())
             return out
@@ -248,10 +250,17 @@ def facts():
     recorded = {h.lower() for name in sorted(os.listdir(os.path.join(ROOT, "perf"))) if name.endswith(".md")
                 for h in re.findall(r"(?<![0-9a-fA-F])[0-9a-fA-F]{24,}(?![0-9a-fA-F])", read(os.path.join("perf", name)))
                 if len(h) != 40}
-    hex_run = re.compile(r"(?<![0-9A-Fa-f])(?<!0x)(?<!0X)[0-9A-Fa-f]{7,40}(?![0-9A-Fa-f])")
+    # Round 24 (R24-2): the RAW text is read, so an unquoted `"commit": 8913e45` (which JSON reads as the number
+    # 8.913e48) is still seen; the exempt digest values are blanked in it first. Symlinked subdirectories are
+    # followed. A file name's run is certified only by a digest a LEDGER records, never by its own content (a file
+    # named `...494ef82.json` carrying a digest that starts 494ef82 certified itself). After `0x` only an address
+    # (12 or more digits) is exempt. A maximal run of more than 40 digits is a finding unless it is 64 or 128 long
+    # (sha256, sha512): it is neither a commit nor a digest this harness writes.
+    ledger = set(recorded)
+    hex_run = re.compile(r"(?<![0-9A-Fa-f])[0-9A-Fa-f]{7,}(?![0-9A-Fa-f])")
     uuid = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
     evidence_texts = []
-    for dirpath, _dirs, names in sorted(os.walk(evdir)) if os.path.isdir(evdir) else []:
+    for dirpath, _dirs, names in sorted(os.walk(evdir, followlinks=True)) if os.path.isdir(evdir) else []:
         for name in sorted(names):
             rel = os.path.relpath(os.path.join(dirpath, name), evdir)
             raw = read(os.path.join("perf", "evidence", rel))
@@ -262,17 +271,30 @@ def facts():
                     docs_ = [json.loads(l) for l in raw.splitlines() if l.strip()]
                 except ValueError:
                     docs_ = None
-            evidence_texts.append((rel, json.dumps([drop_digests(d) for d in docs_], ensure_ascii=False) if docs_ else raw))
+            exempt_values = []
+            for d in docs_ or []:
+                drop_digests(d)
+            text = raw
+            for v in sorted(set(exempt_values), key=len, reverse=True):
+                text = text.replace(v, " ")
+            evidence_texts.append((rel, text))
     for rel, text in evidence_texts:
-        for where, body, floor in (("file name's hex run", rel, 7), ("hex run", uuid.sub(" ", text), 20)):
-            for run in sorted({m.group(0) for m in hex_run.finditer(body)}):
+        for where, body, floor, certs in (("file name's hex run", rel, 7, ledger), ("hex run", uuid.sub(" ", text), 20, recorded)):
+            for m in hex_run.finditer(body):
+                run = m.group(0)
                 low = run.lower()
                 # All-digit runs are skipped: they are the counts, sizes and times every evidence file is made of, so a
                 # commit abbreviated to digits only is out of reach (said here, not hidden). All-LETTER runs are read:
                 # skipping them let `deadbee` through (harness-selftest M22 leaked on its first run, 2026-09-25).
                 if low.isdigit() or any(p.startswith(low) or low.startswith(p) for p in pins):
                     continue
-                if len(low) >= floor and any(d.startswith(low) for d in recorded):
+                if len(low) > 40:
+                    if len(low) not in (64, 128):
+                        f.setdefault("counted_unreachable", []).append((rel, "hex run of %d digits" % len(low), run[:48]))
+                    continue
+                if body[max(0, m.start() - 2):m.start()].lower() == "0x" and len(low) >= 12:
+                    continue
+                if len(low) >= floor and any(d.startswith(low) for d in certs):
                     continue
                 if not reachable(low):
                     f.setdefault("counted_unreachable", []).append((rel, where, run))

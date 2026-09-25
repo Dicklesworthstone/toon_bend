@@ -60,6 +60,7 @@ We only use **Bend 2** (`bendlang/bend`, CLI `bend`) for the port, NEVER another
 | `clang` ≥ 14 | builds the native binary (`bend main.bend -o toon`); both C lanes |
 | `python3` ≥ 3.11 | the harness scripts and the case generators (`tomllib`) |
 | `rg`, `jq` | lookups and reading the gates' JSON lines |
+| `markdown-it-py` ≥ 3 | `scripts/review_report.py` reads a review report as a renderer reads it, and fails CLOSED without the parser: every report becomes an error, so `converge.sh` and `claims-audit.py` both go red for a reason that is about the host, not the port. Install it (`python3 -m pip install markdown-it-py`) before reading a convergence verdict on a fresh clone |
 | `cargo` (the original's pinned nightly) | **only** to rebuild the oracle binary from the pinned commit |
 
 ### The oracle

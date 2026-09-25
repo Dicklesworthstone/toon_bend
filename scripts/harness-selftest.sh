@@ -33,6 +33,9 @@
 #   M23 the findings table hidden in an HTML comment, the visible copy re-headed -> converge.sh (R24-1)
 #   M24 an unreachable commit under a SYMLINKED subdirectory of perf/evidence -> claims-audit.py (R24-2)
 #   M25 the findings table in a BLOCKQUOTE, a decoy at top level with sev/class downgraded -> converge.sh
+#   M26 a finding named in the rounds row's PROSE with no row in that round's table -> converge.sh
+#   M27 a report on disk whose round has no row in the rounds table         -> converge.sh
+#   M28 a rounds-table row whose round cell is not a number (`24b`)         -> claims-audit.py
 # and one CONTROL, counted on its own axis, never as a mutation:
 #   C1  a hidden excerpt with a DIFFERENT count while the visible table stays correct -> every gate SILENT
 # M14, M15, M18, M19, M21, M23 and M25 assert on converge.sh's MESSAGE, not its exit code: the gate is
@@ -789,6 +792,55 @@ if [[ -f scripts/review_report.py && -f docs/reviews/round-23.md ]]; then
   D="$(copy m25)"
   python3 "$HERE/.hst-decoy.py" "$D/docs/reviews/round-23.md" block
   expect_says M25_report_table_in_quote 'round 23' "$D" scripts/converge.sh docs/PORT_STATE.md
+  # M26/M27/M28 the three shapes the author's sweep after round 25 found, repaired in da95d0e by the
+  # reviewer who owned those files at the time, and planted here so a later rewrite of any of them
+  # reopens a hole loudly. Each LEAKED on 5ea1ff6 and is asserted on the MESSAGE of the gate that
+  # now catches it, which differs per shape -- the point of the sweep was that the three gates do not
+  # cover the same ground. Each plant ASSERTS it changed the file: a plant that silently no-ops (a
+  # phrase another agent has since reworded) would report a LEAK and be read as a broken gate.
+  D="$(copy m26)"
+  python3 - "$D/docs/PORT_STATE.md" <<'PLANT'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); t = p.read_text(encoding='utf-8')
+row = next(l for l in t.split('\n') if re.match(r'^\|\s*24\s*\|', l))
+c = row.split('|')                       # append to the lens cell: no phrase to match, so it cannot no-op
+c[2] = c[2].rstrip() + ' R24-9 (a MEDIUM behaviour finding recorded in this row only) '
+assert '|'.join(c) != row
+p.write_text(t.replace(row, '|'.join(c), 1), encoding='utf-8')
+PLANT
+  expect_says M26_rounds_row_prose_only 'names R24-9' "$D" scripts/converge.sh docs/PORT_STATE.md
+  D="$(copy m27)"
+  python3 - "$D/docs/reviews" <<'PLANT'
+import os, subprocess, sys
+rev = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()[:12]
+assert len(rev) == 12, 'no HEAD to name as the reviewed commit'
+with open(os.path.join(sys.argv[1], 'round-99.md'), 'w', encoding='utf-8') as fh:
+    fh.write('# Round 99\n\n| reviewed commit | %s |\n|---|---|\n| lens | non-author hostile review |\n\n'
+             '| id | sev | class | what |\n|---|---|---|---|\n'
+             '| R99-1 | MEDIUM | BEHAVIOR | a gate that lies |\n' % rev)
+PLANT
+  expect_says M27_report_without_row 'no row 99' "$D" scripts/converge.sh docs/PORT_STATE.md
+  # M28 is claims-audit's half: converge.sh ALREADY refused a non-numeric round cell ("round number must
+  # be a positive integer"), and the author first reported it as unread by both gates after grepping for
+  # words that message does not contain. Only the audit was blind, so only the audit is asserted here.
+  D="$(copy m28)"; n=$((n+1))
+  python3 - "$D/docs/PORT_STATE.md" <<'PLANT'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); t = p.read_text(encoding='utf-8')
+row = next(l for l in t.split('\n') if re.match(r'^\|\s*24\s*\|', l))
+c = row.split('|'); c[1] = ' 24b '; c[3], c[4], c[5] = ' 2 ', ' 0 ', ' no '
+assert '|'.join(c) != row
+p.write_text(t.replace(row, row + '\n' + '|'.join(c), 1), encoding='utf-8')
+PLANT
+  ( cd "$D" && python3 scripts/claims-audit.py ) >"$T/M28.log" 2>&1
+  if grep -q 'is not a number is read by no rule' "$T/M28.log"; then
+    printf 'CAUGHT     %-24s %s\n' M28_round_cell_not_a_number "a rounds-table row whose round cell is not a number"; caught=$((caught+1))
+  else
+    printf 'LEAK       %-24s the 24b row was read by no rule and reported by none\n' M28_round_cell_not_a_number
+    leaked+=(M28_round_cell_not_a_number)
+  fi
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -803,6 +855,10 @@ else
   n=$((n+1)); untestable+=(M24_evidence_symlinked_dir)
   echo "UNTESTABLE M25_report_table_in_quote    scripts/review_report.py or docs/reviews/round-23.md is not in this port"
   n=$((n+1)); untestable+=(M25_report_table_in_quote)
+  for m in M26_rounds_row_prose_only M27_report_without_row M28_round_cell_not_a_number; do
+    echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
+    n=$((n+1)); untestable+=("$m")
+  done
 fi
 
 verdict=OK

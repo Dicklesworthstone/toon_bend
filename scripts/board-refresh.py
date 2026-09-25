@@ -94,6 +94,12 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(encode_fraction_trailing_zeros_quoted|is_like_zero_in_phase_4_)", ["encoder primitives"]),
  (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
  (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
+ # round 24 (R24-3, R24-4): the header colon and the fields segment, quoted and bare field names under expansion, quoted
+ # key escapes; fold budgets in list items and at depth 2; an upper-case first key character
+ (r"(decode_semicolon_after_fields_refused|decode_space_and_tab_before_header_colon|decode_quoted_field_not_expanded"
+  r"|decode_quoted_key_four_escapes|decode_bare_field_expanded)$", ["tokens, string literals"]),
+ (r"(encode_fold_budget_in_list_item|encode_flatten_depth_two_folds)$", ["safe key folding"]),
+ (r"encode_upper_case_initial_keys_are_bare$", ["encoder primitives"]),
  # round 23 (R23-4, R23-5): later bare-key characters; field-name, header-colon and quoted-key rules of the header parser;
  # the JSON reader's `\u` hex and surrogate ends; a list item's tabular first field; the data-row test; `\u00XX` hex case
  (r"encode_key_later_char_range_ends$", ["encoder primitives"]),

@@ -2607,3 +2607,35 @@ def Laws.decode_unknown_escape_in_quoted_key():
 # S5.66 closed: the whole pure core computed (round 23)
 def Laws.decode_json_writer_lower_case_hex_controls():
   {==}
+
+# S2.133 closed: the whole pure core computed (round 24)
+def Laws.decode_semicolon_after_fields_refused():
+  {==}
+
+# S2.133 closed: the whole pure core computed (round 24)
+def Laws.decode_space_and_tab_before_header_colon():
+  {==}
+
+# S2.137 closed: the whole pure core computed (round 24)
+def Laws.decode_quoted_field_not_expanded():
+  {==}
+
+# S2.123 closed: the whole pure core computed (round 24)
+def Laws.decode_quoted_key_four_escapes():
+  {==}
+
+# S2.137 closed: the whole pure core computed (round 24)
+def Laws.decode_bare_field_expanded():
+  {==}
+
+# S4.78 closed: the whole pure core computed (round 24)
+def Laws.encode_fold_budget_in_list_item():
+  {==}
+
+# S4.79 closed: the whole pure core computed (round 24)
+def Laws.encode_flatten_depth_two_folds():
+  {==}
+
+# S4.21 closed: the whole pure core computed (round 24)
+def Laws.encode_upper_case_initial_keys_are_bare():
+  {==}

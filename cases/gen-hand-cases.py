@@ -739,6 +739,10 @@ def _proposed_e():
     dec("toonerr_empty_last_field_name", "[1]{a,}:\n  1,2\n", cls="toon-error", note="S2.137: an empty LAST field name is an error (H5)")
     dec("toonedge_bracket_then_equals_is_key", "a[1]=: 1\n", cls="toon-edge", note="S2.133: `=` after `]` is not the header colon -> key \"a[1]=\" (H9)")
     dec("toonedge_quoted_key_cr_escape", "\"a\\rb\": 1\n", cls="toon-edge", note="S2.123: \\r in a quoted KEY is CR, as in a value (U3)")
+    # round 24 (R24-3): three header-parser behaviours whose hand mutants passed the whole corpus and the whole proof
+    dec("toonerr_semicolon_after_fields", "a[1]{x};\n  1\n", cls="toon-error", note="S2.133: only White_Space may stand between `}` and the colon; `;` is no colon (H10)")
+    dec("toonedge_space_and_tab_before_header_colon", "a[1]{x} :\n  1\nb[1]{y}\t:\n  2\n", cls="toon-edge", note="S2.133: a space or a TAB between `}` and `:` is skipped (H11)")
+    dec("toonedge_quoted_field_not_expanded", "[1]{\"a.b\",c}:\n  1,2\n", ["--expand-paths", "safe"], cls="toon-edge", note="S2.137: a quoted field name keeps its dot under --expand-paths safe (H13)")
     # ---- structure (S4.202-S4.207, S4.217, S10.80, S10.81, S10.90, S10.98)
     dec("toonedge_root_array_trailing_ignored", "[2]: a,b\nc: 1\n", cls="toon-edge", note="S4.202: lines after a root array are ignored")
     dec("toonedge_rest_dropped_after_overindent", "a:\n  b: 1\n    c: 2\n  d: 3\ne: 4\n", cls="toon-edge", note="S4.204/S10.80: everything after the over-indented line is dropped -> {\"a\":{\"b\":1.0}}")

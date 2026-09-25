@@ -646,6 +646,9 @@ toonerr_empty_field_between_names	["--decode"]	cases/inputs/hand/toonerr_empty_f
 toonerr_empty_last_field_name	["--decode"]	cases/inputs/hand/toonerr_empty_last_field_name.toon	toon-error	S2.137: an empty LAST field name is an error (H5)
 toonedge_bracket_then_equals_is_key	["--decode"]	cases/inputs/hand/toonedge_bracket_then_equals_is_key.toon	toon-edge	S2.133: `=` after `]` is not the header colon -> key "a[1]=" (H9)
 toonedge_quoted_key_cr_escape	["--decode"]	cases/inputs/hand/toonedge_quoted_key_cr_escape.toon	toon-edge	S2.123: \r in a quoted KEY is CR, as in a value (U3)
+toonerr_semicolon_after_fields	["--decode"]	cases/inputs/hand/toonerr_semicolon_after_fields.toon	toon-error	S2.133: only White_Space may stand between `}` and the colon; `;` is no colon (H10)
+toonedge_space_and_tab_before_header_colon	["--decode"]	cases/inputs/hand/toonedge_space_and_tab_before_header_colon.toon	toon-edge	S2.133: a space or a TAB between `}` and `:` is skipped (H11)
+toonedge_quoted_field_not_expanded	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_quoted_field_not_expanded.toon	toon-edge	S2.137: a quoted field name keeps its dot under --expand-paths safe (H13)
 toonedge_root_array_trailing_ignored	["--decode"]	cases/inputs/hand/toonedge_root_array_trailing_ignored.toon	toon-edge	S4.202: lines after a root array are ignored
 toonedge_rest_dropped_after_overindent	["--decode"]	cases/inputs/hand/toonedge_rest_dropped_after_overindent.toon	toon-edge	S4.204/S10.80: everything after the over-indented line is dropped -> {"a":{"b":1.0}}
 toonlenient_leftover_rows_drop_rest	["--decode", "--no-strict"]	cases/inputs/hand/toonlenient_leftover_rows_drop_rest.toon	toon-edge	S4.217: leftover row ends the document, k is lost

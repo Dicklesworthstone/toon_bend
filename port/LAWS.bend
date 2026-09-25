@@ -2797,3 +2797,35 @@ law decode_unknown_escape_in_quoted_key:
 
 law decode_json_writer_lower_case_hex_controls:
   {C.run_pure(["--decode"], T.ascii_bytes("a: \"x\u{1f}y\u{1a}z\"\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"x\\u001fy\\u001az\"\n}\n", ""} : C.Out}
+
+# Round 24 (R24-3): three header-parser behaviours whose hand mutants passed the whole corpus AND the whole 629-law proof,
+# pinned with bytes from the pinned original (each also has a captured case now). S2.133: only White_Space may stand
+# between `}` and the header colon, so `;` is no colon (H10 took it for one) and a space or a TAB is skipped (H11 refused
+# them). S2.137: a quoted field name keeps its quoted flag, so `--expand-paths safe` leaves its dot alone (H13 dropped it)
+law decode_semicolon_after_fields_refused:
+  {C.run_pure(["--decode"], T.ascii_bytes("a[1]{x};\n  1\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Missing colon after key"} : C.Out}
+
+law decode_space_and_tab_before_header_colon:
+  {C.run_pure(["--decode"], T.ascii_bytes("a[1]{x} :\n  1\nb[1]{y}\t:\n  2\n", Nil{})) == C.Out{0n, "{\n  \"a\": [\n    {\n      \"x\": 1\n    }\n  ],\n  \"b\": [\n    {\n      \"y\": 2\n    }\n  ]\n}\n", ""} : C.Out}
+
+law decode_quoted_field_not_expanded:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("[1]{\"a.b\",c}:\n  1,2\n", Nil{})) == C.Out{0n, "[\n  {\n    \"a.b\": 1,\n    \"c\": 2\n  }\n]\n", ""} : C.Out}
+
+# Round 24 (R24-4): mutants the corpus caught and no law did, pinned with bytes from the pinned original. S2.123: `\t`,
+# `\"`, `\\` and `\n` in a quoted KEY (U5-U8). S2.137: a bare field name is not quoted, so its dot expands (H14). S4.78:
+# a list item's object body keeps the item's fold budget (F4). S4.79: a budget of 2 folds two segments (F5). S4.21: `A`
+# may start a bare key (KF1)
+law decode_quoted_key_four_escapes:
+  {C.run_pure(["--decode"], T.ascii_bytes("\"a\\tb\": 1\n\"c\\\"d\": 2\n\"e\\\\f\": 3\n\"g\\nh\": 4\n", Nil{})) == C.Out{0n, "{\n  \"a\\tb\": 1,\n  \"c\\\"d\": 2,\n  \"e\\\\f\": 3,\n  \"g\\nh\": 4\n}\n", ""} : C.Out}
+
+law decode_bare_field_expanded:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("[1]{a.b}:\n  1\n", Nil{})) == C.Out{0n, "[\n  {\n    \"a\": {\n      \"b\": 1\n    }\n  }\n]\n", ""} : C.Out}
+
+law encode_fold_budget_in_list_item:
+  {C.run_pure(["--encode", "--key-folding", "safe", "--flatten-depth", "2"], T.ascii_bytes("{\"a\": {\"b\": [{\"x\": 1, \"c\": {\"d\": {\"e\": 1}}}]}}", Nil{})) == C.Out{0n, "a.b[1]:\n  - x: 1\n    c.d:\n      e: 1\n", ""} : C.Out}
+
+law encode_flatten_depth_two_folds:
+  {C.run_pure(["--encode", "--key-folding", "safe", "--flatten-depth", "2"], T.ascii_bytes("{\"a\":{\"b\":1}}", Nil{})) == C.Out{0n, "a.b: 1\n", ""} : C.Out}
+
+law encode_upper_case_initial_keys_are_bare:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"Ab\":1,\"Zb\":2}", Nil{})) == C.Out{0n, "Ab: 1\nZb: 2\n", ""} : C.Out}

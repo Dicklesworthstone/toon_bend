@@ -216,13 +216,30 @@ def facts():
     # Round 19's R19-5 rule and its R20-R22 extensions are subsumed by this one.
     pin_text = read("docs/PIN.toml") + re.split(r"(?m)^## 3\.", re.split(r"(?m)^## 2\.", read("docs/PLAN_TO_PORT_Toon_TO_BEND2.md") + "\n## 2.", maxsplit=1)[1], maxsplit=1)[0]
     pins = {h.lower() for h in re.findall(r"(?<![0-9a-fA-F])[0-9a-fA-F]{7,40}(?![0-9a-fA-F])", pin_text)}
+    # A digest is exempt only as a WHOLE value of exactly 12, 16 or 64 hex digits (the widths this harness
+    # writes) under a digest-named key with no commit-named key above it: `{"commit": {"hash": "494ef82"}}`
+    # stays a commit (R23-3's shape C). What stays out of reach, and is said here rather than hidden: a commit
+    # abbreviated to exactly 12 or 16 digits and stored as a digest-named value is indistinguishable from a digest.
     digest_key = re.compile(r"sha|digest|hash|md5|checksum", re.I)
-    def drop_digests(node):
+    commit_key = re.compile(r"commit|tree|rev|head|built|from|ref", re.I)
+    def drop_digests(node, under_commit=False):
         if isinstance(node, dict):
-            return {k: (None if digest_key.search(str(k)) and isinstance(v, str) else drop_digests(v)) for k, v in node.items()}
+            out = {}
+            for k, v in node.items():
+                below = under_commit or bool(commit_key.search(str(k)))
+                digest = (not below and digest_key.search(str(k)) and isinstance(v, str)
+                          and re.fullmatch(r"[0-9a-fA-F]{12}|[0-9a-fA-F]{16}|[0-9a-fA-F]{64}", v))
+                out[k] = None if digest else drop_digests(v, below)
+            return out
         if isinstance(node, list):
-            return [drop_digests(v) for v in node]
+            return [drop_digests(v, under_commit) for v in node]
         return node
+    # A FILE NAME's hex run is read too (R23-3's shape M). Besides a commit or a pin it may be the prefix of a
+    # digest a claim-bearing ledger records in full (`COUNTED-PROFILE.825e44de.*` names the profiled binary,
+    # whose sha256 perf/COUNTED-PROFILE.md states): a run of 24 or more digits, never 40 (a full commit).
+    recorded = {h.lower() for name in sorted(os.listdir(os.path.join(ROOT, "perf"))) if name.endswith(".md")
+                for h in re.findall(r"(?<![0-9a-fA-F])[0-9a-fA-F]{24,}(?![0-9a-fA-F])", read(os.path.join("perf", name)))
+                if len(h) != 40}
     hex_run = re.compile(r"(?<![0-9A-Fa-f])(?<!0x)(?<!0X)[0-9A-Fa-f]{7,40}(?![0-9A-Fa-f])")
     uuid = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
     for dirpath, _dirs, names in sorted(os.walk(evdir)) if os.path.isdir(evdir) else []:
@@ -237,12 +254,15 @@ def facts():
                 except ValueError:
                     docs_ = None
             text = json.dumps([drop_digests(d) for d in docs_], ensure_ascii=False) if docs_ else raw
-            for run in sorted({m.group(0) for m in hex_run.finditer(uuid.sub(" ", text))}):
-                low = run.lower()
-                if low.isdigit() or low.isalpha() or any(p.startswith(low) or low.startswith(p) for p in pins):
-                    continue
-                if not reachable(low):
-                    f.setdefault("counted_unreachable", []).append((rel, "hex run", run))
+            for where, body in (("file name's hex run", rel), ("hex run", uuid.sub(" ", text))):
+                for run in sorted({m.group(0) for m in hex_run.finditer(body)}):
+                    low = run.lower()
+                    if low.isdigit() or low.isalpha() or any(p.startswith(low) or low.startswith(p) for p in pins):
+                        continue
+                    if where.startswith("file") and any(d.startswith(low) for d in recorded):
+                        continue
+                    if not reachable(low):
+                        f.setdefault("counted_unreachable", []).append((rel, where, run))
     for name in sorted(os.listdir(evdir) if os.path.isdir(evdir) else []):
         if not (name.lower().startswith("counted") and name.lower().endswith((".json", ".jsonl", ".ndjson"))):
             continue

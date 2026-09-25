@@ -937,6 +937,15 @@ def audit(files, f, gates, verbose):
                     findings.append({"file": "README.md", "line": base + i, "text": line.strip()[:200],
                                      "finding": "the performance section states the %s %s, which is in no file of perf/evidence/" % (kind, value)})
 
+    # a4's sweep after round 25: a rounds-table row whose round cell is not a bare number (`24b`) was ignored by every
+    # rule below, which match `^\| (\d+) \|`. Every row of the Find-fix rounds table must have a numeric round cell.
+    state_text = read("docs/PORT_STATE.md")
+    sect = re.search(r"(?ms)^## Find-fix rounds\b.*?(?=^## |\Z)", state_text)
+    for row in re.findall(r"(?m)^\|[^\n]*\|\s*$", sect.group(0) if sect else ""):
+        first = row.strip("|").split("|")[0].strip()
+        if first.lower() != "round" and not set(first) <= set("-: ") and not re.fullmatch(r"[1-9]\d*", first):
+            findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": row[:80],
+                             "finding": "a rounds-table row whose round cell `%s` is not a number is read by no rule" % first[:20]})
     # the rounds table against the review reports
     # R22-1: the other direction. A row the table labels non-author is evidence only through its report; a row with no
     # docs/reviews/round-NN.md (two fabricated `0 | 0 | yes` rows made converge.sh print CONVERGED) is a finding.
@@ -949,7 +958,7 @@ def audit(files, f, gates, verbose):
         rid = int(m.group(1))
         if rid >= 20:
             for problem in review_report.check(ROOT, os.path.join(ROOT, "docs", "reviews", "round-%02d.md" % rid),
-                                               rid, int(m.group(3))):
+                                               rid, int(m.group(3)), m.group(2)):
                 findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
                                  "finding": problem.replace(ROOT + os.sep, "")})
         elif review_report.is_non_author(m.group(2)) and rid not in f["reviews"]:

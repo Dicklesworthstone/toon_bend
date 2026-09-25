@@ -177,8 +177,11 @@ def reachable(root, rev):
         return True
 
 
-def check(root, path, rnd, recorded):
-    """Every problem with round `rnd`'s report at `path` against the rounds table's count `recorded`."""
+def check(root, path, rnd, recorded, lens=None):
+    """Every problem with round `rnd`'s report at `path` against the rounds table's count `recorded` and, when
+    given, the row's own `lens` prose: a finding id of this round that the ROW names must be a row of the report's
+    findings table (a4's sweep after round 25: a legal report with an empty table, a `0 | 0 | yes` row whose prose
+    still names a MEDIUM behavior finding, was counted clean). The report applies the same rule to its own prose."""
     try:
         with open(path, encoding="utf-8") as fh:
             text = fh.read()
@@ -191,6 +194,12 @@ def check(root, path, rnd, recorded):
     if not rep["errors"] and recorded is not None and rep["counted"] != recorded:
         problems.append("round %d: the table says %d counted finding(s), %s lists %d"
                         % (rnd, recorded, path, rep["counted"]))
+    if lens is not None and not rep["errors"]:
+        listed = {r["id"] for r in rep["rows"]}
+        named = {"R%d-%d" % (rnd, int(k)) for k in
+                 re.findall(r"(?<![A-Za-z0-9])R%d[-.]0*(\d+)(?![0-9])" % rnd, fold(lens), re.I)}
+        for ident in sorted(named - listed, key=lambda s: int(s.split("-")[1])):
+            problems.append("round %d: the rounds row names %s, which %s's findings table does not list" % (rnd, ident, path))
     return problems
 
 

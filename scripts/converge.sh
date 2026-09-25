@@ -145,7 +145,7 @@ for r in rows:
     report = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), "reviews", "round-%02d.md" % rid)
     if rid >= COUNTING_RULE_ROUND:
         problems = review_report.check(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[1]))),
-                                       os.path.relpath(report), rid, n)
+                                       os.path.relpath(report), rid, n, col(r, "lens"))
         if problems:
             malformed.extend(problems)
             clean = False
@@ -164,6 +164,13 @@ for clean in reversed(clean_flags):
 last_two_clean = len(clean_flags) >= 2 and all(clean_flags[-2:])
 non_author = any(re.search(r'\(non-author\)\s*$', review_report.fold(l)) and not re.search(r'\(author\)', l) for l in lenses)
 # OQ / DISC
+# a4's sweep after round 25: a report on disk whose round has no row is evidence the table leaves out; claims-audit
+# refused it and this gate, whose whole job is the convergence verdict, did not.
+reviews_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), "reviews")
+for name in sorted(os.listdir(reviews_dir) if os.path.isdir(reviews_dir) else []):
+    mr = re.fullmatch(r"round-0*(\d+)\.md", name)
+    if mr and int(mr.group(1)) not in round_ids:
+        malformed.append(f"docs/reviews/{name} exists and the rounds table has no row {int(mr.group(1))}")
 registers_missing = []
 open_oq, oq_ids = [], set()
 try:

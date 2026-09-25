@@ -7,7 +7,7 @@
      partial never rounds up; excluded is debt; a present feature names
      its evidence. Statuses: present | partial | missing | excluded | n/a. -->
 
-Last gate run: 2026-09-24/25 on the tree of commit `2214d82` · `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` (alone or inside `scripts/port-doctor.sh`; the pasted line names the timeouts it ran with) → `{"lanes":[{"lane":"interpreter","verdict":"FAIL","passed":994,"failed":89},{"lane":"c-1t","verdict":"PASS","passed":1083,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1083,"failed":0},{"lane":"js","verdict":"PASS","passed":1083,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":60.0,"compiled":5.0,"build":600},"verdict":"FAIL"}` (the interpreter's 89 failures fell while the host's disk was 100% full), then the interpreter lane alone once space was freed, `scripts/conform.sh … --lane interpreter --timeout 60 -- scripts/interp-lane.sh …` → `{"lane":"interpreter","passed":1083,"failed":0,"inconclusive":0,"stderr_compared":true,"verdict":"PASS","oracle_identity_checked":true}` ·
+Last gate run: 2026-09-24/25 on the tree of commit `cc1ea20` · `scripts/lanes.sh goldens/cases.tsv goldens port/main.bend --threads 8` (alone or inside `scripts/port-doctor.sh`; the pasted line names the timeouts it ran with) → `{"lanes":[{"lane":"interpreter","verdict":"FAIL","passed":994,"failed":89},{"lane":"c-1t","verdict":"PASS","passed":1083,"failed":0},{"lane":"c-8t","verdict":"PASS","passed":1083,"failed":0},{"lane":"js","verdict":"PASS","passed":1083,"failed":0}],"stderr_compared":true,"timeouts_seconds":{"interpreter":60.0,"compiled":5.0,"build":600},"verdict":"FAIL"}` (the interpreter's 89 failures fell while the host's disk was 100% full), then the interpreter lane alone once space was freed, `scripts/conform.sh … --lane interpreter --timeout 60 -- scripts/interp-lane.sh …` → `{"lane":"interpreter","passed":1083,"failed":0,"inconclusive":0,"stderr_compared":true,"verdict":"PASS","oracle_identity_checked":true}` ·
 proofs: `bun /tmp/bend/bend2/main.ts port/PROOF.bend` → `All terms check.` with 0 unsafe (0 `@unsafe` + 0 template instances, bend 2.0.16), 629 laws (41 quantified, 293 closed unit laws, 295 closed whole-pipeline `golden_<case>` laws) · `scripts/law-coverage.sh`: every law cited by a row below, 0 ghost citations ·
 a row is `present` when the goldens it names pass on EVERY lane of that run and the laws it names are proved; "laws" on a row are closed instances unless the row names one of the 41 quantified laws.
 
@@ -63,10 +63,10 @@ a row is `present` when the goldens it names pass on EVERY lane of that run and 
 
 | lane | cases | verdict | date |
 |---|---|---|---|
-| interpreter | 1083/1083 | PASS | 2026-09-25 (tree of `2214d82`; re-run alone after the disk-full failures of the lanes.sh run, line above) |
-| c-1t | 1083/1083 | PASS | 2026-09-24 (tree of `2214d82`) |
-| c-8t | 1083/1083 | PASS | 2026-09-24 (tree of `2214d82`) |
-| js | 1083/1083 | PASS | 2026-09-24 (tree of `2214d82`) |
+| interpreter | 1083/1083 | PASS | 2026-09-25 (tree of `cc1ea20`; re-run alone after the disk-full failures of the lanes.sh run, line above) |
+| c-1t | 1083/1083 | PASS | 2026-09-24 (tree of `cc1ea20`) |
+| c-8t | 1083/1083 | PASS | 2026-09-24 (tree of `cc1ea20`) |
+| js | 1083/1083 | PASS | 2026-09-24 (tree of `cc1ea20`) |
 | gpu (`--gpu on`) | - | MISSING: no bang is placed (text with data-dependent structure), so there is no device lane to run | - |
 
 Since EXP-007 (`0131342`) the encoder's number pre-pass is a parallel let: above `--threads 1` the runtime runs it on a worker pool,

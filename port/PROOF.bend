@@ -2555,3 +2555,55 @@ def Laws.encode_short_row_in_header_order_is_list_form():
 # S4.42 closed: the whole pure core computed (round 22)
 def Laws.encode_array_of_objects_as_list_item_is_list_form():
   {==}
+
+# S4.21 closed: the whole pure core computed (round 23)
+def Laws.encode_key_later_char_range_ends():
+  {==}
+
+# S2.137 closed: the whole pure core computed (round 23)
+def Laws.decode_empty_field_between_names():
+  {==}
+
+# S2.137 closed: the whole pure core computed (round 23)
+def Laws.decode_empty_last_field_name():
+  {==}
+
+# S2.133 closed: the whole pure core computed (round 23)
+def Laws.decode_bracket_then_equals_is_key():
+  {==}
+
+# S2.123 closed: the whole pure core computed (round 23)
+def Laws.decode_quoted_key_cr_escape():
+  {==}
+
+# S2.19 closed: the whole pure core computed (round 23)
+def Laws.encode_hex_escape_letter_ends():
+  {==}
+
+# S2.21 closed: the whole pure core computed (round 23)
+def Laws.encode_surrogate_pairs_at_both_ends():
+  {==}
+
+# S4.48 closed: the whole pure core computed (round 23)
+def Laws.encode_list_item_first_field_tabular():
+  {==}
+
+# S4.214 closed: the whole pure core computed (round 23)
+def Laws.decode_colon_line_ends_tabular_rows():
+  {==}
+
+# S2.139 closed: the whole pure core computed (round 23)
+def Laws.decode_values_after_fields_header_refused():
+  {==}
+
+# S2.132 closed: the whole pure core computed (round 23)
+def Laws.decode_open_quote_in_fields_segment():
+  {==}
+
+# S2.123 closed: the whole pure core computed (round 23)
+def Laws.decode_unknown_escape_in_quoted_key():
+  {==}
+
+# S5.66 closed: the whole pure core computed (round 23)
+def Laws.decode_json_writer_lower_case_hex_controls():
+  {==}

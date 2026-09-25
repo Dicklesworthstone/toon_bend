@@ -235,6 +235,9 @@ enc("encstr_duplicate_keys_after_the_set_is_built",
 enc("enc_reordered_row_with_nested_values_is_list_form",
     '{"t":[{"a":1,"b":2},{"b":{"x":1},"a":3}],"u":[{"a":1,"b":2},{"b":[1,2],"a":3}]}\n',
     note="S4.36: a reordered row with an object or array value is not tabular")
+# round 23 (R23-4, K3): every range end of a LATER bare-key character (a mutant refusing a later `Z` passed the corpus)
+enc("encstr_key_later_char_range_ends", '{"aZ":1,"az":2,"aA":3,"a9":4,"a_Z":5,"Za":6}\n',
+    note="S4.21: A, Z, a, z, 9 and _ after the first character keep a key bare")
 enc("encstr_whitespace_json", ' \n\t{ "a" : [ 1 , 2 ] ,\r\n "b" : { } }  \n\n')
 enc("encstr_no_trailing_newline", '{"a":1}')
 enc("enc_shapes_mixed", json.dumps({"empty_obj": {}, "empty_arr": [], "nested_empty": {"a": {}, "b": []}, "arr_of_empty": [{}, [], {}], "mixed": [1, "a", None, True, {"k": "v"}, [1, 2], []], "aoa": [[1, 2], [], ["a"]], "aoa_mixed": [[1, [2]], [3]], "objs_diff": [{"a": 1}, {"b": 2}], "objs_order": [{"a": 1, "b": 2}, {"b": 3, "a": 4}], "objs_nested": [{"a": {"x": 1}}, {"a": {"x": 2}}], "objs_first_arr": [{"items": [{"id": 1}, {"id": 2}], "n": 1}, {"items": [1, 2], "n": 2}, {"items": [], "n": 3}, {"items": [[1]], "n": 4}], "objs_first_obj": [{"o": {"p": 1}, "q": 2}, {"o": {}, "q": 3}]}) + "\n", cls="enc-string")
@@ -731,6 +734,11 @@ def _proposed_e():
     dec("toonerr_escape_beats_bad_length", "\"a\\x\"[abc]: 1\n", cls="toon-error", note="S2.139: key escape error before the bracket content is judged")
     dec("toonedge_inline_beats_fields", "t[2]{a,b}: 1,2\n", cls="toon-edge", note="S4.210: inline values win over the fields segment")
     dec("toonedge_fields_space_only", "items[1]{ }:\n  - 1\n", cls="toon-edge", note="S2.137: '{ }' is one field named '' -> [{\"\":\"- 1\"}]")
+    # round 23 (R23-4): three decode behaviours whose hand mutants passed the whole corpus and the whole proof
+    dec("toonerr_empty_field_between_names", "[1]{a,,b}:\n  1,2,3\n", cls="toon-error", note="S2.137: an empty field name between two names is an error (H5)")
+    dec("toonerr_empty_last_field_name", "[1]{a,}:\n  1,2\n", cls="toon-error", note="S2.137: an empty LAST field name is an error (H5)")
+    dec("toonedge_bracket_then_equals_is_key", "a[1]=: 1\n", cls="toon-edge", note="S2.133: `=` after `]` is not the header colon -> key \"a[1]=\" (H9)")
+    dec("toonedge_quoted_key_cr_escape", "\"a\\rb\": 1\n", cls="toon-edge", note="S2.123: \\r in a quoted KEY is CR, as in a value (U3)")
     # ---- structure (S4.202-S4.207, S4.217, S10.80, S10.81, S10.90, S10.98)
     dec("toonedge_root_array_trailing_ignored", "[2]: a,b\nc: 1\n", cls="toon-edge", note="S4.202: lines after a root array are ignored")
     dec("toonedge_rest_dropped_after_overindent", "a:\n  b: 1\n    c: 2\n  d: 3\ne: 4\n", cls="toon-edge", note="S4.204/S10.80: everything after the over-indented line is dropped -> {\"a\":{\"b\":1.0}}")

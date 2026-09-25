@@ -2745,3 +2745,55 @@ law encode_short_row_in_header_order_is_list_form:
 
 law encode_array_of_objects_as_list_item_is_list_form:
   {C.run_pure(["--encode"], T.ascii_bytes("[[{\"a\":1},{\"a\":2}]]", Nil{})) == C.Out{0n, "[1]:\n  - [2]:\n    - a: 1\n    - a: 2\n", ""} : C.Out}
+
+# Round 23 (R23-4): four behaviours whose hand mutants passed the whole corpus AND the whole 616-law proof, pinned with
+# bytes from the pinned original (each also has a captured case now). S4.21: every range end of a LATER bare-key
+# character keeps a key bare (K3 refused a later `Z`). S2.137: an empty field name between two names or at the end of a
+# field list is an error (H5 accepted it). S2.133: `=` after `]` is not the header colon (H9 took it for one). S2.123:
+# `\r` in a quoted KEY is CR (U3 read it as LF; the value side was already pinned)
+law encode_key_later_char_range_ends:
+  {C.run_pure(["--encode"], T.ascii_bytes("{\"aZ\":1,\"az\":2,\"aA\":3,\"a9\":4,\"a_Z\":5,\"Za\":6}", Nil{})) == C.Out{0n, "aZ: 1\naz: 2\naA: 3\na9: 4\na_Z: 5\nZa: 6\n", ""} : C.Out}
+
+law decode_empty_field_between_names:
+  {C.run_pure(["--decode"], T.ascii_bytes("[1]{a,,b}:\n  1,2,3\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Empty field name in field list"} : C.Out}
+
+law decode_empty_last_field_name:
+  {C.run_pure(["--decode"], T.ascii_bytes("[1]{a,}:\n  1,2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Empty field name in field list"} : C.Out}
+
+law decode_bracket_then_equals_is_key:
+  {C.run_pure(["--decode"], T.ascii_bytes("a[1]=: 1\n", Nil{})) == C.Out{0n, "{\n  \"a[1]=\": 1\n}\n", ""} : C.Out}
+
+law decode_quoted_key_cr_escape:
+  {C.run_pure(["--decode"], T.ascii_bytes("\"a\\rb\": 1\n", Nil{})) == C.Out{0n, "{\n  \"a\\rb\": 1\n}\n", ""} : C.Out}
+
+# Round 23 (R23-5): mutants the corpus caught and no law did, pinned with bytes from the pinned original. S2.19-S2.23:
+# `\u` hex digits at the letter ends in both cases (A4 upper-case off by one, A5 refused `f`) and surrogate pairs at both
+# ends of the high range (A6 decoded a pair one too high, A7 refused U+DBFF). S4.48: a list item object's first field may
+# be tabular (T4). S4.214: a line with a colon and no delimiter ends a tabular body (I1). S2.139: values after a fields
+# header's colon are an error (H4). S2.132: an open quote in a fields segment is an error (H6). S2.123: an unknown escape
+# in a quoted key is refused (U4). S5.66: the JSON writer's `\u00XX` uses lower-case hex (J2). H1 and H2 (the length cap
+# 100000000) have no law: a closed law on that boundary makes the checker build 10^8 in unary; `toonerr_length_at_cap`
+# pins them on every lane
+law encode_hex_escape_letter_ends:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"\\u00C9\",\"\\u00ff\"]", Nil{})) == C.Out{0n, "[2]: \u{c9},\u{ff}\n", ""} : C.Out}
+
+law encode_surrogate_pairs_at_both_ends:
+  {C.run_pure(["--encode"], T.ascii_bytes("[\"\\ud83d\\ude00\",\"\\udbff\\udfff\"]", Nil{})) == C.Out{0n, "[2]: \u{1f600},\u{10ffff}\n", ""} : C.Out}
+
+law encode_list_item_first_field_tabular:
+  {C.run_pure(["--encode"], T.ascii_bytes("[{\"t\":[{\"a\":1},{\"a\":2}],\"b\":1}]", Nil{})) == C.Out{0n, "[1]:\n  - t[2]{a}:\n      1\n      2\n    b: 1\n", ""} : C.Out}
+
+law decode_colon_line_ends_tabular_rows:
+  {C.run_pure(["--decode"], T.ascii_bytes("rows[2]{a,b}:\n  1,2\n  x: y\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 2 tabular rows, but got 1"} : C.Out}
+
+law decode_values_after_fields_header_refused:
+  {C.run_pure(["--decode"], T.ascii_bytes("t[2]{a,b}: 1,2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unexpected content after fields-bearing header colon"} : C.Out}
+
+law decode_open_quote_in_fields_segment:
+  {C.run_pure(["--decode"], T.ascii_bytes("rows[1]{\"a}:\n  1", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Unterminated string: missing closing quote"} : C.Out}
+
+law decode_unknown_escape_in_quoted_key:
+  {C.run_pure(["--decode"], T.ascii_bytes("\"a\\qb\": 1\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Invalid escape sequence: \\q"} : C.Out}
+
+law decode_json_writer_lower_case_hex_controls:
+  {C.run_pure(["--decode"], T.ascii_bytes("a: \"x\u{1f}y\u{1a}z\"\n", Nil{})) == C.Out{0n, "{\n  \"a\": \"x\\u001fy\\u001az\"\n}\n", ""} : C.Out}

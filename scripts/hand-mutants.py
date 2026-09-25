@@ -120,6 +120,37 @@ MUTANTS = [
   "a row shorter than the header, in header order, passes the lockstep test (R22-4, V14)"),
  ("M59", "encode.bend", "    case False{} False{} True{} True{}:\n", "    case False{} False{} True{} _:\n",
   "an array of objects that is a list item may be tabular (R22-4, V25)"),
+ # round 23: the reviewer's own mutant texts (r23/mut23.py), taken verbatim. H1 and H2 (the length cap 100000000) are
+ # NOT here: no closed law can pin that boundary without the checker building 10^8 in unary, so they would read as
+ # SURVIVED against the laws; `toonerr_length_at_cap` pins them on every lane (PORT_STATE, round 23).
+ ('M60', 'text.bend', 'def key_char(+c: U32, dot: Bool) -> Bool:\n  Bool.or(Bool.and(U32.is_ge(c, 97), U32.is_le(c, 122)), Bool.or(Bool.and(U32.is_ge(c, 65), U32.is_le(c, 90))', 'def key_char(+c: U32, dot: Bool) -> Bool:\n  Bool.or(Bool.and(U32.is_ge(c, 97), U32.is_le(c, 122)), Bool.or(Bool.and(U32.is_ge(c, 65), U32.is_le(c, 89))',
+  "key_char: 'Z' is not a later key character (R23-4, K3)"),
+ ('M61', 'decode.bend', '    case SNil{}:\n      FRErr{"Empty field name in field list"}', '    case SNil{}:\n      FROk{Field{SNil{}, False{}} <> rev}',
+  'field.one: an empty field name is a name (R23-4, H5)'),
+ ('M62', 'decode.bend', 'hdr.c.pick(Bool.pick(Nat, U32.is_eq(c, 123), 1n, Bool.pick(Nat, U32.is_eq(c, 58), 2n, 0n))', 'hdr.c.pick(Bool.pick(Nat, U32.is_eq(c, 123), 1n, Bool.pick(Nat, Bool.or(U32.is_eq(c, 58), U32.is_eq(c, 61)), 2n, 0n))',
+  "hdr.c.seg: '=' after ']' acts as the header colon (R23-4, H9)"),
+ ('M63', 'decode.bend', '    case False{} True{} 3n:\n      UE{False{}, SCon{Chr{13}, rev}', '    case False{} True{} 3n:\n      UE{False{}, SCon{Chr{10}, rev}',
+  'unesc.tr: \\r reads as LF in keys (R23-4, U3)'),
+ ('M64', 'json.bend', 'U32.is_le(b, 70)), (b - 55 : U32)', 'U32.is_le(b, 70)), (b - 54 : U32)',
+  'hex.val: upper-case A-F off by one (R23-5, A4)'),
+ ('M65', 'json.bend', 'U32.is_le(b, 102)), (b - 87 : U32)', 'U32.is_le(b, 101)), (b - 87 : U32)',
+  "hex.val: lower-case 'f' is not a hex digit (R23-5, A5)"),
+ ('M66', 'json.bend', '(v - 56320) : U32)', '(v - 56319) : U32)',
+  'hex.fin: surrogate pair decoded one too high (R23-5, A6)'),
+ ('M67', 'json.bend', 'U32.is_le(v, 56319)), v, hi', 'U32.is_le(v, 56318)), v, hi',
+  'hex.go: U+DBFF is not a high surrogate (R23-5, A7)'),
+ ('M68', 'encode.bend', '  ctx.vk(vkind(v, True{}), True{}, k, d, True{}, 2n+d, fctx.item(opt))', '  ctx.vk(vkind(v, False{}), True{}, k, d, True{}, 2n+d, fctx.item(opt))',
+  "a list item object's first field is never tabular (R23-5, T4)"),
+ ('M69', 'decode.bend', '    case UQ{True{}, cpos, False{}, dpos}:\n      False{}', '    case UQ{True{}, cpos, False{}, dpos}:\n      True{}',
+  'is_row.of: a colon and no delimiter is a row (R23-5, I1)'),
+ ('M70', 'decode.bend', 'hdr.h(Bool.and(has_seg, Bool.not(String.is_empty(inline)))', 'hdr.h(False{}',
+  'hdr.g: values after a fields header colon are accepted (R23-5, H4)'),
+ ('M71', 'decode.bend', '    case UC{False{}, rev, after, True{}}:\n      HErr{"Unterminated string: missing closing quote"}', '    case UC{False{}, rev, after, True{}}:\n      HNot{}',
+  'hdr.c.fields: an open quote in the fields segment is not an error (R23-5, H6)'),
+ ('M72', 'decode.bend', '    case False{} True{} _:\n      UE{False{}, rev, True{}, c}', '    case False{} True{} _:\n      UE{False{}, SCon{Chr{c}, rev}, False{}, badc}',
+  'unesc.tr: an unknown escape in a key is kept, not refused (R23-5, U4)'),
+ ('M73', 'json.bend', '(d + 48 : U32), (d + 87 : U32))}', '(d + 48 : U32), (d + 55 : U32))}',
+  'hexc: upper-case hex digits in \\u00XX (R23-5, J2)'),
 ]
 
 def reduced(laws_text, proof_text):

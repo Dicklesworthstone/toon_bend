@@ -153,6 +153,7 @@ encstr_long	["--encode"]	cases/inputs/hand/encstr_long.json	enc-string
 encstr_duplicate_keys	["--encode"]	cases/inputs/hand/encstr_duplicate_keys.json	enc-string	IndexMap: last value, first position
 encstr_duplicate_keys_after_the_set_is_built	["--encode"]	cases/inputs/hand/encstr_duplicate_keys_after_the_set_is_built.json	enc-string	EXP-029: the member that builds the key set, repeated
 enc_reordered_row_with_nested_values_is_list_form	["--encode"]	cases/inputs/hand/enc_reordered_row_with_nested_values_is_list_form.json	enc-string	S4.36: a reordered row with an object or array value is not tabular
+encstr_key_later_char_range_ends	["--encode"]	cases/inputs/hand/encstr_key_later_char_range_ends.json	enc-string	S4.21: A, Z, a, z, 9 and _ after the first character keep a key bare
 encstr_whitespace_json	["--encode"]	cases/inputs/hand/encstr_whitespace_json.json	enc-string	
 encstr_no_trailing_newline	["--encode"]	cases/inputs/hand/encstr_no_trailing_newline.json	enc-string	
 enc_shapes_mixed	["--encode"]	cases/inputs/hand/enc_shapes_mixed.json	enc-string	
@@ -646,6 +647,10 @@ toonerr_length_u64_max_list	["--decode"]	cases/inputs/hand/toonerr_length_u64_ma
 toonerr_escape_beats_bad_length	["--decode"]	cases/inputs/hand/toonerr_escape_beats_bad_length.toon	toon-error	S2.139: key escape error before the bracket content is judged
 toonedge_inline_beats_fields	["--decode"]	cases/inputs/hand/toonedge_inline_beats_fields.toon	toon-edge	S4.210: inline values win over the fields segment
 toonedge_fields_space_only	["--decode"]	cases/inputs/hand/toonedge_fields_space_only.toon	toon-edge	S2.137: '{ }' is one field named '' -> [{"":"- 1"}]
+toonerr_empty_field_between_names	["--decode"]	cases/inputs/hand/toonerr_empty_field_between_names.toon	toon-error	S2.137: an empty field name between two names is an error (H5)
+toonerr_empty_last_field_name	["--decode"]	cases/inputs/hand/toonerr_empty_last_field_name.toon	toon-error	S2.137: an empty LAST field name is an error (H5)
+toonedge_bracket_then_equals_is_key	["--decode"]	cases/inputs/hand/toonedge_bracket_then_equals_is_key.toon	toon-edge	S2.133: `=` after `]` is not the header colon -> key "a[1]=" (H9)
+toonedge_quoted_key_cr_escape	["--decode"]	cases/inputs/hand/toonedge_quoted_key_cr_escape.toon	toon-edge	S2.123: \r in a quoted KEY is CR, as in a value (U3)
 toonedge_root_array_trailing_ignored	["--decode"]	cases/inputs/hand/toonedge_root_array_trailing_ignored.toon	toon-edge	S4.202: lines after a root array are ignored
 toonedge_rest_dropped_after_overindent	["--decode"]	cases/inputs/hand/toonedge_rest_dropped_after_overindent.toon	toon-edge	S4.204/S10.80: everything after the over-indented line is dropped -> {"a":{"b":1.0}}
 toonlenient_leftover_rows_drop_rest	["--decode", "--no-strict"]	cases/inputs/hand/toonlenient_leftover_rows_drop_rest.toon	toon-edge	S4.217: leftover row ends the document, k is lost

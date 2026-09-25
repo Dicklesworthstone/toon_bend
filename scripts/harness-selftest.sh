@@ -27,7 +27,10 @@
 #   M17 a COUNTED file that is not parseable JSON          -> claims-audit.py FINDINGS (R21-3)
 #   M18 a non-author round with no review report          -> converge.sh names it (R22-1)
 #   M19 a round's counted rows re-spelled `Medium | Behaviour` -> converge.sh names the count (R22-2)
-# M14, M15, M18 and M19 assert on converge.sh's MESSAGE, not its exit code: the gate is
+#   M20 the same re-spelled report                         -> claims-audit.py FINDINGS (R22-2, R23-2)
+#   M21 a round's report present but empty                 -> converge.sh names it (R23-1)
+#   M22 an unreachable commit in any file under perf/evidence -> claims-audit.py names the file (R23-3)
+# M14, M15, M18, M19 and M21 assert on converge.sh's MESSAGE, not its exit code: the gate is
 # legitimately NOT_CONVERGED on the clean tree, so an exit-code mutation test
 # would report UNTESTABLE and prove nothing. Each requires its phrase to be
 # ABSENT on the clean copy and PRESENT after the mutation, so a phrase that was
@@ -585,7 +588,7 @@ if [[ -f scripts/converge.sh ]]; then
   D="$(copy m18)"
   awk '/^\| [0-9]+ \| / {last=NR; num=$2} {line[NR]=$0} END {for (i=1;i<=NR;i++) {print line[i]; if (i==last) print "| " num+1 " | non-author hostile review (subagent): harness-selftest M18 (non-author) | 0 | 0 | yes | 2026-09-24 |"}}' \
     docs/PORT_STATE.md >"$D/docs/PORT_STATE.md"
-  expect_says M18_round_without_report 'is labelled non-author but has no report' "$D" \
+  expect_says M18_round_without_report 'has no report' "$D" \
     scripts/converge.sh docs/PORT_STATE.md
   # M19 a round from 20 recorded 0 | 0 | yes while its report's counted rows are re-spelled `Medium | Behaviour`
   # (R22-2: the first check was case-sensitive and read the words anywhere in the row).
@@ -595,9 +598,16 @@ if [[ -f scripts/converge.sh ]]; then
     sed 's/^| R21-\([0-9]*\) | MEDIUM | BEHAVIOR/| R21-\1 | Medium | Behaviour/' docs/reviews/round-21.md >"$D/docs/reviews/round-21.md"
     expect_says M19_counted_rows_respelled 'round 21: the table says 0 counted finding' "$D" \
       scripts/converge.sh docs/PORT_STATE.md
+    # M21 a round's report present but EMPTY (R23-1): an empty file used to satisfy "the report exists".
+    D="$(copy m21)"
+    : >"$D/docs/reviews/round-21.md"
+    expect_says M21_empty_report 'round-21.md: the report is empty' "$D" \
+      scripts/converge.sh docs/PORT_STATE.md
   else
     echo "UNTESTABLE M19_counted_rows_respelled docs/reviews/round-21.md is not in this port"
     n=$((n+1)); untestable+=(M19_counted_rows_respelled)
+    echo "UNTESTABLE M21_empty_report         docs/reviews/round-21.md is not in this port"
+    n=$((n+1)); untestable+=(M21_empty_report)
   fi
 else
   echo "UNTESTABLE M14_clean_with_findings   scripts/converge.sh is not in this port"
@@ -608,6 +618,8 @@ else
   n=$((n+1)); untestable+=(M18_round_without_report)
   echo "UNTESTABLE M19_counted_rows_respelled scripts/converge.sh is not in this port"
   n=$((n+1)); untestable+=(M19_counted_rows_respelled)
+  echo "UNTESTABLE M21_empty_report         scripts/converge.sh is not in this port"
+  n=$((n+1)); untestable+=(M21_empty_report)
 fi
 
 # M16/M17 round 21's R21-3: a COUNTED evidence file citing a commit no history contains must be found
@@ -637,11 +649,39 @@ if [[ -f scripts/claims-audit.py && -d perf/evidence ]]; then
   D="$(copy m17)"
   printf '{"kind":"counted", this is not json\n' >"$D/perf/evidence/COUNTED.selftest-m17.json"
   expect M17_counted_unparseable "$b_audit" 1 "$D" python3 scripts/claims-audit.py
+  # M20 the claims-audit half of M19 (R22-2, R23-2; a4 checked it by hand and asked for it here): a gate
+  # repaired and tested alone is how R22-2 happened, so the audit must refuse the same re-spelled report.
+  if [[ -f docs/reviews/round-21.md ]]; then
+    D="$(copy m20)"
+    sed 's/^\(| 21 | .*\)| 2 | 2 | no |/\1| 0 | 0 | yes |/' docs/PORT_STATE.md >"$D/docs/PORT_STATE.md"
+    sed 's/^| R21-\([0-9]*\) | MEDIUM | BEHAVIOR/| R21-\1 | Medium | Behaviour/' docs/reviews/round-21.md >"$D/docs/reviews/round-21.md"
+    expect M20_audit_counted_respelled "$b_audit" 1 "$D" python3 scripts/claims-audit.py
+  else
+    echo "UNTESTABLE M20_audit_counted_respelled docs/reviews/round-21.md is not in this port"
+    n=$((n+1)); untestable+=(M20_audit_counted_respelled)
+  fi
+  # M22 R23-3: an unreachable commit in ANY file under perf/evidence, here a plain note in a subdirectory,
+  # after a letter (`frozen...`): the rule fails closed over every hex run. It needs git, as M16 does.
+  D="$(copy m22)"; n=$((n+1)); ln -s "$PWD/.git" "$D/.git" 2>/dev/null
+  ( cd "$D" && python3 scripts/claims-audit.py ) >"$T/M22.control.log" 2>&1
+  mkdir -p "$D/perf/evidence/old" && printf 'binary: /scratch/frozen%s/toon\n' "${DEADREV:0:7}" >"$D/perf/evidence/old/selftest-m22.txt"
+  ( cd "$D" && python3 scripts/claims-audit.py ) >"$T/M22.log" 2>&1
+  if grep -q 'selftest-m22.txt' "$T/M22.control.log"; then
+    printf 'UNTESTABLE %-24s the control run already names the planted file\n' M22_evidence_any_file; untestable+=(M22_evidence_any_file)
+  elif grep -q 'selftest-m22.txt' "$T/M22.log"; then
+    printf 'CAUGHT     %-24s %s\n' M22_evidence_any_file "an unreachable commit in a note under perf/evidence/old/"; caught=$((caught+1))
+  else
+    printf 'LEAK       %-24s the unreachable commit in perf/evidence/old/ was not reported\n' M22_evidence_any_file; leaked+=(M22_evidence_any_file)
+  fi
 else
   echo "UNTESTABLE M16_counted_tree_unreachable  scripts/claims-audit.py or perf/evidence/ is not in this port"
   n=$((n+1)); untestable+=(M16_counted_tree_unreachable)
   echo "UNTESTABLE M17_counted_unparseable       scripts/claims-audit.py or perf/evidence/ is not in this port"
   n=$((n+1)); untestable+=(M17_counted_unparseable)
+  echo "UNTESTABLE M20_audit_counted_respelled  scripts/claims-audit.py or perf/evidence/ is not in this port"
+  n=$((n+1)); untestable+=(M20_audit_counted_respelled)
+  echo "UNTESTABLE M22_evidence_any_file         scripts/claims-audit.py or perf/evidence/ is not in this port"
+  n=$((n+1)); untestable+=(M22_evidence_any_file)
 fi
 
 verdict=OK

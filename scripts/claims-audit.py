@@ -230,18 +230,23 @@ def facts():
                 digest = (not below and digest_key.search(str(k)) and isinstance(v, str)
                           and re.fullmatch(r"[0-9a-fA-F]{12}|[0-9a-fA-F]{16}|[0-9a-fA-F]{64}", v))
                 out[k] = None if digest else drop_digests(v, below)
+                if digest and len(v) == 64:
+                    recorded.add(v.lower())
             return out
         if isinstance(node, list):
             return [drop_digests(v, under_commit) for v in node]
         return node
-    # A FILE NAME's hex run is read too (R23-3's shape M). Besides a commit or a pin it may be the prefix of a
-    # digest a claim-bearing ledger records in full (`COUNTED-PROFILE.825e44de.*` names the profiled binary,
-    # whose sha256 perf/COUNTED-PROFILE.md states): a run of 24 or more digits, never 40 (a full commit).
+    # A hex run may also name a digest RECORDED IN FULL elsewhere: a whole 64-digit digest value of any evidence file,
+    # or a run of 24 or more digits (never 40, a full commit) in a perf ledger (perf/*.md). In a FILE NAME any such
+    # prefix counts (`COUNTED-PROFILE.825e44de.*` names the profiled binary; R23-3's shape M made names readable);
+    # in CONTENT only a prefix of 20 or more digits does ("port binary sha256 825e44de69c3a4e6c0d442ea"), far from the
+    # 7-16 digits a commit is abbreviated to. Two passes: every file's digests are recorded before any file is judged.
     recorded = {h.lower() for name in sorted(os.listdir(os.path.join(ROOT, "perf"))) if name.endswith(".md")
                 for h in re.findall(r"(?<![0-9a-fA-F])[0-9a-fA-F]{24,}(?![0-9a-fA-F])", read(os.path.join("perf", name)))
                 if len(h) != 40}
     hex_run = re.compile(r"(?<![0-9A-Fa-f])(?<!0x)(?<!0X)[0-9A-Fa-f]{7,40}(?![0-9A-Fa-f])")
     uuid = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+    evidence_texts = []
     for dirpath, _dirs, names in sorted(os.walk(evdir)) if os.path.isdir(evdir) else []:
         for name in sorted(names):
             rel = os.path.relpath(os.path.join(dirpath, name), evdir)
@@ -253,16 +258,17 @@ def facts():
                     docs_ = [json.loads(l) for l in raw.splitlines() if l.strip()]
                 except ValueError:
                     docs_ = None
-            text = json.dumps([drop_digests(d) for d in docs_], ensure_ascii=False) if docs_ else raw
-            for where, body in (("file name's hex run", rel), ("hex run", uuid.sub(" ", text))):
-                for run in sorted({m.group(0) for m in hex_run.finditer(body)}):
-                    low = run.lower()
-                    if low.isdigit() or low.isalpha() or any(p.startswith(low) or low.startswith(p) for p in pins):
-                        continue
-                    if where.startswith("file") and any(d.startswith(low) for d in recorded):
-                        continue
-                    if not reachable(low):
-                        f.setdefault("counted_unreachable", []).append((rel, where, run))
+            evidence_texts.append((rel, json.dumps([drop_digests(d) for d in docs_], ensure_ascii=False) if docs_ else raw))
+    for rel, text in evidence_texts:
+        for where, body, floor in (("file name's hex run", rel, 7), ("hex run", uuid.sub(" ", text), 20)):
+            for run in sorted({m.group(0) for m in hex_run.finditer(body)}):
+                low = run.lower()
+                if low.isdigit() or low.isalpha() or any(p.startswith(low) or low.startswith(p) for p in pins):
+                    continue
+                if len(low) >= floor and any(d.startswith(low) for d in recorded):
+                    continue
+                if not reachable(low):
+                    f.setdefault("counted_unreachable", []).append((rel, where, run))
     for name in sorted(os.listdir(evdir) if os.path.isdir(evdir) else []):
         if not (name.lower().startswith("counted") and name.lower().endswith((".json", ".jsonl", ".ndjson"))):
             continue

@@ -158,7 +158,11 @@ def facts():
     f["oq_ids"] = set()
     for cell in re.findall(r"(?m)^\| ([^|]+) \|", read("docs/OPEN_QUESTIONS.md")):
         f["oq_ids"].update(re.findall(r"OQ-[A-Z0-9-]+", cell))  # one row may answer two (`OQ-C2 / OQ-E1`)
-    f["mutants"] = len(re.findall(r"(?m)^ \(\"M\d+\"", read("scripts/hand-mutants.py")))
+    # len(MUTANTS), as the inventory's own docstring says to count it: a regex over `("M` missed entries written
+    # with single quotes (round 23's M60-M73) and would miss any other spelling of the same Python literal.
+    import ast
+    f["mutants"] = next((len(ast.literal_eval(n.value)) for n in ast.parse(read("scripts/hand-mutants.py")).body
+                         if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "MUTANTS" for t in n.targets)), 0)
     # harness-selftest.sh names each of its mutations `M<n>_<slug>`. Round 13's R13-3 was one gate pasted
     # into two documents with two numbers (11 and 12); it was repaired by hand and never gated, so it
     # would recur silently the day a thirteenth mutation is added. (`"mutants"` above is hand-mutants.py,
@@ -209,7 +213,7 @@ def facts():
     # know (`{"commit": {"id": ...}}`, `built_from`, `v494ef82`, a 13-digit abbreviation, `/scratch/frozen494ef82/`,
     # `.JSON`, `.ndjson`, a subdirectory, the profile's `.annot.txt`). It now fails CLOSED over EVERY file under
     # perf/evidence/, whatever its name: every run of 7 to 40 hex digits (bounded by non-hex, not all digits, not
-    # all letters, not after `0x`) must be (a) a commit HEAD contains, or (b) a prefix of a pin recorded in
+    # after `0x`) must be (a) a commit HEAD contains, or (b) a prefix of a pin recorded in
     # docs/PIN.toml or PLAN §2 (the original's and Bend's commits, which are not in this history), or (c) a digest:
     # the string value of a JSON key named like `sha`, `digest`, `hash`, `md5` or `checksum`, or part of a UUID
     # (the session directories in recorded command lines). Anything else is a finding: a reader cannot check it.
@@ -263,7 +267,10 @@ def facts():
         for where, body, floor in (("file name's hex run", rel, 7), ("hex run", uuid.sub(" ", text), 20)):
             for run in sorted({m.group(0) for m in hex_run.finditer(body)}):
                 low = run.lower()
-                if low.isdigit() or low.isalpha() or any(p.startswith(low) or low.startswith(p) for p in pins):
+                # All-digit runs are skipped: they are the counts, sizes and times every evidence file is made of, so a
+                # commit abbreviated to digits only is out of reach (said here, not hidden). All-LETTER runs are read:
+                # skipping them let `deadbee` through (harness-selftest M22 leaked on its first run, 2026-09-25).
+                if low.isdigit() or any(p.startswith(low) or low.startswith(p) for p in pins):
                     continue
                 if len(low) >= floor and any(d.startswith(low) for d in recorded):
                     continue

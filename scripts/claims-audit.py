@@ -126,6 +126,54 @@ def read_opt(path):
         return ""
 
 
+def origin_unlisted():
+    """Scripts written FOR THIS PORT that scripts/ORIGIN.md does not name.
+
+    The audit already checks that every script ORIGIN.md names EXISTS. This is the reverse, and the defect
+    has been seen twice: round 13's R13-2 found the table naming seven scripts where ten differed, and on
+    2026-09-25 the "written for this port" line was missing `review_report.py`, added two rounds earlier. A
+    re-copy of the harness guided by that line would silently drop what it omits.
+
+    "Written for this port" has to be computable by a REVIEWER. The line is maintained by comparing against
+    ~/.claude/skills/porting-to-bend2/scripts/, which a clean clone does not have, so that definition cannot
+    be a gate. This uses the commit that first ADDED the file against the copy commit ORIGIN.md itself names:
+    added by the copy commit means a copy from the skill, added by anything else means written here. The copy
+    commit is read from the prose rather than hardcoded, so a re-copy moves the sentence and the gate
+    together. Fails OPEN on a git failure, as reachable() does."""
+    out = []
+    origin = read_opt("scripts/ORIGIN.md")
+    if not origin:
+        return ["scripts/ORIGIN.md is missing or empty: nothing accounts for where the scripts came from"]
+    m = re.search(r"commit `([0-9a-f]{7,40})`", origin)
+    if not m:
+        return ["scripts/ORIGIN.md names no commit the harness was copied in, so which scripts were written "
+                "for this port cannot be computed"]
+    copy_commit = m.group(1)
+    try:
+        names = sorted(n for n in os.listdir(os.path.join(ROOT, "scripts"))
+                       if n.endswith((".sh", ".py")) and not n.startswith("ORIGIN"))
+    except OSError:
+        return []
+    for name in names:
+        try:
+            r = subprocess.run(["git", "-C", ROOT, "log", "--diff-filter=A", "--follow", "--format=%h",
+                                "--", "scripts/" + name],
+                               capture_output=True, text=True, timeout=15, check=False)
+            adds = [line for line in r.stdout.split("\n") if line] if r.returncode == 0 else []
+        except (OSError, subprocess.SubprocessError):
+            return []                      # no git: this check may add findings, never block the audit
+        if not adds:
+            continue                       # uncommitted: history cannot judge it yet
+        first = adds[-1]
+        if copy_commit.startswith(first) or first.startswith(copy_commit):
+            continue                       # a copy from the skill
+        if name not in origin:
+            out.append("scripts/ORIGIN.md does not name %s, yet it first appears in %s and not in the copy "
+                       "commit %s: a script written for this port must be listed there, or a re-copy of the "
+                       "harness will silently drop it" % (name, first, copy_commit))
+    return out
+
+
 def facts():
     """Everything the documents may state about themselves, computed from the repository."""
     f = {}
@@ -944,6 +992,8 @@ def audit(files, f, gates, verbose):
                 findings.append({"file": "docs/PORT_STATE.md", "line": 0, "text": "",
                                  "finding": "round %d: docs/reviews/%s calls itself non-author, but its table row "
                                             "does not both begin 'non-author' and end '(non-author)'" % (r, path)})
+    for problem in origin_unlisted():
+        findings.append({"file": "scripts/ORIGIN.md", "line": 0, "text": "", "finding": problem})
     if verbose:
         for k in sorted(f):
             if k not in ("law_names", "case_names", "clause_ids", "beads", "disc_ids", "ne_ids", "exp_ids", "oq_ids"):

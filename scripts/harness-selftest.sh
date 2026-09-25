@@ -488,6 +488,7 @@ copy() {  # $1 name -> a fresh copy of the port under $T/$1 (legacy, oracle and 
   printf '%s' "$d"
 }
 n=0; caught=0; leaked=(); untestable=()
+controls=0; controls_passed=0; false_positives=()   # the second axis: see expect_quiet
 # baseline: each gate on a clean copy; a red gate here makes its mutations UNTESTABLE
 B="$(copy base)"
 ( cd "$B" && scripts/conform.sh goldens/cases.tsv goldens --lane "$LANE" -- "${PORT[@]}" ) >"$T/base.conform.log" 2>&1; b_conform=$?
@@ -609,6 +610,24 @@ expect_says() {  # name pattern dir command...
   fi
 }
 
+# A CONTROL is the INVERSE of a mutation: a change that is NOT a lie, which the gate must therefore pass
+# in silence. It is counted on its own axis, never as a mutation, so "N mutations caught" keeps meaning
+# exactly what it meant before controls existed. A failed control is a FALSE POSITIVE, not a leak: the
+# gate objected to something honest, which rejects real work rather than letting bad work through.
+# Why one exists at all (round 24): the report reader once refused a report whose only irregularity was
+# quoting its OWN findings table inside an HTML comment, reporting "2 findings tables". Nothing a reader
+# sees was wrong. A mutation cannot express that, because there is no lie to plant.
+expect_quiet() {  # name pattern dir command...  -- the gate must NOT name it
+  local name="$1" pat="$2" d="$3"; shift 3; controls=$((controls+1))
+  ( cd "$d" && "$@" ) >"$T/$name.log" 2>&1
+  if grep -qE -- "$pat" "$T/$name.log"; then
+    printf 'FALSE_POS  %-24s the gate objected to honest content: %s\n' "$name" \
+      "$(grep -oE -- "$pat" "$T/$name.log" | head -1)"; false_positives+=("$name")
+  else
+    printf 'QUIET      %-24s as it must be\n' "$name"; controls_passed=$((controls_passed+1))
+  fi
+}
+
 # M14 a post-20 round that carries counted findings but is marked clean (R21-2). Every finding a round
 # from 20 counts is a MEDIUM-or-HIGH BEHAVIOR finding, so "clean" and a non-zero count contradict.
 if [[ -f scripts/converge.sh ]]; then
@@ -722,13 +741,56 @@ else
   n=$((n+1)); untestable+=(M22_evidence_any_file)
 fi
 
+# M23/M24 and control C1 (round 24's R24-1 and R24-2). M23's decoy KEEPS EVERY ROW, so the counted total
+# still equals the rounds-table row and every id named still has a row: the counts agreeing is what
+# disarmed every downstream check, and a decoy that changed them would be caught by the count rule alone
+# rather than by the reader. The visible table is re-headed so the line reader cannot see it at all.
+if [[ -f scripts/review_report.py && -f docs/reviews/round-23.md ]]; then
+  D="$(copy m23)"
+  python3 "$HERE/.hst-decoy.py" "$D/docs/reviews/round-23.md" hide
+  expect_says M23_report_decoy_in_comment 'round 23' "$D" scripts/converge.sh docs/PORT_STATE.md
+  # M24 needs git for the same reason M16 does, and it LEAKED once for exactly that reason before this
+  # comment existed: reachable() answers True when git cannot run (by design -- the check may add
+  # findings, never stop the audit), and copy() does not copy .git, so without it every commit looks
+  # reachable and an unreachable one cannot be caught. Its control is the SAME tree before the file is
+  # planted, not the shared baseline: with .git present the audit reports things the baseline never sees.
+  D="$(copy m24)"; n=$((n+1)); ln -s "$PWD/.git" "$D/.git" 2>/dev/null
+  ( cd "$D" && python3 scripts/claims-audit.py --verbose ) >"$T/M24.control.log" 2>&1
+  mkdir -p "$D/linked-evidence"
+  printf '{"kind":"counted","after":{"commit":"%s","instructions":10}}\n' "$DEADREV" >"$D/linked-evidence/COUNTED.selftest-m24.json"
+  ln -s "$D/linked-evidence" "$D/perf/evidence/linked"
+  ( cd "$D" && python3 scripts/claims-audit.py --verbose ) >"$T/M24.log" 2>&1
+  if grep -q 'COUNTED.selftest-m24.json' "$T/M24.control.log"; then
+    printf 'UNTESTABLE %-24s the control run already names the planted file\n' M24_evidence_symlinked_dir
+    untestable+=(M24_evidence_symlinked_dir)
+  elif grep -q 'COUNTED.selftest-m24.json' "$T/M24.log"; then
+    printf 'CAUGHT     %-24s %s\n' M24_evidence_symlinked_dir "a file under a symlinked subdirectory of perf/evidence"; caught=$((caught+1))
+  else
+    printf 'LEAK       %-24s the file under the symlinked subdirectory was not read\n' M24_evidence_symlinked_dir
+    leaked+=(M24_evidence_symlinked_dir)
+  fi
+  # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
+  # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
+  # no reader sees. This is the shape that was wrongly refused before round 24's repair.
+  D="$(copy c1)"
+  python3 "$HERE/.hst-decoy.py" "$D/docs/reviews/round-23.md" quote
+  expect_quiet C1_hidden_table_ignored 'round 23: docs/reviews/round-23.md' "$D" \
+    scripts/converge.sh docs/PORT_STATE.md
+else
+  echo "UNTESTABLE M23_report_decoy_in_comment  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
+  n=$((n+1)); untestable+=(M23_report_decoy_in_comment)
+  echo "UNTESTABLE M24_evidence_symlinked_dir   scripts/review_report.py or docs/reviews/round-23.md is not in this port"
+  n=$((n+1)); untestable+=(M24_evidence_symlinked_dir)
+fi
+
 verdict=OK
 [[ ${#untestable[@]} -gt 0 ]] && verdict=UNTESTABLE
+[[ ${#false_positives[@]} -gt 0 ]] && verdict=FALSE_POSITIVE
 [[ ${#leaked[@]} -gt 0 ]] && verdict=LEAK
 jarr() { local s=""; local x; for x in "$@"; do s+="\"$x\","; done; printf '%s' "${s%,}"; }
 j() { python3 -c 'import json,sys; print(json.dumps(sys.argv[1])[1:-1])' "$1"; }
 echo "--"
-echo "harness-selftest: $caught/$n mutations caught, ${#leaked[@]} leaked, ${#untestable[@]} untestable → $verdict (scratch: $T)"
-printf '{"schema":"p2b.harness-selftest.v1","sha":"%s","bend":"%s","host":"%s","lane":"%s","mutations":%d,"caught":%d,"leaked":[%s],"untestable":[%s],"scratch":"%s","verdict":"%s"}\n' \
-  "$sha" "$(j "$bendv")" "$host" "$LANE" "$n" "$caught" "$(jarr ${leaked[@]+"${leaked[@]}"})" "$(jarr ${untestable[@]+"${untestable[@]}"})" "$(j "$T")" "$verdict"
+echo "harness-selftest: $caught/$n mutations caught, ${#leaked[@]} leaked, ${#untestable[@]} untestable, $controls_passed/$controls controls quiet → $verdict (scratch: $T)"
+printf '{"schema":"p2b.harness-selftest.v1","sha":"%s","bend":"%s","host":"%s","lane":"%s","mutations":%d,"caught":%d,"leaked":[%s],"untestable":[%s],"controls":%d,"controls_passed":%d,"false_positives":[%s],"scratch":"%s","verdict":"%s"}\n' \
+  "$sha" "$(j "$bendv")" "$host" "$LANE" "$n" "$caught" "$(jarr ${leaked[@]+"${leaked[@]}"})" "$(jarr ${untestable[@]+"${untestable[@]}"})" "$controls" "$controls_passed" "$(jarr ${false_positives[@]+"${false_positives[@]}"})" "$(j "$T")" "$verdict"
 [[ "$verdict" == OK ]]

@@ -25,4 +25,4 @@ missing-oracle guards.
 | `port-lint.py` | `3751630` | laws name defs through any capitalized module alias |
 | `port.sh` | `1f184e8` | the `claims` command and the `report` row lint the ONE list of claim-bearing documents, not `docs/*.md perf/*.md README.md` (round 12, R12-9) |
 
-Written for this port, not copied: `diff-fuzz.py`, `stdio-probe.py`, `hand-mutants.py`, `board-refresh.py`, `clean-build-check.sh`, `claims-audit.py`.
+Written for this port, not copied: `diff-fuzz.py`, `stdio-probe.py`, `hand-mutants.py`, `board-refresh.py`, `clean-build-check.sh`, `claims-audit.py`, `review_report.py` (round 23's one reader of a review report, imported by both `converge.sh` and `claims-audit.py`), `.hst-decoy.py` (round 24's M23 and control C1: plants a decoy findings table in a copied report; named with a leading dot because it is not a gate, and `harness-selftest.sh` is its only caller). The two newest were missing from this line, which is the drift round 13's R13-2 found in it before: a list of what a re-copy must carry over is worth only as much as its last update.

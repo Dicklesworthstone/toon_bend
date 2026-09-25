@@ -36,6 +36,7 @@
 #   M26 a finding named in the rounds row's PROSE with no row in that round's table -> converge.sh
 #   M27 a report on disk whose round has no row in the rounds table         -> converge.sh
 #   M28 a rounds-table row whose round cell is not a number (`24b`)         -> claims-audit.py
+#   M29 an unreachable commit hidden from a raw scan by `\u` escapes        -> claims-audit.py (R25-2)
 # and one CONTROL, counted on its own axis, never as a mutation:
 #   C1  a hidden excerpt with a DIFFERENT count while the visible table stays correct -> every gate SILENT
 # M14, M15, M18, M19, M21, M23 and M25 assert on converge.sh's MESSAGE, not its exit code: the gate is
@@ -841,6 +842,40 @@ PLANT
     printf 'LEAK       %-24s the 24b row was read by no rule and reported by none\n' M28_round_cell_not_a_number
     leaked+=(M28_round_cell_not_a_number)
   fi
+  # M29 an unreachable commit hidden from a RAW-TEXT scan by JSON string escapes, in a COUNTED file.
+  # The construction is the whole test and took three tries to get right, so it is spelled out: the
+  # finding branch flags any unreachable hex run of 7+ characters, while the 20-character floor governs
+  # only the EXEMPTION. A `\u` escape inside a hex string always contributes `00` plus two hex digits,
+  # so ONE escape leaves a 43-character run and two leave 13/17/16 -- each independently a finding, and
+  # the gate then goes red WITHOUT EVER NAMING the hidden commit, which reads exactly like a catch while
+  # testing nothing. Escaping every THIRD character puts every raw fragment at 6, under the floor of the
+  # finding branch itself, and only then does the commit vanish from a raw scan. It LEAKED on 491c8ea and
+  # is caught since R25-2, which decodes the escapes -- so the assertion is on the DECODED commit, not on
+  # any fragment: a repair that merely flagged the fragments again would not satisfy it.
+  D="$(copy m29)"; n=$((n+1)); ln -s "$PWD/.git" "$D/.git" 2>/dev/null
+  ( cd "$D" && python3 scripts/claims-audit.py --verbose ) >"$T/M29.control.log" 2>&1
+  python3 - "$D/perf/evidence/COUNTED.selftest-m29.json" "$DEADREV" <<'PLANT'
+import json, sys
+from pathlib import Path
+out, rev = sys.argv[1], sys.argv[2]
+esc = ''.join('\\u%04x' % ord(c) if k % 3 == 2 else c for k, c in enumerate(rev))
+Path(out).write_text('{"kind":"counted","after":{"commit":"%s","instructions":10}}\n' % esc, encoding='utf-8')
+raw = Path(out).read_text(encoding='utf-8')
+import re
+assert not re.findall(r'(?<![0-9A-Fa-f])[0-9A-Fa-f]{7,}(?![0-9A-Fa-f])', raw), \
+    'a raw fragment reached the finding floor: this would be caught for the wrong reason'
+assert json.loads(raw)['after']['commit'] == rev, 'the escape does not decode to the planted commit'
+PLANT
+  ( cd "$D" && python3 scripts/claims-audit.py --verbose ) >"$T/M29.log" 2>&1
+  if grep -q "$DEADREV" "$T/M29.control.log"; then
+    printf 'UNTESTABLE %-24s the control run already names the planted commit\n' M29_escaped_commit
+    untestable+=(M29_escaped_commit)
+  elif grep -q "$DEADREV" "$T/M29.log"; then
+    printf 'CAUGHT     %-24s %s\n' M29_escaped_commit "the decoded commit, hidden from a raw scan by \\u escapes"; caught=$((caught+1))
+  else
+    printf 'LEAK       %-24s the escaped commit was not named (fragments alone do not count)\n' M29_escaped_commit
+    leaked+=(M29_escaped_commit)
+  fi
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -855,7 +890,7 @@ else
   n=$((n+1)); untestable+=(M24_evidence_symlinked_dir)
   echo "UNTESTABLE M25_report_table_in_quote    scripts/review_report.py or docs/reviews/round-23.md is not in this port"
   n=$((n+1)); untestable+=(M25_report_table_in_quote)
-  for m in M26_rounds_row_prose_only M27_report_without_row M28_round_cell_not_a_number; do
+  for m in M26_rounds_row_prose_only M27_report_without_row M28_round_cell_not_a_number M29_escaped_commit; do
     echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
     n=$((n+1)); untestable+=("$m")
   done

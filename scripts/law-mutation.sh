@@ -32,6 +32,32 @@
 #   swapargs   the two arguments of the first two-argument call whose callee
 #              is not a commutative Base op (Nat/U32/F32 add, mul, min, max;
 #              U32 xor/and/or; Bool and/or/xor) swapped
+#
+# Added 2026-09-25, and DERIVED FROM THE FINDINGS rather than invented. The
+# operators above are arithmetic and comparison swaps, and this port's review
+# rounds 20 to 23 found more than twenty corpus gaps of which NONE was
+# arithmetic: they were verdict flips, character-class boundaries, byte
+# comparisons, escape mappings and weakened guards. That is why this script
+# reported INCONCLUSIVE with "no valid textual site" on the modules it was
+# pointed at. One operator per observed class:
+#   true2false a `True{}` in an arm BODY -> `False{}` (never in a `case`
+#              pattern). The most productive class in this port's history:
+#              R21-1 (`has_prim.go` answering True), M37 (`dec.done` passing
+#              False), round 23's H6. A def that answers a verdict is exactly
+#              what a law should pin in both directions
+#   false2true the same the other way
+#   and2or     `Bool.and(` -> `Bool.or(`   or2and  `Bool.or(` -> `Bool.and(`
+#              A guard that admits too much. This is the shape of R16-1, a real
+#              bug in `num.safe` found in round 16: a disjunction let any
+#              negative exponent bypass a digit bound
+#   litsucc    the first integer literal in a body (`46`, `90n`) -> +1, skipping
+#              `case` lines and literals glued to a name. Models K3 (`key_char`
+#              refusing `Z`), A4 (`hex.val` off by one), H9 (`=` taken as the
+#              header colon), U3 (`\r` read as LF) -- all byte-value boundaries
+#   conjdrop   the SECOND conjunct of the first `Bool.and(A, B)` dropped,
+#              parenthesis-balanced so nested calls survive. Models H5 (an empty
+#              field name accepted) and H4 (values accepted after a header
+#              colon): a guard that lost a clause
 # A mutant that is semantically equivalent to the source (rare with these
 # operators) SURVIVES: read the diff the script prints before calling a law
 # weak, and pick another operator or another def.
@@ -88,7 +114,7 @@ for directory,folders,files in os.walk(sys.argv[1]):
 PY
 [[ "$TO" =~ ^[0-9]+([.][0-9]+)?$ ]] && awk -v n="$TO" 'BEGIN {exit !(n>0)}' || { echo "error: timeout must be positive" >&2; exit 2; }
 for def in "${DEFS[@]}"; do [[ "$def" =~ ^[A-Za-z_][A-Za-z0-9_.]*$ ]] || { echo "error: invalid def name $def" >&2; exit 2; }; done
-ALL_OPS="add2sub sub2add mul2add le2lt lt2le ge2gt gt2ge eq2ne plus2minus minus2plus times2plus zero2one one2zero base swapargs"
+ALL_OPS="add2sub sub2add mul2add le2lt lt2le ge2gt gt2ge eq2ne plus2minus minus2plus times2plus zero2one one2zero base swapargs true2false false2true and2or or2and litsucc conjdrop"
 [[ -z "$OPS" ]] && OPS="$ALL_OPS" || OPS="${OPS//,/ }"
 for op in $OPS; do [[ " $ALL_OPS " == *" $op "* ]] || { echo "error: unknown operator $op" >&2; exit 2; }; done
 BEND=()
@@ -160,7 +186,8 @@ def code(line):
     return ''.join(out)
 ops=dict(add2sub=('.add(','.sub('),sub2add=('.sub(','.add('),mul2add=('.mul(','.add('),
          le2lt=('is_le(','is_lt('),lt2le=('is_lt(','is_le('),ge2gt=('is_ge(','is_gt('),gt2ge=('is_gt(','is_ge('),
-         eq2ne=('is_eq(','is_ne('),plus2minus=(' + ',' - '),minus2plus=(' - ',' + '),times2plus=(' * ',' + '))
+         eq2ne=('is_eq(','is_ne('),plus2minus=(' + ',' - '),minus2plus=(' - ',' + '),times2plus=(' * ',' + '),
+         and2or=('Bool.and(','Bool.or('),or2and=('Bool.or(','Bool.and('))
 hit=False
 for index in range(int(start)-1,min(int(end)-1,len(lines))):
     line=lines[index]; masked=code(line); begin=finish=None; replacement=''
@@ -174,6 +201,41 @@ for index in range(int(start)-1,min(int(end)-1,len(lines))):
         match=re.search(r'(?<![A-Za-z0-9_.])'+literal+r'(?![A-Za-z0-9_])',masked)
         if not match: continue
         begin,finish=match.span()
+    elif op in ('true2false','false2true'):
+        # A VERDICT FLIP. Never in a `case` pattern: there the constructor is the thing being matched,
+        # and swapping it changes which arm fires rather than what the def answers.
+        if re.match(r'\s*case\b',masked): continue
+        old,replacement=('True{}','False{}') if op=='true2false' else ('False{}','True{}')
+        begin=masked.find(old)
+        if begin<0: continue
+        finish=begin+len(old)
+    elif op=='litsucc':
+        # An integer literal in a body, plus one: a byte value, a character-class boundary, a cap.
+        # `case` lines are skipped as above, and a literal glued to a name (`k1`, `x.2`) is not one.
+        if re.match(r'\s*case\b',masked): continue
+        match=re.search(r'(?<![A-Za-z0-9_.])(\d+)(n?)(?![A-Za-z0-9_])',masked)
+        if not match: continue
+        replacement=str(int(match[1])+1)+match[2]
+        begin,finish=match.span()
+    elif op=='conjdrop':
+        # Drop the SECOND conjunct of the first `Bool.and(A, B)`: the shape of a weakened guard, which
+        # is how several corpus gaps of rounds 20-23 read (an empty field name accepted, values accepted
+        # after a header colon). Parenthesis-balanced, so a nested call in either argument survives.
+        begin=masked.find('Bool.and(')
+        if begin<0: continue
+        i=begin+len('Bool.and('); depth=0; split=None
+        while i<len(masked):
+            ch=masked[i]
+            if ch=='(': depth+=1
+            elif ch==')':
+                if depth==0: break
+                depth-=1
+            elif ch==',' and depth==0 and split is None: split=i
+            i+=1
+        if split is None or i>=len(masked): continue
+        first=line[begin+len('Bool.and('):split].strip()
+        if not first: continue
+        replacement=first; finish=i+1
     elif op=='swapargs':
         for match in re.finditer(r'([A-Za-z_][A-Za-z0-9_.]*)\(([^(),]+),([^(),]+)\)',masked):
             if match[1] in comm.split(): continue

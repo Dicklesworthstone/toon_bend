@@ -94,6 +94,16 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(encode_fraction_trailing_zeros_quoted|is_like_zero_in_phase_4_)", ["encoder primitives"]),
  (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
  (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
+ # round 23 (R23-4, R23-5): later bare-key characters; field-name, header-colon and quoted-key rules of the header parser;
+ # the JSON reader's `\u` hex and surrogate ends; a list item's tabular first field; the data-row test; `\u00XX` hex case
+ (r"encode_key_later_char_range_ends$", ["encoder primitives"]),
+ (r"(decode_empty_field_between_names|decode_empty_last_field_name|decode_bracket_then_equals_is_key"
+  r"|decode_quoted_key_cr_escape|decode_values_after_fields_header_refused|decode_open_quote_in_fields_segment"
+  r"|decode_unknown_escape_in_quoted_key)$", ["tokens, string literals"]),
+ (r"(encode_hex_escape_letter_ends|encode_surrogate_pairs_at_both_ends)$", ["JSON text input"]),
+ (r"encode_list_item_first_field_tabular$", ["list items in every shape"]),
+ (r"decode_colon_line_ends_tabular_rows$", ["strict validation"]),
+ (r"decode_json_writer_lower_case_hex_controls$", ["JSON writer A"]),
  # round 22 (R22-4): the JSON reader's `\b` and `\f`; a `_`-initial bare key; a short row in header order; an array
  # of objects that is itself a list item (S4.42)
  (r"encode_json_backspace_and_form_feed_escapes$", ["JSON text input"]),

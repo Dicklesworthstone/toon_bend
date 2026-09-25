@@ -41,7 +41,8 @@ def gm(xs):
 def main(argv):
     if len(argv) < 3:
         sys.exit(__doc__)
-    old, new = load(argv[1]), load(argv[2])
+    old_dir, new_dir = argv[1], argv[2]
+    old, new = load(old_dir), load(new_dir)
     ref = "rust_z"
     if "--ref-arm" in argv:
         ref = argv[argv.index("--ref-arm") + 1]
@@ -69,6 +70,55 @@ def main(argv):
     vs = list(moved.values())
     same_way = (all(v > 1.0 for v in vs) or all(v < 1.0 for v in vs)) and \
                max(abs(v - 1) for v in vs) > 0.10
+    # 2026-09-25: the rule above treats every arm alike, and they are not alike. An arm whose BINARY is
+    # byte-identical in both runs is a CONTROL: it cannot have changed, so its movement measures the host
+    # difference directly. An arm whose binary differs is the thing under test. Judging a changed arm
+    # against its controls separates the two, where the symmetric rule cannot.
+    #   C = the largest absolute movement among controls; T = a changed arm's movement.
+    #   no controls          -> the symmetric rule above stands (nothing bounds the host)
+    #   C > 10%              -> INVALID: the hosts differ too much for any attribution
+    #   same direction, T < 3C -> INVALID for that arm: not separable from host drift
+    #   otherwise            -> readable, with C printed as the noise floor on every ratio
+    # The rule and its verdicts for three historical comparisons were fixed in writing BEFORE this code
+    # existed (perf/e2e/results/2026-09-25-frozen-825e44de/COMPARE-PRECOMMIT.md), because refining a gate
+    # that has just blocked a result is the gate-self-weakening shape. The phantom 1.37x of 2026-09-23
+    # (bend +6.8%, rust_z +44.7%, rust_o3 +47.4%, controls byte-identical) must stay INVALID: it fails
+    # rule 2 on C = 47.4% and rule 3 on 6.8% < 142%.
+    shas = {}
+    for d, label in ((old_dir, "old"), (new_dir, "new")):
+        f = os.path.join(d, "fingerprint.json")
+        if os.path.exists(f):
+            with open(f, encoding="utf-8") as fh:
+                try:
+                    shas[label] = {a["name"]: a.get("sha256") for a in (json.load(fh).get("arms") or [])}
+                except (ValueError, KeyError, TypeError):
+                    shas[label] = {}
+        else:
+            shas[label] = {}
+    controls = [a for a in arms if shas["old"].get(a) and shas["old"].get(a) == shas["new"].get(a)]
+    changed = [a for a in arms if shas["old"].get(a) and shas["new"].get(a) and shas["old"][a] != shas["new"][a]]
+    floor = max((abs(moved[a] - 1) for a in controls), default=None)
+    if controls:
+        print("\n  CONTROLS (binary byte-identical in both runs, so their movement IS the host difference):")
+        for a in controls:
+            print(f"    {a:10s} {(moved[a]-1)*100:+6.1f}%   sha {shas['old'][a][:12]}")
+        for a in changed:
+            print(f"  CHANGED  {a:10s} {(moved[a]-1)*100:+6.1f}%   {shas['old'][a][:12]} -> {shas['new'][a][:12]}")
+        print(f"  host noise floor C = {floor*100:.1f}%  (every ratio below carries at least this)")
+        if floor > 0.10:
+            print("\nINVALID: the CONTROLS moved more than 10%. The two runs were taken on materially")
+            print("  different hosts, so no arm's movement can be attributed to code. Re-run.")
+            return 1
+        verdicts = []
+        for a in changed:
+            same_dir = (moved[a] - 1) * (max((moved[c] - 1 for c in controls), key=abs)) > 0
+            if same_dir and abs(moved[a] - 1) < 3 * floor:
+                verdicts.append(a)
+        if verdicts:
+            print("\nINVALID: " + ", ".join(verdicts) + " moved the same way as the controls and by less")
+            print("  than three times their drift, so that movement is not separable from the host.")
+            return 1
+        same_way = False   # the controls bound the host; the changed arm is judged against them
     quality = []
     for d, label in ((old, "old"), (new, "new")):
         cv = [v["cv_pct"] for k in common for v in d[k]["arms"].values()]

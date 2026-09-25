@@ -1,0 +1,71 @@
+{
+ "claim_pinned": true,
+ "fingerprint": {
+  "cores": 8,
+  "cpu": "AMD EPYC-Milan Processor",
+  "date": "2026-09-25T00:43:29.102053+00:00",
+  "uname": "Linux-7.0.0-30-generic-x86_64-with-glibc2.43"
+ },
+ "max_cv": 5.0,
+ "original": {
+  "cmd": [
+   "./oracle/toon",
+   "--encode",
+   "perf/inputs/tabular_30000.json"
+  ],
+  "cv_pct": 3.540017071252101,
+  "exit": 0,
+  "median_ms": 115.20074889995158,
+  "samples": 30,
+  "sha": "8540edaf41ff7e38609aa28e3cb41af2a87efc69532dbae26dd5198a17ee7615",
+  "stderr_sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+ },
+ "pin": "bend 2.0.16 @15ae0c8; bend -o default emission (clang); --threads 1; port binary sha256 825e44de69c3a4e6c0d442ea (the frozen port/ of 9c9039e..c5f3b46); original toon 0.2.4 @694d73b release, oracle/toon sha256 821287eaf1a6d320ee1ef7604e74e3cefaa42b69445c96abb9dd310782d04030 (opt-level=z, the pinned build)",
+ "port": {
+  "cmd": [
+   "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/frozenc5f3b46/toon",
+   "--threads",
+   "1",
+   "--",
+   "--encode",
+   "perf/inputs/tabular_30000.json"
+  ],
+  "cv_pct": 2.151320969022703,
+  "exit": 0,
+  "median_ms": 645.1406301930547,
+  "samples": 30,
+  "sha": "8540edaf41ff7e38609aa28e3cb41af2a87efc69532dbae26dd5198a17ee7615",
+  "stderr_sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+ },
+ "provenance": {
+  "original": {
+   "command_files": [
+    {
+     "path": "/data/projects/toon_bend/perf/inputs/tabular_30000.json",
+     "sha256": "8fd838f22972cd9514b8aa8c641f8b6a288283817f6feb26528cda5fbf25b49e"
+    }
+   ],
+   "cwd": "/data/projects/toon_bend",
+   "executable": {
+    "path": "/data/projects/toon_bend/oracle/toon",
+    "sha256": "821287eaf1a6d320ee1ef7604e74e3cefaa42b69445c96abb9dd310782d04030"
+   }
+  },
+  "port": {
+   "command_files": [
+    {
+     "path": "/data/projects/toon_bend/perf/inputs/tabular_30000.json",
+     "sha256": "8fd838f22972cd9514b8aa8c641f8b6a288283817f6feb26528cda5fbf25b49e"
+    }
+   ],
+   "cwd": "/data/projects/toon_bend",
+   "executable": {
+    "path": "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/frozenc5f3b46/toon",
+    "sha256": "825e44de69c3a4e6c0d442ea99c86be8c3b194f8e58a090137fc0c4d2743ac9e"
+   }
+  }
+ },
+ "ratio": 0.1785668790779437,
+ "tag": "F1-tabular30000-encode",
+ "verdict": "MEASURED"
+}

@@ -127,7 +127,7 @@ Outcome taxonomy (closed set):
 - Tally: W0/L0/N0 (provisional)
 - Agent: Claude (author session)
 
-### NE-004 — EXP-004 on the folding input: the ratio against the original   [2026-09-20 | NO_EVIDENCE]
+### NE-004 — EXP-004 on the folding input: the ratio against the original   [2026-09-20 NO_EVIDENCE | 2026-09-25 **MEASURED** at 60000 keys: the port is 3.13x FASTER than the original]
 - Program / def: `port/encode.bend` / `keys.kt`, `dotted.set`, folding's sibling test on `T.KT`
 - Provenance: as NE-001
 - Exact command: `scripts/incumbent-bench.sh --runs 7 --max-cv 5 --timeout 60 --tag EXP-004 --original ./oracle/toon -e --key-folding safe perf/inputs/fold_keys_30000.json --port <binary of 1230a0d> --threads 1 -- -e --key-folding safe perf/inputs/fold_keys_30000.json`
@@ -137,8 +137,28 @@ Outcome taxonomy (closed set):
 - Disposition: the carrier is kept (it is the spec twin); the RATIO is not ledgered
 - Killing metric: wall on this host at 1 thread
 - **Do-not-retry unless:** the host is quiet (no other agent's build; load below 1) and `--runs 15`; a second refusal under those conditions means the input's allocation pattern is noisy at this size: then capture at 60000 keys
-- Tally: W0/L0/N3
-- Agent: Claude (author session)
+- **RESOLVED 2026-09-25, by the entry's own escalation clause.** The do-not-retry above said: quiet host,
+  load below 1, `--runs 15`, and "a second refusal under those conditions means the input's allocation
+  pattern is noisy at this size: then capture at 60000 keys". Both halves were followed, in order, and
+  both were informative.
+  - **At 30000 keys it refused a FIFTH time, under exactly the stated conditions** (load 0.91
+    one-minute, `--runs 15`, 30 samples, no other agent's build): original 479.0 ms cv 2.37%, port
+    233.6 ms **cv 8.37%** — the PORT's arm again, essentially the 8.5% of the fourth attempt. stdout
+    sha identical. So the refusal is a property of the input at that size, exactly as the clause
+    predicted, and not of the host.
+  - **At 60000 keys it is MEASURED**: original **1778.1 ms cv 2.61%**, port **568.8 ms cv 4.29%**, 30
+    samples each, both arms inside the 5% gate, stdout sha identical, `claim_pinned: true`.
+    **ratio original/port = 3.1264 — the port is 3.13x faster than the pinned original.**
+    Evidence `perf/evidence/EXP-004.fold-60000-vs-original.json`; input
+    `perf/inputs/fold_keys_60000.json` (added to `perf/gen-bench-inputs.py`, deterministic, same shape
+    as the 30000 one with twice the keys).
+  - Why doubling the input fixed the cv, and it is not only the longer arm: **the ORIGINAL is
+    superlinear in folded keys and the port is closer to linear.** 30000 → 60000 keys took the
+    original 479.0 → 1778.1 ms (3.7x for 2x the keys) and the port 233.6 → 568.8 ms (2.4x). So the
+    port's advantage GROWS with size; at 30000 the medians imply about 2.05x and at 60000 the measured
+    figure is 3.13x. The 2.05x is NOT claimed — that capture was refused and its ratio is null.
+- Tally: W1/L0/N3 — one measured win at 60000 keys; the three earlier no-evidence attempts stand.
+- Agent: Claude (author session; resolved by Claude session 9e91730b, 2026-09-25)
 
 ### NE-005 — EXP-004, hashed key carriers, on three scale inputs   [2026-09-20 | PROVISIONAL_LOCAL_WIN]
 - Program / def: `port/text.bend` `kt.*`, `port/json.bend` `km.*` / `obj.member`, `port/encode.bend` `row.lock` / `put.cells`, `port/decode.bend` `XV` / `xm.*`
@@ -167,6 +187,24 @@ Outcome taxonomy (closed set):
 - Disposition: a LOSS on every input but the expand one; nothing is promoted; DISC-013 is the accepted contract for the number-heavy case and beads `toon_bend-p47`, `toon_bend-okl`, `toon_bend-0m1`, `toon_bend-oiu` carry the work
 - Killing metric: wall on this host at 1 thread
 - **Do-not-retry unless:** the host is quiet (load below 1) AND the input makes the ORIGINAL's arm at least 100 ms, which the 5 to 16 ms arms of the three INCUMBENT rows never do (bead `toon_bend-udw`); a retry that keeps a sub-20 ms arm will refuse again however many pairs it runs
+- **2026-09-25, a new MEASURED row on an input that can actually gate** (`toon_bend-udw`'s and
+  `toon_bend-0i8`'s predicate: an arm of at least 100 ms). Every earlier attempt on the tabular encode
+  was REFUSED_CV because the ORIGINAL's arm was 5.2 ms on the 163 KB `large_tabular_1500` case — the
+  captures were blocked by the absence of a large enough input, not only by the host.
+  `perf/inputs/tabular_30000.json` (added to `perf/gen-bench-inputs.py`; row formula identical to
+  `big_rows` of `cases/gen-hand-cases.py`, first 1500 rows equal element by element to that case, so
+  it differs from the refused attempts only in length): original **115.2 ms cv 3.54%**, port
+  **645.1 ms cv 2.15%**, 30 samples each, both inside the gate, stdout sha identical on both arms,
+  `claim_pinned: true`. **ratio original/port = 0.1786, i.e. the port is 5.60x SLOWER** on a
+  30000-row tabular encode against the pinned `opt-level=z` build. Evidence
+  `perf/evidence/F1.tabular30000-encode.json`. This is a LOSS and belongs in this entry rather than a
+  ledger of wins. It is NOT comparable with the 0.114x / 0.404x / 0.0066x rows above, which are other
+  inputs; it is a first measured figure for tabular encode at a gate-able size.
+  The `opt-level=3` half of `toon_bend-0i8` is still NOT done: the pinned o3 incumbent
+  (`sha256 0325f112…`, 862536 bytes, PLAN §2) is not on this disk, and the o3 build that IS here
+  (`b3683f39…`, 883984 bytes — the arm the e2e reference run used) is a different snapshot of a crate
+  whose release builds PLAN §2 records as not byte-reproducible. Capturing against it would not be
+  comparable with the 1.989x and 0.773x rows, which were taken against `0325f112`.
 - Tally: W1/L4/N5 — one measured win (expand against the strongest build, 1.989×), four measured losses (the three pinned-build rows and wide rows against the strongest build), and five captures that claim nothing (the tabular encode against the strongest build, the fold a fourth time, the two pinned-build re-captures of 2026-09-20 and the build-profile capture on the tabular encode)
 - Agent: Claude (author session); the missing-entry finding is round 12's (non-author), the `opt-level=3` build its R12-13
 

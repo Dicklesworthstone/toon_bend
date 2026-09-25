@@ -1,0 +1,75 @@
+{
+ "claim_pinned": true,
+ "fingerprint": {
+  "cores": 8,
+  "cpu": "AMD EPYC-Milan Processor",
+  "date": "2026-09-25T00:46:37.468864+00:00",
+  "uname": "Linux-7.0.0-30-generic-x86_64-with-glibc2.43"
+ },
+ "max_cv": 5.0,
+ "original": {
+  "cmd": [
+   "./oracle/toon",
+   "-e",
+   "--key-folding",
+   "safe",
+   "perf/inputs/fold_keys_60000.json"
+  ],
+  "cv_pct": 2.6088094303175073,
+  "exit": 0,
+  "median_ms": 1778.1271014828235,
+  "samples": 30,
+  "sha": "8ca78d8cf65d514c465158e6ca635f736a849a4fb462cc507e6bf5c026283414",
+  "stderr_sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+ },
+ "pin": "bend 2.0.16 @15ae0c8; bend -o default emission (clang); --threads 1; port binary sha256 825e44de69c3a4e6c0d442ea (the frozen port/ of 9c9039e..c5f3b46); original toon 0.2.4 @694d73b release, oracle/toon sha256 821287eaf1a6d320ee1ef7604e74e3cefaa42b69445c96abb9dd310782d04030 (opt-level=z, the pinned build)",
+ "port": {
+  "cmd": [
+   "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/frozenc5f3b46/toon",
+   "--threads",
+   "1",
+   "--",
+   "-e",
+   "--key-folding",
+   "safe",
+   "perf/inputs/fold_keys_60000.json"
+  ],
+  "cv_pct": 4.286913269291001,
+  "exit": 0,
+  "median_ms": 568.7511113937944,
+  "samples": 30,
+  "sha": "8ca78d8cf65d514c465158e6ca635f736a849a4fb462cc507e6bf5c026283414",
+  "stderr_sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+ },
+ "provenance": {
+  "original": {
+   "command_files": [
+    {
+     "path": "/data/projects/toon_bend/perf/inputs/fold_keys_60000.json",
+     "sha256": "583624c56383e99450bf1155e7853b3a5933912d080525ebc47caf6d7264693f"
+    }
+   ],
+   "cwd": "/data/projects/toon_bend",
+   "executable": {
+    "path": "/data/projects/toon_bend/oracle/toon",
+    "sha256": "821287eaf1a6d320ee1ef7604e74e3cefaa42b69445c96abb9dd310782d04030"
+   }
+  },
+  "port": {
+   "command_files": [
+    {
+     "path": "/data/projects/toon_bend/perf/inputs/fold_keys_60000.json",
+     "sha256": "583624c56383e99450bf1155e7853b3a5933912d080525ebc47caf6d7264693f"
+    }
+   ],
+   "cwd": "/data/projects/toon_bend",
+   "executable": {
+    "path": "/data/tmp/claude-1000/-data-projects-toon-bend/9e91730b-d91a-4f9e-8b28-923307a5f8cb/scratchpad/frozenc5f3b46/toon",
+    "sha256": "825e44de69c3a4e6c0d442ea99c86be8c3b194f8e58a090137fc0c4d2743ac9e"
+   }
+  }
+ },
+ "ratio": 3.126371212049687,
+ "tag": "EXP-004-fold-60000",
+ "verdict": "MEASURED"
+}

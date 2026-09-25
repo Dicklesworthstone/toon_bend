@@ -45,7 +45,57 @@ Scenarios: `encode`, `encode_stdin`, `encode_fold` (`--key-folding safe`), `enco
   useless below about 30 MB); input MB/s. **Ratio** = arm median / reference median, with a 95% bootstrap interval (2000 resamples).
 - **cv gate 5%**, this repository's gate: a cell with any arm above it is `NOISY`, and its ratio is orientation, not evidence.
 
-## Results — THE REFERENCE RUN (2026-09-24, `2c33e64`, AMD EPYC-Milan, 8 cores, 1 thread)
+## Results — THE REFERENCE RUN (2026-09-25, binary `825e44de…`, AMD EPYC-Milan, 8 cores, 1 thread)
+
+`results/2026-09-25-frozen-825e44de/`. **Port binary `sha256 825e44de69c3a4e6c0d442ea`** — the frozen
+`port/` under review in rounds 20–23 (EXP-029, round 19's repairs and EXP-031 on top of `2c33e64`;
+EXP-032 reverted after a lane difference, NE-036). Oracle arms unchanged and byte-identical to the
+previous run: `rust_z` `821287ea…`, `rust_o3` `b3683f39…`. 204 cells.
+
+**It is the highest-quality run this suite has produced**, which is why it is the reference:
+
+| | this run | the previous reference |
+|---|---|---|
+| cells `MEASURED` | **77** of 204 | 66 of 204 |
+| arms inside cv 5% | **400 of 612 (65.4%)** | 349 of 612 (57.0%) |
+| median arm cv | **3.9%** | 4.6% |
+
+Taken in a window a peer session offered after round 23 reported, with one-minute load 0.34 against a
+five-minute 1.08 — both producers genuinely finished, rather than a spike subsiding, which is the
+distinction that voided an earlier attempt (`results/2026-09-24-frozen-c5f3b46/ABORTED.md`).
+
+### The port improved 1.110× over the previous reference binary
+
+Read the absolute arms first, as always. `bend` **−13.8%**, and the two oracle arms — **byte-identical
+binaries in both runs, so they are controls that measure the host difference directly** — moved
+**−3.6%** and **−3.2%**. The host noise floor is therefore **3.6%**, and the port's movement is nearly
+four times it.
+
+| estimator | scope | previous | this run | change |
+|---|---|---|---|---|
+| median | all cells | 5.85× | **5.27×** | 1.110× |
+| median | MEASURED in both (36) | 6.52× | **5.87×** | 1.110× |
+| min | all cells | 5.96× | 5.35× | 1.115× |
+| min | MEASURED in both | 6.55× | 5.93× | 1.105× |
+| CPU | all cells | 5.91× | 5.32× | 1.111× |
+| CPU | MEASURED in both | 6.54× | 5.90× | 1.109× |
+
+Six estimators agree to within 1%, and one of them is **CPU time**, which contention affects far less
+than wall. A host artifact does not reproduce itself across median, min and CPU alike. **1.110× ±
+the 3.6% floor.**
+
+**`compare.py` first returned INVALID on this comparison, and that verdict is recorded rather than
+replaced** (`results/2026-09-25-frozen-825e44de/COMPARE-PRECOMMIT.md`). Its old rule treated all three
+arms alike and fired because all three moved the same way; but its own rationale is that a *shorter*
+arm pays proportionally more of a fixed contention cost, and here the *longest* arm moved most — the
+opposite signature. The rule now judges a changed arm against controls whose binary did not change.
+The refined rule and its predicted verdicts for three historical comparisons were **fixed in writing
+before the code was altered**, because refining a gate that has just blocked a wanted result is the
+gate-self-weakening shape; a peer session insisted on that order. All three predictions held: the
+phantom 1.37× of 2026-09-23 stays INVALID (its controls moved 44.7% and 47.4%), and the previously
+published 1.27× stays readable at a 2.6% floor.
+
+## The previous reference run (2026-09-24, `2c33e64`, AMD EPYC-Milan, 8 cores, 1 thread)
 
 `results/2026-09-23-wall2-2c33e64/`. **Port binary `sha256 caac3708…`**, built from `port/main.bend` at
 `2c33e64` (571 laws, `All terms check.`, four lanes PASS 1076/1076); original `toon_rust` `694d73b` at

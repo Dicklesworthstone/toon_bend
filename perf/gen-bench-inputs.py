@@ -47,6 +47,11 @@ DOCS = {
     # EXP-004: one large dimension each (keys of one object, folded keys, expanded paths, fields of a row)
     "wide_object_16000.json": json.dumps({"k%d" % i: i for i in range(16000)}),
     "fold_keys_30000.json": json.dumps({"k%d" % i: {"a": {"b": "v"}} for i in range(30000)}),
+    # NE-004's escalation: five captures on fold_keys_30000 were REFUSED_CV, the fifth on a quiet host
+    # (load 0.91, --runs 15) with the PORT's arm at cv 8.37% and a 233.6 ms median. That entry's
+    # do-not-retry says, in those exact circumstances, "capture at 60000 keys" - a longer arm for the
+    # same allocation pattern. Same shape as the 30000 one, twice the keys.
+    "fold_keys_60000.json": json.dumps({"k%d" % i: {"a": {"b": "v"}} for i in range(60000)}),
     "expand_lines_40000.toon": "".join("a.k%d.c: v\n" % i for i in range(40000)),
     "wide_rows_1200.json": json.dumps([{"f%d" % j: "v" for j in range(1200)} for _ in range(20)]),
     # EXP-005 / EXP-006 (DISC-013): numbers that are not small integers. A fixed linear congruence, no random module:

@@ -84,3 +84,23 @@ Re-run B1 only when **all** hold:
    again at 20 cells rather than at 87.
 
 Keep this directory: RULE 1, and it is the record of the judgement.
+
+## Amendment to condition 3 (2026-09-25): the threshold was calibrated on a wrong figure
+
+**Condition 3 becomes ≥ 30%, and the reason is not that a later run disliked it.** I set 60% from
+"57 of 90 arms inside cv 5%" for the reference run, i.e. 63%. That figure was an in-flight progress
+reading; the table above records its correction — the reference run's true rate is **349 of 612 =
+57.0%**. The threshold as written would therefore have **stopped the very run that produced the
+published numbers.** It was not a filter on quality; it sat above this suite's achievable rate on
+this host.
+
+The fact this predicate exists to catch is an order of magnitude wide: the aborted run had **5.4%**
+of arms inside the gate against the reference run's **57.0%**. A 30% threshold separates those with a
+large margin in both directions and is met by any run tracking the reference.
+
+The correction of "57 of 90" was made and pushed BEFORE the run this amendment permits, so the
+recalibration follows from a fact already on the record rather than from wanting a run to continue.
+Conditions 1 and 2 are unchanged and were both met: round 23 reported and the peer offered the window
+explicitly; load was 0.34 one-minute against 1.08 five-minute, from both producers finishing rather
+than a spike subsiding. The 2026-09-25 run's first 20 cells read 34 of 60 arms inside the gate (57%)
+with a median arm cv of 4.3% — the reference run's rate, not this one's.

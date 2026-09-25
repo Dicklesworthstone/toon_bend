@@ -457,12 +457,14 @@ L="$(grep -oE '^law [A-Za-z0-9_.]+' port/LAWS.bend 2>/dev/null | head -1 | awk '
 
 copy() {  # $1 name -> a fresh copy of the port under $T/$1 (legacy, oracle and the LINKED paths linked)
   local d="$T/$1"; mkdir -p "$d"
-  # A FAILED COPY MUST BE LOUD. This was `2>/dev/null`, and on 2026-09-25 two retained trees were found
-  # missing perf/e2e/corpus entirely (179 MB): the copies ran while the disk was full, cp failed partway,
-  # the error went to /dev/null and the run still reported 22/22. The gates it gives a copy happened not
-  # to read the corpus, so nothing noticed - a pass for a reason about the environment rather than the
-  # claim. cp handles that tree fine when there is room (exit 0, 179 MB, empty stderr), so a non-zero
-  # status here means the copy is incomplete and every verdict built on it is void.
+  # A FAILED COPY MUST BE LOUD. This was `2>/dev/null`, which can only ever hide an incomplete copy, and
+  # a verdict built on one is void. The change is DEFENSIVE: no failure was ever observed. I first
+  # justified it with one, having found two retained trees missing perf/e2e/corpus (179 MB) and inferred
+  # a cp cut short by the full disk; a peer session refuted that, and the real reason is that the corpus
+  # is untracked and ignored, so a CLONE never has it. Which leaves the genuine environment fact, worth
+  # knowing when reading any self-test verdict: A RUN FROM THE SHARED WORKING CHECKOUT HANDS EACH GATE A
+  # 179 MB CORPUS THAT A RUN FROM A CLONE DOES NOT. Neither tree is more complete than the other; the
+  # verdicts are from different environments, and a reviewer on a clean clone exercises the smaller one.
   if ! cp -RL docs goldens port scripts "$d/" 2>"$T/copy.err"; then
     sed 's/^/  cp: /' "$T/copy.err" >&2
     echo "error: incomplete copy of $1 (see above); every verdict from it would be void" >&2

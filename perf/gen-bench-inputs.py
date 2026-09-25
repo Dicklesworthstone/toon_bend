@@ -66,6 +66,20 @@ DOCS = {
     # It is a perf input, not a case: as a case its 3 MB would be re-read by every lane of every
     # conformance run and would force a golden re-capture, for no extra coverage over the 1500-row case.
     "tabular_30000.json": _big_rows(30000),
+    # The four inputs the still-refused INCUMBENT captures need, each the SAME SHAPE as the small one
+    # it replaces and longer only in length, so a capture on it is comparable with the earlier attempts.
+    # PORT_REPORT recorded all five remaining refusals as the host's fault ("on a quiet host"). Reading
+    # the arms says otherwise, and in the same way the tabular one was misread: the ORIGINAL's arm is
+    # 3.45 ms (decimals1_9000, cv 21.8%), 5.92 ms (ints_24000, 16.3%), 5.04 ms (sci_5000, 20.0%) and
+    # 4.29 ms (strings_7000, 21.9%), while the PORT's arm is 3.2-7.3% on three of the four. No quiet
+    # host times a 3 ms process to 5%: the binding constraint is the arm, and the predicate of beads
+    # toon_bend-udw and toon_bend-0i8 is "an arm of at least 100 ms". Sized by measuring `oracle/toon`
+    # (694d73b, the CURRENT pin) on candidates: 122.0, 126.4, 112.1 and 102.7 ms respectively.
+    # The fifth refusal, INCUMBENT.startup, is `--version` and has NO input to scale; see PORT_STATE.
+    "decimals1_300000.json": json.dumps([round(i * 3.7, 1) for i in range(300000)]),
+    "ints_300000.json": json.dumps(list(range(100000, 100000 + 300000))),
+    "sci_80000.json": "[" + ",".join(_sci(i) for i in range(80000)) + "]",
+    "strings_300000.json": json.dumps(["user%d@example.com" % i for i in range(300000)]),
 }
 
 

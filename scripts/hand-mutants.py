@@ -197,6 +197,25 @@ MUTANTS = [
   'pop FTab: blank lines inside a table are allowed (R25-4, D14)'),
  ('M95', 'cli.bend', 'TOut{True{}, tok.out.eq(U32.is_eq(c, 61), c, more)}', 'TOut{True{}, tok.out.eq(False{}, c, more)}',
   "tok.out: `-o=x` keeps the '=' (R25-4, C7)"),
+ # round 26: the reviewer's own mutant texts (r26/m26defs.py). Not here: N4 (two edits; this inventory takes one),
+ # N10 and N11 (the nesting limit: 16 KB inputs, cases only), J1-J4 (exponents: their laws would drive the checker
+ # into unary arithmetic or the software float; cases only). Each is pinned by a captured case on every lane.
+ ('M96', 'decode.bend', 'Bool.and(Nat.is_eq(depth, r), is_row(content, delim))), 1n, 0n)', 'Bool.and(Nat.is_ge(depth, r), is_row(content, delim))), 1n, 0n)',
+  'fits FTab: a deeper data row is consumed as a row (R26-3, N6)'),
+ ('M97', 'decode.bend', 'Bool.and(Nat.is_eq(depth, t), is_item(content))), 1n, 0n)', 'Bool.and(Nat.is_ge(depth, t), is_item(content))), 1n, 0n)',
+  'fits FList: a deeper list item is consumed as an item (R26-3, N7)'),
+ ('M98', 'decode.bend', 'Bool.and(Nat.is_eq(depth, r), Bool.and(Bool.not(is_dash_sp(content)), is_row(content, delim)))', 'Bool.and(Nat.is_ge(depth, r), Bool.and(Bool.not(is_dash_sp(content)), is_row(content, delim)))',
+  'surplus.tab: a DEEPER data row after a full table counts as surplus (R26-3, N1)'),
+ ('M99', 'cli.bend', 'Bool.and(Bool.and(at, Bool.not(Bool.or(dot, exp))), num.go(', 'Bool.and(Bool.not(Bool.or(dot, exp)), num.go(',
+  "num.go: a '.' may be the first character (R26-3, C1)"),
+ ('M100', 'cli.bend', 'Bool.and(Bool.and(at, Bool.not(Bool.or(dot, exp))), num.go(', 'Bool.and(Bool.and(at, Bool.not(exp)), num.go(',
+  "num.go: a second '.' allowed (R26-3, C2)"),
+ ('M101', 'decode.bend', 'Bool.and(g.strict(g), Nat.is_gt(1n+p, 1n+base))', 'Bool.and(g.strict(g), Nat.is_gt(1n+p, 2n+base))',
+  'eat.kv.nest: strict indentation jump of one extra level allowed (R26-4, N8)'),
+ ('M102', 'decode.bend', 'row.width(Bool.and(strict, Nat.is_ne(T.llen(&2, String, vals, 0n), nf))', 'row.width(Bool.and(strict, Nat.is_gt(T.llen(&2, String, vals, 0n), nf))',
+  'eat.row: a narrower row passes strict (R26-4, N14)'),
+ ('M103', 'encode.bend', '      FCtx{on, budget, has_set, set, True{}, path(has_pre, pre, k), False{}}', '      FCtx{on, budget, has_set, set, True{}, k, False{}}',
+  'fctx.child: the prefix is reset to the raw key (R26-4, E3)'),
 ]
 
 def reduced(laws_text, proof_text):

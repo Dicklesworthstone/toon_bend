@@ -94,6 +94,12 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(encode_fraction_trailing_zeros_quoted|is_like_zero_in_phase_4_)", ["encoder primitives"]),
  (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
  (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
+ # round 26 (R26-3, R26-4): deeper lines in bodies, check order, indentation jumps, narrow rows; argv number words; the
+ # fold prefix
+ (r"(decode_deeper_row_not_a_row|decode_deeper_item_not_an_item|decode_deeper_line_after_full_table)$", ["structural decoding"]),
+ (r"(decode_blank_before_surplus_row|decode_indentation_jump_refused|decode_narrow_row_refused)$", ["strict validation"]),
+ (r"(argv_negative_leading_dot_word|argv_negative_two_dots_word)$", ["argv: option spellings"]),
+ (r"encode_fold_prefix_is_parent_path$", ["safe key folding"]),
  # round 25 (R25-3, R25-4): list items and the data-row test; strict and lenient table ends; argv number words and -o=
  (r"(decode_list_item_ws_before_nested_array|decode_colon_before_delimiter_not_a_row|decode_delimiter_before_colon_is_a_row"
   r"|decode_list_line_after_full_table|decode_bare_dash_sibling_over_indented)$", ["structural decoding"]),

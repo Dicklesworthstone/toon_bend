@@ -2872,3 +2872,44 @@ law decode_blank_line_inside_table_refused:
 
 law argv_output_equals_removed:
   {C.tok.out("=x") == C.TOut{True{}, "x"} : C.Tok}
+
+# Round 26 (R26-3): behaviours whose hand mutants passed the whole corpus AND the whole 648-law proof, pinned with bytes
+# from the pinned original (each also has a captured case now). S4.212 and S4.215: a line DEEPER than the row or item
+# depth is no row and no item (N6, N7 consumed it). S9.152: a deeper line after a full root table is content after the
+# root, not a surplus row (N1). S4.213: the blank-line check comes before the surplus check (N4). S1.156: `-.5` and
+# `-1.2.3` are not number words (C1, C2). Four more are pinned by captured cases only: N10 and N11 (the 127 nesting
+# limit, whose inputs are 16 KB) and J1 and J2 (an exponent that overflows at 2^31, which the checker would build in
+# unary)
+law decode_deeper_row_not_a_row:
+  {C.run_pure(["--decode"], T.ascii_bytes("[2]{a,b}:\n  1,2\n    3,4\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 2 tabular rows, but got 1"} : C.Out}
+
+law decode_deeper_item_not_an_item:
+  {C.run_pure(["--decode"], T.ascii_bytes("[2]:\n  - 1\n    - 2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 2 list array items, but got 1"} : C.Out}
+
+law decode_deeper_line_after_full_table:
+  {C.run_pure(["--decode"], T.ascii_bytes("[1]{a,b}:\n  1,2\n    3,4\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 3: Unexpected content after the document root"} : C.Out}
+
+law decode_blank_before_surplus_row:
+  {C.run_pure(["--decode"], T.ascii_bytes("[2]{a}:\n  1\n\n  2\n  3\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Line 3: Blank lines inside tabular array are not allowed in strict mode"} : C.Out}
+
+law argv_negative_leading_dot_word:
+  {C.run_pure(["--indent", "-.5"], Nil{}) == C.Out{2n, "", "error: unexpected argument '-.' found\n\n  tip: to pass '-.' as a value, use '-- -.'\n\nUsage: toon [OPTIONS] [INPUT]\n\nFor more information, try '--help'."} : C.Out}
+
+law argv_negative_two_dots_word:
+  {C.run_pure(["--indent", "-1.2.3"], Nil{}) == C.Out{2n, "", "error: unexpected argument '-1' found\n\n  tip: to pass '-1' as a value, use '-- -1'\n\nUsage: toon [OPTIONS] [INPUT]\n\nFor more information, try '--help'."} : C.Out}
+
+# Round 26 (R26-4): mutants the corpus caught and no law did, pinned with bytes from the pinned original. S9.154: a
+# strict indentation jump of more than one level is refused (N8). S9.109: a narrower tabular row is refused (N14).
+# S4.71: a nested fold's prefix is the parent's path, not the raw key (E3). J3 (an
+# overflowing exponent on a zero mantissa) and J4 (`e+` read as negative) have no law: J3 for J1's reason, and J4
+# because refuting it makes the checker print a fraction through the software float, which did not finish in 180 s
+# under a 6 GB cap; `encnum_zero_huge_exponent` and `encnum_exponents` pin them on every lane
+law decode_indentation_jump_refused:
+  {C.run_pure(["--decode"], T.ascii_bytes("a:\n    b: 1\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 2: Indentation depth jump: expected depth 1, but found 2"} : C.Out}
+
+law decode_narrow_row_refused:
+  {C.run_pure(["--decode"], T.ascii_bytes("rows[1]{a,b,c}:\n  1,2", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 3 tabular row values, but got 2"} : C.Out}
+
+
+law encode_fold_prefix_is_parent_path:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"u\": {\"v.w\": {\"a\": {\"b\": 1}}}, \"u.v.w.a.b\": 1}\n", Nil{})) == C.Out{0n, "u:\n  v.w:\n    a:\n      b: 1\nu.v.w.a.b: 1\n", ""} : C.Out}

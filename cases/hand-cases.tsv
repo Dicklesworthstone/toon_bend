@@ -656,6 +656,16 @@ toonerr_list_line_after_full_table	["--decode"]	cases/inputs/hand/toonerr_list_l
 usage_negative_exponent_dot_word	["--indent", "-1e5.3"]	-	usage	S1.156: '-1e5.3' is no number word (a '.' after the exponent) -> unknown -1 (C3)
 usage_negative_trailing_exponent_word	["--indent", "-1e"]	-	usage	S1.156: '-1e' is no number word (an exponent with no digit) -> unknown -1 (C5)
 usage_flatten_depth_negative_value	["--flatten-depth", "-1"]	-	usage	S1.156: --flatten-depth takes a negative number word as its value -> invalid digit (C6)
+toonerr_deeper_row_not_a_row	["--decode"]	cases/inputs/hand/toonerr_deeper_row_not_a_row.toon	toon-error	S4.212: a line deeper than the row depth is no row -> 1 of 2 rows (N6)
+toonerr_deeper_item_not_an_item	["--decode"]	cases/inputs/hand/toonerr_deeper_item_not_an_item.toon	toon-error	S4.215: a line deeper than the item depth is no item -> 1 of 2 items (N7)
+toonerr_deeper_line_after_full_table	["--decode"]	cases/inputs/hand/toonerr_deeper_line_after_full_table.toon	toon-error	S9.152: a deeper line after a full root table is content after the root, not a surplus row (N1)
+toonerr_blank_before_surplus_row	["--decode"]	cases/inputs/hand/toonerr_blank_before_surplus_row.toon	toon-error	S4.213: the blank-line check comes before the surplus check (N4)
+toonerr_nesting_limit_at_tabular_body	["--decode"]	cases/inputs/hand/toonerr_nesting_limit_at_tabular_body.toon	toon-error	S9.153: a tabular body counts two containers -> the 128th opens at line 126 (N10)
+toonerr_nesting_limit_at_empty_item	["--decode"]	cases/inputs/hand/toonerr_nesting_limit_at_empty_item.toon	toon-error	S9.153: an empty list-item object is a container -> line 127 (N11)
+usage_negative_leading_dot_word	["--indent", "-.5"]	-	usage	S1.156: '-.5' is no number word (a '.' may not be first) -> unknown -. (C1)
+usage_negative_two_dots_word	["--indent", "-1.2.3"]	-	usage	S1.156: '-1.2.3' is no number word (at most one '.') -> unknown -1 (C2)
+jsonerr_exponent_overflow_column_2147483648	["--encode"]	cases/inputs/hand/jsonerr_exponent_overflow_column_2147483648.json	json-error	S2.14: the exponent overflows at its 10th digit -> column 13 (J1)
+jsonerr_exponent_overflow_column_2147483640	["--encode"]	cases/inputs/hand/jsonerr_exponent_overflow_column_2147483640.json	json-error	S2.14: 2147483640 fits, the next digit overflows -> column 14 (J2)
 toonedge_root_array_trailing_ignored	["--decode"]	cases/inputs/hand/toonedge_root_array_trailing_ignored.toon	toon-edge	S4.202: lines after a root array are ignored
 toonedge_rest_dropped_after_overindent	["--decode"]	cases/inputs/hand/toonedge_rest_dropped_after_overindent.toon	toon-edge	S4.204/S10.80: everything after the over-indented line is dropped -> {"a":{"b":1.0}}
 toonlenient_leftover_rows_drop_rest	["--decode", "--no-strict"]	cases/inputs/hand/toonlenient_leftover_rows_drop_rest.toon	toon-edge	S4.217: leftover row ends the document, k is lost

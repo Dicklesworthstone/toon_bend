@@ -274,14 +274,17 @@ def facts():
     # abbreviated to exactly 12 or 16 digits and stored as a digest-named value is indistinguishable from a digest.
     digest_key = re.compile(r"sha|digest|hash|md5|checksum", re.I)
     commit_key = re.compile(r"commit|tree|rev|head|built|from|ref", re.I)
+    class Pairs(list):
+        """A JSON object as ALL its (key, value) pairs, duplicates kept (R26-2: a dict kept only the last of two
+        `commit` keys, so an unreachable commit under the first one was never read)."""
     def drop_digests(node, under_commit=False):
-        if isinstance(node, dict):
-            out = {}
-            for k, v in node.items():
+        if isinstance(node, (dict, Pairs)):
+            out = []
+            for k, v in (node.items() if isinstance(node, dict) else node):
                 below = under_commit or bool(commit_key.search(str(k)))
                 digest = (not below and digest_key.search(str(k)) and isinstance(v, str)
                           and re.fullmatch(r"[0-9a-fA-F]{12}|[0-9a-fA-F]{16}|[0-9a-fA-F]{64}", v))
-                out[k] = None if digest else drop_digests(v, below)
+                out.append([k, None if digest else drop_digests(v, below)])
                 if digest:
                     exempt_values.append(v)
                 if digest and len(v) == 64:
@@ -316,7 +319,8 @@ def facts():
             # number kept as its source text (so an unquoted hex-shaped number is seen), and only the digest-keyed
             # VALUES are removed from it: blanking a digest's text everywhere in the raw file also erased the same
             # text standing as a commit under a commit key. A file that is not JSON is read raw.
-            keep = {"parse_float": lambda x: "#" + x, "parse_int": lambda x: "#" + x, "parse_constant": lambda x: x}
+            keep = {"parse_float": lambda x: "#" + x, "parse_int": lambda x: "#" + x, "parse_constant": lambda x: x,
+                    "object_pairs_hook": Pairs}
             try:
                 docs_ = [json.loads(raw, **keep)]
             except ValueError:
@@ -666,7 +670,9 @@ def audit(files, f, gates, verbose):
         ("closed unit laws", r"\b(\d+) closed unit laws\b", f["laws_closed"]),
         # Other spellings of the same two numbers. docs/PORT_REPORT.md said "360 closed laws ... 65 unit laws"
         # for two rounds (R14-4, then R15-5) because only the spelling above was ever checked.
-        ("closed laws", r"\b(\d+) closed laws\b", f["laws"] - f["laws_quantified"]),
+        # R26-5: README says "N are closed instances", which the `closed laws` spelling never matched, so a stale 571
+        # stood beside 648 laws with the audit OK.
+        ("closed laws", r"\b(\d+) (?:are )?closed (?:laws|instances)\b", f["laws"] - f["laws_quantified"]),
         ("unit laws", r"\b(\d+) unit laws\b", f["laws_closed"]),
         ("mutants in all", r"\b(\d+) mutants in all\b", f["mutants"]),
         ("whole-pipeline laws", r"\b(\d+) closed whole-pipeline\b", f["laws_golden"]),

@@ -102,11 +102,12 @@ def parse(text, rnd):
         err("the Markdown parser markdown-it-py is not installed (python3 -m pip install markdown-it-py): "
             "a report is read as a renderer reads it, or not at all")
         return out
-    t = fold(text)
-    if not t.strip():
+    # Round 26 (R26-1): the RAW text is parsed. Folding (NFKC) before parsing turned fullwidth backticks and pipes
+    # into a fence or a table the renderer never shows; folding belongs to the extracted cell text only (`_text`).
+    if not text.strip():
         err("the report is empty")
         return out
-    tokens = md.parse(t)
+    tokens = md.parse(text)
     tables = _tables(tokens)
     for rows in tables:
         for r in rows:

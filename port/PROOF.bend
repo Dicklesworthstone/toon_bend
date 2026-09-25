@@ -2683,3 +2683,40 @@ def Laws.decode_blank_line_inside_table_refused():
 # S1.8 closed: the argv tokenizer computed (round 25)
 def Laws.argv_output_equals_removed():
   {==}
+
+# S4.212 closed: the whole pure core computed (round 26)
+def Laws.decode_deeper_row_not_a_row():
+  {==}
+
+# S4.215 closed: the whole pure core computed (round 26)
+def Laws.decode_deeper_item_not_an_item():
+  {==}
+
+# S9.152 closed: the whole pure core computed (round 26)
+def Laws.decode_deeper_line_after_full_table():
+  {==}
+
+# S4.213 closed: the whole pure core computed (round 26)
+def Laws.decode_blank_before_surplus_row():
+  {==}
+
+# S1.156 closed: the whole pure core computed (round 26)
+def Laws.argv_negative_leading_dot_word():
+  {==}
+
+# S1.156 closed: the whole pure core computed (round 26)
+def Laws.argv_negative_two_dots_word():
+  {==}
+
+# S9.154 closed: the whole pure core computed (round 26)
+def Laws.decode_indentation_jump_refused():
+  {==}
+
+# S9.109 closed: the whole pure core computed (round 26)
+def Laws.decode_narrow_row_refused():
+  {==}
+
+
+# S4.71 closed: the whole pure core computed (round 26)
+def Laws.encode_fold_prefix_is_parent_path():
+  {==}

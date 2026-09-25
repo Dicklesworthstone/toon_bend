@@ -395,6 +395,26 @@ if [[ -n "${BEND_CLI:-}" ]]; then read -ra BEND <<<"$BEND_CLI"
 elif command -v bend >/dev/null 2>&1; then BEND=(bend)
 else echo "error: no bend on PATH and no BEND_CLI" >&2; exit 2; fi
 export BEND_NO_TELEMETRY=1
+
+# The three paths a copy LINKS instead of copying. Each is read by the gates and written by NO mutation,
+# which `guard_symlinked` below re-checks against this script's own text on every run. perf/e2e alone is
+# 198 MB of perf's 208 MB, so copying it 22 times is about 4.4 GB of scratch per run; that is what filled
+# this host's disk on 2026-09-24 (seven retained trees, ~14 GB) and killed a peer's mutant run at M64.
+# A mutation that ever writes under one of these would reach the REAL tree through the link, which is
+# worse than a full disk -- hence the guard, and hence goldens/ and cases.tsv are still REAL copies
+# (M1..M4 and M12 rewrite a golden byte, move a .err aside, reduce cases.tsv and rename a case).
+LINKED=(perf/e2e perf/inputs cases)
+
+guard_symlinked() {  # a mutation must never write under a linked path; check this script, not a promise
+  local bad="" p
+  for p in "${LINKED[@]}"; do
+    grep -qE '\$D/'"$p" "$0" && bad+=" $p"
+  done
+  [[ -z "$bad" ]] || { echo "error: this script writes under a LINKED path ($bad): a mutation would reach the real tree" >&2; exit 2; }
+}
+
+guard_symlinked   # fail in a second, before any build or copy
+
 ROOT="$PWD"
 T="$(mktemp -d "${TMPDIR:-/tmp}/hst.XXXXXX")"
 sha="$(git rev-parse --short HEAD 2>/dev/null || echo none)"
@@ -435,12 +455,27 @@ done <goldens/cases.tsv
 [[ -n "$C" ]] || C="$C_ANY"
 L="$(grep -oE '^law [A-Za-z0-9_.]+' port/LAWS.bend 2>/dev/null | head -1 | awk '{print $2}')"
 
-copy() {  # $1 name -> a fresh copy of the port under $T/$1 (legacy linked)
+copy() {  # $1 name -> a fresh copy of the port under $T/$1 (legacy, oracle and the LINKED paths linked)
   local d="$T/$1"; mkdir -p "$d"
-  cp -RL docs goldens port perf scripts "$d/" 2>/dev/null
-  # this port keeps the cases' stdin files and input files under cases/ (cases.tsv names them by relative path), and
-  # its oracle binary under oracle/: without them every case of the clean copy is INCONCLUSIVE and M1..M5 are UNTESTABLE
-  [[ -d cases ]] && cp -RL cases "$d/" 2>/dev/null
+  # A FAILED COPY MUST BE LOUD. This was `2>/dev/null`, and on 2026-09-25 two retained trees were found
+  # missing perf/e2e/corpus entirely (179 MB): the copies ran while the disk was full, cp failed partway,
+  # the error went to /dev/null and the run still reported 22/22. The gates it gives a copy happened not
+  # to read the corpus, so nothing noticed - a pass for a reason about the environment rather than the
+  # claim. cp handles that tree fine when there is room (exit 0, 179 MB, empty stderr), so a non-zero
+  # status here means the copy is incomplete and every verdict built on it is void.
+  if ! cp -RL docs goldens port scripts "$d/" 2>"$T/copy.err"; then
+    sed 's/^/  cp: /' "$T/copy.err" >&2
+    echo "error: incomplete copy of $1 (see above); every verdict from it would be void" >&2
+    exit 2
+  fi
+  # perf is copied WITHOUT its two large read-only subdirectories, which are linked below
+  mkdir -p "$d/perf"
+  cp -RL perf/*.md perf/*.py "$d/perf/" 2>/dev/null
+  [[ -d perf/evidence ]] && cp -RL perf/evidence "$d/perf/" 2>/dev/null
+  local p
+  for p in "${LINKED[@]}"; do
+    [[ -e "$p" ]] && { mkdir -p "$d/$(dirname "$p")"; ln -s "$ROOT/$p" "$d/$p"; }
+  done
   [[ -d .beads ]] && cp -RL .beads "$d/" 2>/dev/null
   [[ -d bin ]] && cp -RL bin "$d/" 2>/dev/null
   for f in README.md CONTRIBUTING.md AGENTS.md; do [[ -f $f ]] && cp "$f" "$d/"; done

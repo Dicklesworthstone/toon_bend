@@ -321,15 +321,24 @@ def facts():
             # text standing as a commit under a commit key. A file that is not JSON is read raw.
             keep = {"parse_float": lambda x: "#" + x, "parse_int": lambda x: "#" + x, "parse_constant": lambda x: x,
                     "object_pairs_hook": Pairs}
+            # Round 27 (R27-2): one unparseable line used to send the WHOLE file to the raw fallback, where an escaped
+            # commit (`49...`) is only fragments. Each line is now decoded on its own, and whatever is not
+            # JSON is read both raw and with its `\u` escapes decoded.
+            docs_, rest = [], []
             try:
                 docs_ = [json.loads(raw, **keep)]
             except ValueError:
-                try:
-                    docs_ = [json.loads(l, **keep) for l in raw.splitlines() if l.strip()]
-                except ValueError:
-                    docs_ = None
+                for line in raw.splitlines():
+                    try:
+                        if line.strip():
+                            docs_.append(json.loads(line, **keep))
+                    except ValueError:
+                        rest.append(line)
             exempt_values = []
-            text = json.dumps([drop_digests(d) for d in docs_], ensure_ascii=False) if docs_ else raw
+            text = json.dumps([drop_digests(d) for d in docs_], ensure_ascii=False) if docs_ else ""
+            if rest:
+                loose = "\n".join(rest)
+                text += "\n" + loose + "\n" + re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), loose)
             evidence_texts.append((rel, text))
     for rel, text in evidence_texts:
         for where, body, floor, certs in (("file name's hex run", rel, 7, ledger), ("hex run", uuid.sub(" ", text), 20, recorded)):

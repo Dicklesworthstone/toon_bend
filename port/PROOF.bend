@@ -2720,3 +2720,23 @@ def Laws.decode_narrow_row_refused():
 # S4.71 closed: the whole pure core computed (round 26)
 def Laws.encode_fold_prefix_is_parent_path():
   {==}
+
+# S4.79 closed: the whole pure core computed (round 27)
+def Laws.encode_flatten_depth_100_folds_100():
+  {==}
+
+# S2.3 closed: the whole pure core computed (round 27)
+def Laws.encode_ef_bb_not_a_bom():
+  {==}
+
+# S4.71 closed: the whole pure core computed (round 27)
+def Laws.encode_partial_fold_keeps_enclosing_prefix():
+  {==}
+
+# S1.156 closed: the whole pure core computed (round 27)
+def Laws.argv_indent_negative_exponent_word():
+  {==}
+
+# S4.70 closed: the whole pure core computed (round 27)
+def Laws.encode_nested_body_sibling_set():
+  {==}

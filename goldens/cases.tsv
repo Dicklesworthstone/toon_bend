@@ -671,6 +671,13 @@ usage_negative_leading_dot_word	["--indent", "-.5"]	-	usage	S1.156: '-.5' is no 
 usage_negative_two_dots_word	["--indent", "-1.2.3"]	-	usage	S1.156: '-1.2.3' is no number word (at most one '.') -> unknown -1 (C2)
 jsonerr_exponent_overflow_column_2147483648	["--encode"]	cases/inputs/hand/jsonerr_exponent_overflow_column_2147483648.json	json-error	S2.14: the exponent overflows at its 10th digit -> column 13 (J1)
 jsonerr_exponent_overflow_column_2147483640	["--encode"]	cases/inputs/hand/jsonerr_exponent_overflow_column_2147483640.json	json-error	S2.14: 2147483640 fits, the next digit overflows -> column 14 (J2)
+enc_fold_flatten_depth_100_on_120_chain	["--encode", "--key-folding", "safe", "--flatten-depth", "100"]	cases/inputs/hand/enc_fold_flatten_depth_100_on_120_chain.json	enc-string	S4.79: a three-digit budget folds exactly 100 segments, never unlimited (E11)
+jsonerr_ef_bb_not_a_bom	["--encode"]	cases/inputs/hand/jsonerr_ef_bb_not_a_bom.json	json-error	S2.3: EF BB followed by another byte is no byte order mark -> expected value at column 1 (C6)
+toonedge_inline_array_counts_one_level	["--decode"]	cases/inputs/hand/toonedge_inline_array_counts_one_level.toon	toon-edge	S9.153: an inline array weighs one container, so 125 objects and it fit (N18)
+toonerr_nesting_limit_at_item_first_field	["--decode"]	cases/inputs/hand/toonerr_nesting_limit_at_item_first_field.toon	toon-error	S9.153: an item object with its first field on the hyphen line is a container -> line 127 (N19)
+enc_fold_partial_keeps_enclosing_prefix	["--encode", "--key-folding", "safe"]	cases/inputs/hand/enc_fold_partial_keeps_enclosing_prefix.json	enc-string	S4.71: under a partial fold the prefix is the enclosing path, so c.d is not folded into a collision (E13)
+usage_indent_negative_exponent_word	["--indent", "-1e5", "--encode"]	cases/inputs/hand/usage_indent_negative_exponent_word.json	usage	S1.156: '-1e5' is a number word -> invalid value for --indent (C11)
+encnum_zero_mantissa_exponent_overflow_by_zero	["--encode"]	cases/inputs/hand/encnum_zero_mantissa_exponent_overflow_by_zero.json	enc-number	S2.14: an exponent overflow on a zero mantissa is not out of range -> 0 (J5)
 toonedge_root_array_trailing_ignored	["--decode"]	cases/inputs/hand/toonedge_root_array_trailing_ignored.toon	toon-edge	S4.202: lines after a root array are ignored
 toonedge_rest_dropped_after_overindent	["--decode"]	cases/inputs/hand/toonedge_rest_dropped_after_overindent.toon	toon-edge	S4.204/S10.80: everything after the over-indented line is dropped -> {"a":{"b":1.0}}
 toonlenient_leftover_rows_drop_rest	["--decode", "--no-strict"]	cases/inputs/hand/toonlenient_leftover_rows_drop_rest.toon	toon-edge	S4.217: leftover row ends the document, k is lost

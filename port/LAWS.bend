@@ -2913,3 +2913,25 @@ law decode_narrow_row_refused:
 
 law encode_fold_prefix_is_parent_path:
   {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"u\": {\"v.w\": {\"a\": {\"b\": 1}}}, \"u.v.w.a.b\": 1}\n", Nil{})) == C.Out{0n, "u:\n  v.w:\n    a:\n      b: 1\nu.v.w.a.b: 1\n", ""} : C.Out}
+
+# Round 27 (R27-3, R27-4): behaviours whose hand mutants the corpus did not catch (R27-3) or no law did (R27-4), pinned
+# with bytes from the pinned original, each law checked ALONE and against its mutant under a 6 GB / 180 s cap before
+# it was added. S4.79: a three-digit --flatten-depth folds exactly that many segments (E11). S2.3: EF BB followed by
+# another byte is no byte order mark (C6). S4.71: under a partial fold the prefix is the enclosing path (E13). S1.156:
+# `-1e5` is a number word (C11). S4.70: a nested object body has its own sibling set (E6). Case-pinned by design: N18,
+# N19 and N17 (16 KB nesting inputs), J5, J10 and J11 (exponents the checker would reduce in unary), D4 (no reviewer
+# input; two corpus cases catch it)
+law encode_flatten_depth_100_folds_100:
+  {C.run_pure(["--encode", "--key-folding", "safe", "--flatten-depth", "100"], T.ascii_bytes("{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":{\"k\":1}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}", Nil{})) == C.Out{0n, "k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k.k:\n  k:\n    k:\n      k:\n        k:\n          k:\n            k:\n              k:\n                k:\n                  k:\n                    k:\n                      k:\n                        k:\n                          k:\n                            k:\n                              k:\n                                k:\n                                  k:\n                                    k:\n                                      k:\n                                        k: 1\n", ""} : C.Out}
+
+law encode_ef_bb_not_a_bom:
+  {C.run_pure(["--encode"], [239, 187, 128]) == C.Out{1n, "", "Failed to parse JSON: expected value at line 1 column 1"} : C.Out}
+
+law encode_partial_fold_keeps_enclosing_prefix:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"x.a.b.c.d\":1,\"x\":{\"z\":0,\"a\":{\"b\":{\"c\":{\"d\":2},\"e\":3}}}}", Nil{})) == C.Out{0n, "x.a.b.c.d: 1\nx:\n  z: 0\n  a.b:\n    c:\n      d: 2\n    e: 3\n", ""} : C.Out}
+
+law argv_indent_negative_exponent_word:
+  {C.run_pure(["--indent", "-1e5", "--encode"], T.ascii_bytes("{\"a\":1}", Nil{})) == C.Out{2n, "", "error: invalid value '-1e5' for '--indent <INDENT>': invalid digit found in string\n\nFor more information, try '--help'."} : C.Out}
+
+law encode_nested_body_sibling_set:
+  {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"x\":{\"a.b\":1,\"a\":{\"b\":2}}}", Nil{})) == C.Out{0n, "x:\n  a.b: 1\n  a:\n    b: 2\n", ""} : C.Out}

@@ -216,6 +216,18 @@ MUTANTS = [
   'eat.row: a narrower row passes strict (R26-4, N14)'),
  ('M103', 'encode.bend', '      FCtx{on, budget, has_set, set, True{}, path(has_pre, pre, k), False{}}', '      FCtx{on, budget, has_set, set, True{}, k, False{}}',
   'fctx.child: the prefix is reset to the raw key (R26-4, E3)'),
+ # round 27: the reviewer's own mutant texts (r27/m27defs.py). Not here, each pinned by captured cases: N17, N18,
+ # N19 (16 KB nesting inputs), J5, J10, J11 (exponents), D4 (no reviewer input).
+ ('M104', 'cli.bend', 'Nat.is_le(T.str_len(c, 0n), 3n)', 'Nat.is_le(T.str_len(c, 0n), 2n)',
+  '--flatten-depth of three digits acts as unlimited (R27-3, E11)'),
+ ('M105', 'cli.bend', 'Bool.and(U32.is_eq(a, 239), Bool.and(U32.is_eq(b, 187), U32.is_eq(c, 191)))', 'Bool.and(U32.is_eq(a, 239), U32.is_eq(b, 187))',
+  'byte-level BOM test ignores the third byte (EF BB xx dropped) (R27-3, C6)'),
+ ('M106', 'encode.bend', 'FCtx{on, Nat.sub(budget, segs), has_set, set, True{}, path(has_pre, pre, fkey), lean}', 'FCtx{on, Nat.sub(budget, segs), has_set, set, True{}, fkey, lean}',
+  'fctx.rem: the prefix under a partial fold is the folded key alone (the enclosing prefix is lost) (R27-3, E13)'),
+ ('M107', 'cli.bend', '    case SCon{h, +rest} 0n:\n      num.go(rest, num.cls(rest), True{}, dot, exp, False{})', '    case SCon{h, +rest} 0n:\n      num.go(rest, num.cls(rest), True{}, dot, exp, last_e)',
+  'num.go: a digit after the exponent letter does not clear `last_e` (`-1e5` is not a number) (R27-3, C11)'),
+ ('M108', 'encode.bend', 'emit(entries, CFields{dc, fc, keys.kt(fc.on(fc), entries)}', 'emit(entries, CFields{dc, fc, T.kt.empty()}',
+  'a NESTED object body has no sibling set: sibling collisions below the root are not seen (R27-4, E6)'),
 ]
 
 def reduced(laws_text, proof_text):

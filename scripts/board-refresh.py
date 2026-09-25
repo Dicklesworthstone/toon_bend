@@ -94,6 +94,10 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(encode_fraction_trailing_zeros_quoted|is_like_zero_in_phase_4_)", ["encoder primitives"]),
  (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
  (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
+ # round 27 (R27-3, R27-4): fold budgets, prefixes and nested sibling sets; the EF BB non-BOM; a negative exponent word
+ (r"(encode_flatten_depth_100_folds_100|encode_partial_fold_keeps_enclosing_prefix|encode_nested_body_sibling_set)$", ["safe key folding"]),
+ (r"encode_ef_bb_not_a_bom$", ["JSON text input"]),
+ (r"argv_indent_negative_exponent_word$", ["argv: option spellings"]),
  # round 26 (R26-3, R26-4): deeper lines in bodies, check order, indentation jumps, narrow rows; argv number words; the
  # fold prefix
  (r"(decode_deeper_row_not_a_row|decode_deeper_item_not_an_item|decode_deeper_line_after_full_table)$", ["structural decoding"]),

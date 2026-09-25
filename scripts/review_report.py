@@ -74,8 +74,9 @@ def _text(inline):
     return fold("".join(out)).strip()
 
 
-def _tables(tokens):
-    """Every rendered table, anywhere (top level, blockquote, list item), as a list of rows of cell texts."""
+def _tables(tokens, html=None):
+    """Every rendered table, anywhere (top level, blockquote, list item), as a list of rows of cell texts. `html`, when
+    given, collects (table, row) for every row with inline HTML in a cell."""
     tables, rows, row = [], None, None
     for t in tokens:
         if t.type == "table_open":
@@ -83,6 +84,8 @@ def _tables(tokens):
         elif t.type == "tr_open":
             row = []
         elif t.type == "inline" and row is not None:
+            if html is not None and any(c.type == "html_inline" for c in t.children or []):
+                html.add((len(tables), len(rows)))
             row.append(_text(t))
         elif t.type == "tr_close":
             rows.append(row)
@@ -108,7 +111,8 @@ def parse(text, rnd):
         err("the report is empty")
         return out
     tokens = md.parse(text)
-    tables = _tables(tokens)
+    html = set()
+    tables = _tables(tokens, html)
     for rows in tables:
         for r in rows:
             if len(r) >= 2 and r[0].lower() == "reviewed commit" and not out["commit"]:
@@ -130,13 +134,17 @@ def parse(text, rnd):
         return out
     tn, cols = found[0]
     seen = set()
-    for r in tables[tn][1:]:
+    for i, r in enumerate(tables[tn][1:], 1):
         ident, sev, cls = (r[cols[k]] if cols[k] < len(r) else "" for k in ("id", "sev", "class"))
         m = re.fullmatch(r"R(\d+)[-.]0*(\d+)", ident, re.I)
         if not m or int(m.group(1)) != rnd:
             err("a findings row whose id `%s` is not R%d-<k>" % (ident[:40], rnd))
             continue
         ident = "R%d-%d" % (rnd, int(m.group(2)))
+        # Round 27 (R27-1): `<del>LOW</del> MEDIUM` renders MEDIUM and was read LOW. How a browser renders inline HTML
+        # is not decided here: a findings row with any is refused (a placeholder belongs in backticks).
+        if (tn, i) in html:
+            err("%s: a findings cell contains inline HTML; write it as text (a placeholder in backticks)" % ident)
         if ident in seen:
             err("%s has two rows in the findings table" % ident)
         seen.add(ident)

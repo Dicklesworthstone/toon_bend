@@ -222,6 +222,26 @@ try:
         value = resolution.group(1).strip(' `\t') if resolution else ''
         if not value or value.startswith('<') or re.fullmatch(r'pending|none|n/a|-', value, re.I):
             open_disc.append(identifier)
+    # AGENTS.md: a deliberate divergence "exists only as a DISC- entry in docs/DISCREPANCIES.md with a
+    # class, a kill-switch, the affected cases, a measured impact and the owner's approval". The heading's
+    # class and status are checked above and claims-audit.py checks the impact DENOMINATOR, but the
+    # PRESENCE of those lines was checked nowhere: an ACCEPTED entry could lose its kill-switch, its
+    # affected cases or its APPROVER and every gate stayed silent, so a divergence could be licensed with
+    # no recorded approval (author's sweep of this family, 2026-09-25). Scoped to ACCEPTED, which is the
+    # status AGENTS.md's sentence is about and the one that licenses a live difference; all fifteen
+    # entries carry all four lines with real values, so this adds no finding to the register as it stands.
+    for identifier, head, body in re.findall(
+            r'^###\s+(DISC-\d+)[^\n]*\[([^\]]*)\]\s*$(.*?)(?=^#{1,3}\s|\Z)', disc_text, re.M | re.S):
+        if head.split('|')[-1].strip().upper() != 'ACCEPTED':
+            continue
+        for field in ('Kill-switch', 'Affected cases', 'Impact measured', 'Approver'):
+            found = re.search(r'(?m)^-[ \t]+' + re.escape(field) + r':[ \t]*([^\n]*)', body)
+            if not found:
+                malformed.append(f'{identifier} is ACCEPTED without a `{field}:` line')
+                continue
+            value = found.group(1).strip(' `\t')
+            if not value or value.startswith('<') or re.fullmatch(r'pending|none|n/a|-|tbd', value, re.I):
+                malformed.append(f"{identifier} is ACCEPTED and its `{field}:` is a placeholder")
 except (OSError, UnicodeError, ValueError): registers_missing.append(disc)
 need = {"T1": (3, 1), "T2": (5, 2), "T3": (10, 2)}[tier]
 missing = list(malformed)

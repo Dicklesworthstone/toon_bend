@@ -37,6 +37,7 @@
 #   M27 a report on disk whose round has no row in the rounds table         -> converge.sh
 #   M28 a rounds-table row whose round cell is not a number (`24b`)         -> claims-audit.py
 #   M29 an unreachable commit hidden from a raw scan by `\u` escapes        -> claims-audit.py (R25-2)
+#   M30 an ACCEPTED DISC that lost its `Approver:` line                     -> converge.sh
 # and one CONTROL, counted on its own axis, never as a mutation:
 #   C1  a hidden excerpt with a DIFFERENT count while the visible table stays correct -> every gate SILENT
 # M14, M15, M18, M19, M21, M23 and M25 assert on converge.sh's MESSAGE, not its exit code: the gate is
@@ -876,6 +877,27 @@ PLANT
     printf 'LEAK       %-24s the escaped commit was not named (fragments alone do not count)\n' M29_escaped_commit
     leaked+=(M29_escaped_commit)
   fi
+  # M30 an ACCEPTED DISC that has lost its `Approver:` line -- a deliberate divergence licensed with no
+  # recorded owner approval. AGENTS.md says a divergence "exists only as a DISC- entry ... with a class, a
+  # kill-switch, the affected cases, a measured impact and the owner's approval"; the heading's class and
+  # status were checked and claims-audit checks the impact DENOMINATOR, but the PRESENCE of those four
+  # lines was checked nowhere until the author's sweep of this family. Deleting the `Kill-switch:` or the
+  # `Affected cases:` line leaks identically and is caught by the same rule; the approver is planted
+  # because it is the line whose absence licenses the most. Unlike R21-2's shape this needs only ONE gate:
+  # converge.sh computes the register's completeness, and no second gate asserts that property by another
+  # route (claims-audit asserts the DISC COUNTS and the impact denominator, which are different claims).
+  D="$(copy m30)"
+  python3 - "$D/docs/DISCREPANCIES.md" <<'PLANT'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); t = p.read_text(encoding='utf-8')
+m = re.search(r'^###\s+(DISC-\d+)[^\n]*\|\s*ACCEPTED\s*\]\s*$(.*?)(?=^#{1,3}\s|\Z)', t, re.M | re.S)
+assert m, 'no ACCEPTED DISC entry to strip'
+line = next(l for l in m.group(2).split('\n') if l.startswith('- Approver:'))
+p.write_text(t[:m.start(2)] + m.group(2).replace(line + '\n', '', 1) + t[m.end(2):], encoding='utf-8')
+assert '- Approver:' not in Path(sys.argv[1]).read_text(encoding='utf-8')[m.start(2):m.end(2)]
+PLANT
+  expect_says M30_accepted_disc_no_approver 'without a .Approver' "$D" scripts/converge.sh docs/PORT_STATE.md
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -890,7 +912,7 @@ else
   n=$((n+1)); untestable+=(M24_evidence_symlinked_dir)
   echo "UNTESTABLE M25_report_table_in_quote    scripts/review_report.py or docs/reviews/round-23.md is not in this port"
   n=$((n+1)); untestable+=(M25_report_table_in_quote)
-  for m in M26_rounds_row_prose_only M27_report_without_row M28_round_cell_not_a_number M29_escaped_commit; do
+  for m in M26_rounds_row_prose_only M27_report_without_row M28_round_cell_not_a_number M29_escaped_commit M30_accepted_disc_no_approver; do
     echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
     n=$((n+1)); untestable+=("$m")
   done

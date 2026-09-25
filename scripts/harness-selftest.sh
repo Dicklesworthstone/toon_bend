@@ -461,10 +461,11 @@ copy() {  # $1 name -> a fresh copy of the port under $T/$1 (legacy, oracle and 
   # a verdict built on one is void. The change is DEFENSIVE: no failure was ever observed. I first
   # justified it with one, having found two retained trees missing perf/e2e/corpus (179 MB) and inferred
   # a cp cut short by the full disk; a peer session refuted that, and the real reason is that the corpus
-  # is untracked and ignored, so a CLONE never has it. Which leaves the genuine environment fact, worth
-  # knowing when reading any self-test verdict: A RUN FROM THE SHARED WORKING CHECKOUT HANDS EACH GATE A
-  # 179 MB CORPUS THAT A RUN FROM A CLONE DOES NOT. Neither tree is more complete than the other; the
-  # verdicts are from different environments, and a reviewer on a clean clone exercises the smaller one.
+  # is untracked and ignored, so a CLONE never has it. I then overstated the leftover as "the verdict
+  # depends on which checkout it runs from"; a grep disproved that too. NO gate run here reads that
+  # directory, so the trees differ by a footprint and not by coverage, and both verdicts are equally
+  # valid. The residue worth keeping is only this: 2>/dev/null on a copy can hide an incomplete tree,
+  # and a verdict built on one would be void, so the status is checked.
   if ! cp -RL docs goldens port scripts "$d/" 2>"$T/copy.err"; then
     sed 's/^/  cp: /' "$T/copy.err" >&2
     echo "error: incomplete copy of $1 (see above); every verdict from it would be void" >&2

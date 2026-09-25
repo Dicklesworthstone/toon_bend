@@ -312,19 +312,20 @@ def facts():
         for name in sorted(names):
             rel = os.path.relpath(os.path.join(dirpath, name), evdir)
             raw = read(os.path.join("perf", "evidence", rel))
+            # Round 25 (R25-2): a JSON file is read as its DECODED structure (so `\u` escapes are seen) with every
+            # number kept as its source text (so an unquoted hex-shaped number is seen), and only the digest-keyed
+            # VALUES are removed from it: blanking a digest's text everywhere in the raw file also erased the same
+            # text standing as a commit under a commit key. A file that is not JSON is read raw.
+            keep = {"parse_float": lambda x: "#" + x, "parse_int": lambda x: "#" + x, "parse_constant": lambda x: x}
             try:
-                docs_ = [json.loads(raw)]
+                docs_ = [json.loads(raw, **keep)]
             except ValueError:
                 try:
-                    docs_ = [json.loads(l) for l in raw.splitlines() if l.strip()]
+                    docs_ = [json.loads(l, **keep) for l in raw.splitlines() if l.strip()]
                 except ValueError:
                     docs_ = None
             exempt_values = []
-            for d in docs_ or []:
-                drop_digests(d)
-            text = raw
-            for v in sorted(set(exempt_values), key=len, reverse=True):
-                text = text.replace(v, " ")
+            text = json.dumps([drop_digests(d) for d in docs_], ensure_ascii=False) if docs_ else raw
             evidence_texts.append((rel, text))
     for rel, text in evidence_texts:
         for where, body, floor, certs in (("file name's hex run", rel, 7, ledger), ("hex run", uuid.sub(" ", text), 20, recorded)):
@@ -334,7 +335,9 @@ def facts():
                 # All-digit runs are skipped: they are the counts, sizes and times every evidence file is made of, so a
                 # commit abbreviated to digits only is out of reach (said here, not hidden). All-LETTER runs are read:
                 # skipping them let `deadbee` through (harness-selftest M22 leaked on its first run, 2026-09-25).
-                if low.isdigit() or any(p.startswith(low) or low.startswith(p) for p in pins):
+                # A pin is exempt as itself or an abbreviation of it, never as the head of a LONGER run (R25-2:
+                # `15ae0c8494ef82` passed as the Bend pin 15ae0c8).
+                if low.isdigit() or any(p.startswith(low) for p in pins):
                     continue
                 if len(low) > 40:
                     if len(low) not in (64, 128):

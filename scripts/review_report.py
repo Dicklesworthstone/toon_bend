@@ -9,11 +9,11 @@ leading space, bullets. This reader fails CLOSED: a report it cannot read comple
 
 The contract a report from round 20 on must meet (the review brief states the same one):
   - it is not empty, and a header row `| reviewed commit | <hex> ... |` names the commit it reviewed;
-  - only what a reader of the RENDERED report sees is read (round 24): HTML comments, fenced code and indented
-    code blocks are removed first, and block HTML is refused;
+  - it is read as a renderer reads it (rounds 24-25): parsed with a CommonMark parser with GitHub tables
+    (markdown-it-py; without it every report is an error), so HTML, code and struck-through text are not read
+    and a table counts wherever it renders (top level, blockquote, list item);
   - it has exactly ONE findings table, found by its header cells `id`, `sev` and `class` (any order, any other
-    columns, with or without outer pipes, indented up to three spaces), possibly with no rows, and no other table
-    lists this round's ids in its first column;
+    columns), possibly with no rows, and no other rendered table lists this round's ids in its first column;
   - every row of that table has an id `R<n>-<k>` of THIS round, a sev HIGH, MEDIUM or LOW, and a class that
     starts BEHAVIOR (or BEHAVIOUR), LAW-COVERAGE or DOCUMENT, after markup is removed;
   - every `R<n>-<k>` of this round named anywhere in the report has a row in that table (a finding written as
@@ -42,103 +42,95 @@ def fold(text):
     return unicodedata.normalize("NFKC", text).translate(DASHES)
 
 
-def clean(cell):
-    """A cell without its markup: HTML tags, links, emphasis and code marks."""
-    cell = re.sub(r"<[^>]*>", "", fold(cell))
-    cell = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", cell)
-    return re.sub(r"[*_`~]", "", cell).strip()
-
-
-def cells(line):
-    """A table line's cells, split on unescaped pipes, outer pipes optional."""
-    s = line.strip()
-    s = s[1:] if s.startswith("|") else s
-    s = s[:-1] if s.endswith("|") and not s.endswith("\\|") else s
-    return [c.replace("\\|", "|") for c in re.split(r"(?<!\\)\|", s)]
-
-
 def is_non_author(lens):
     """The lens says non-author, in any spelling of the dash or the case."""
     return re.search(r"non\s*-\s*author", fold(lens), re.I) is not None
 
 
-def visible(text):
-    """The text a reader of the RENDERED report sees, as lines. Round 24 (R24-1): read line by line, the raw file
-    let a findings table hidden in an HTML comment, a code fence or an indented code block stand in for the visible
-    one; with every row copied into the hidden decoy and the visible table re-headed, every count still agreed.
-    So HTML comments, fenced blocks (``` or ~~~) and indented code blocks (4 spaces or a TAB, which Markdown shows
-    as code, not as a table) are removed before anything is read."""
-    t = re.sub(r"<!--.*?(?:-->|\Z)", "", text, flags=re.S)
-    out, fence = [], None
-    for line in t.splitlines():
-        m = re.match(r"\s{0,3}(`{3,}|~{3,})", line)
-        if fence:
-            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence):
-                fence = None
-            continue
-        if m:
-            fence = m.group(1)
-            continue
-        if re.match(r"(?: {4}|\t)", line):
-            continue
-        out.append(line)
-    return out
+def _md():
+    """A CommonMark parser with GitHub's tables and strikethrough: the structure a renderer shows. Round 25
+    (R25-1) found the fifth way a hand-written line reader and a renderer disagree (a table in a blockquote or under
+    a list item; a delimiter row with too few cells, a setext heading, a <pre> block read as a table). Every round
+    since 20 found another one, so the reader no longer imitates a renderer: it IS one (markdown-it-py)."""
+    try:
+        from markdown_it import MarkdownIt
+    except ImportError:
+        return None
+    return MarkdownIt("commonmark").enable(["table", "strikethrough"])
 
 
-# Block HTML a Markdown renderer shows (or hides) in ways a line reader cannot follow: refused, not guessed at.
-BLOCK_HTML = re.compile(r"<\s*(?:table|div|details|summary|template|noscript|script|style|span[^>]*style|p[^>]*hidden)\b", re.I)
+def _text(inline):
+    """What a reader sees of one inline token: text and code, not HTML, not struck-through text."""
+    out, struck = [], 0
+    for c in inline.children or []:
+        if c.type == "s_open":
+            struck += 1
+        elif c.type == "s_close":
+            struck -= 1
+        elif struck == 0 and c.type in ("text", "code_inline"):
+            out.append(c.content)
+        elif struck == 0 and c.type in ("softbreak", "hardbreak"):
+            out.append(" ")
+    return fold("".join(out)).strip()
+
+
+def _tables(tokens):
+    """Every rendered table, anywhere (top level, blockquote, list item), as a list of rows of cell texts."""
+    tables, rows, row = [], None, None
+    for t in tokens:
+        if t.type == "table_open":
+            rows = []
+        elif t.type == "tr_open":
+            row = []
+        elif t.type == "inline" and row is not None:
+            row.append(_text(t))
+        elif t.type == "tr_close":
+            rows.append(row)
+            row = None
+        elif t.type == "table_close":
+            tables.append(rows)
+            rows = None
+    return tables
 
 
 def parse(text, rnd):
-    """{"commit", "rows", "counted", "errors"} of one report of round `rnd`."""
+    """{"commit", "rows", "counted", "errors"} of one report of round `rnd`, read from its RENDERED structure."""
     out = {"commit": None, "rows": [], "counted": 0, "errors": []}
     err = out["errors"].append
+    md = _md()
+    if md is None:
+        err("the Markdown parser markdown-it-py is not installed (python3 -m pip install markdown-it-py): "
+            "a report is read as a renderer reads it, or not at all")
+        return out
     t = fold(text)
     if not t.strip():
         err("the report is empty")
         return out
-    lines = visible(t)
-    t = "\n".join(lines)
-    if BLOCK_HTML.search(t):
-        err("the report uses block HTML (`%s`), which this reader does not interpret" % BLOCK_HTML.search(t).group(0))
-    for line in lines:
-        if "|" in line:
-            c = [clean(x) for x in cells(line)]
-            if len(c) >= 2 and c[0].lower() == "reviewed commit":
-                m = re.match(r"([0-9a-fA-F]{7,40})\b", c[1])
+    tokens = md.parse(t)
+    tables = _tables(tokens)
+    for rows in tables:
+        for r in rows:
+            if len(r) >= 2 and r[0].lower() == "reviewed commit" and not out["commit"]:
+                m = re.match(r"([0-9a-fA-F]{7,40})\b", r[1])
                 if m:
                     out["commit"] = m.group(1).lower()
-                break
     if not out["commit"]:
         err("no `| reviewed commit | <hex> |` header row names the commit this round reviewed")
-    tables = []
-    for i, line in enumerate(lines[:-1]):
-        if "|" not in line:
-            continue
-        head = [clean(x).lower() for x in cells(line)]
-        sep = lines[i + 1]
-        if not re.fullmatch(r"\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*", sep):
-            continue
+    found = []
+    for n, rows in enumerate(tables):
+        head = [c.lower() for c in rows[0]] if rows else []
         cols = {name: head.index(name) for name in ("id", "sev", "class") if name in head}
         if "sev" not in cols and "severity" in head:
             cols["sev"] = head.index("severity")
         if len(cols) == 3:
-            tables.append((i, cols))
-    if len(tables) != 1:
-        err("%d findings tables (header cells `id`, `sev`, `class`); a report has exactly one" % len(tables))
+            found.append((n, cols))
+    if len(found) != 1:
+        err("%d findings tables (header cells `id`, `sev`, `class`); a report has exactly one" % len(found))
         return out
-    start, cols = tables[0]
+    tn, cols = found[0]
     seen = set()
-    end = start + 2
-    for line in lines[start + 2:]:
-        if "|" not in line:
-            break
-        end += 1
-        c = cells(line)
-        if len(c) <= max(cols.values()):
-            err("a findings row has fewer cells than the table's header: %s" % line.strip()[:80])
-            continue
-        ident, sev, cls = (clean(c[cols[k]]) for k in ("id", "sev", "class"))
+    for r in tables[tn][1:]:
+        ident, sev, cls = (r[cols[k]] if cols[k] < len(r) else "" for k in ("id", "sev", "class"))
         m = re.fullmatch(r"R(\d+)[-.]0*(\d+)", ident, re.I)
         if not m or int(m.group(1)) != rnd:
             err("a findings row whose id `%s` is not R%d-<k>" % (ident[:40], rnd))
@@ -156,15 +148,16 @@ def parse(text, rnd):
         out["rows"].append({"id": ident, "sev": sev_word, "class": cls_word})
         if sev_word in ("HIGH", "MEDIUM") and cls_word.startswith("BEHAVIO"):
             out["counted"] += 1
-    # Only the findings table may list this round's findings: another visible table whose FIRST cell is one of this
-    # round's ids (a re-headed copy, R24-1) is refused rather than read around.
-    for n, line in enumerate(lines):
-        if "|" in line and not (start <= n < end):
-            first = clean((cells(line) or [""])[0])
-            if re.fullmatch(r"R%d[-.]0*\d+" % rnd, first, re.I):
-                err("line %d: a table other than the findings table lists %s" % (n + 1, first))
+    # Only the findings table may list this round's findings: another rendered table whose FIRST cell is one of this
+    # round's ids (a re-headed copy, R24-1; a copy in a blockquote or a list item, R25-1) is refused.
+    for n, rows in enumerate(tables):
+        if n != tn:
+            for r in rows:
+                if r and re.fullmatch(r"R%d[-.]0*\d+" % rnd, r[0], re.I):
+                    err("a table other than the findings table lists %s" % r[0])
+    shown = " ".join(_text(x) for x in tokens if x.type == "inline")
     named = {"R%d-%d" % (rnd, int(k)) for k in
-             re.findall(r"(?<![A-Za-z0-9])R%d[-.]0*(\d+)(?![0-9])" % rnd, t, re.I)}
+             re.findall(r"(?<![A-Za-z0-9])R%d[-.]0*(\d+)(?![0-9])" % rnd, shown, re.I)}
     for ident in sorted(named - seen, key=lambda s: int(s.split("-")[1])):
         err("%s is named in the report but has no row in its findings table" % ident)
     return out

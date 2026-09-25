@@ -186,7 +186,7 @@ Outcome taxonomy (closed set):
 - Correctness: stdout and stderr sha identical between the arms in every sample of every capture above; exit 0 on both arms
 - Disposition: a LOSS on every input but the expand one; nothing is promoted; DISC-013 is the accepted contract for the number-heavy case and beads `toon_bend-p47`, `toon_bend-okl`, `toon_bend-0m1`, `toon_bend-oiu` carry the work
 - Killing metric: wall on this host at 1 thread
-- **Do-not-retry unless:** the host is quiet (load below 1) AND the input makes the ORIGINAL's arm at least 100 ms, which the 5 to 16 ms arms of the three INCUMBENT rows never do (bead `toon_bend-udw`); a retry that keeps a sub-20 ms arm will refuse again however many pairs it runs
+- **Do-not-retry unless:** the host is quiet (load below 1) AND the input makes the ORIGINAL's arm at least 100 ms, which the 5 to 16 ms arms of the three INCUMBENT rows never do (`toon_bend-udw`, closed 2026-09-25 by the capture below,); a retry that keeps a sub-20 ms arm will refuse again however many pairs it runs
 - **2026-09-25, a new MEASURED row on an input that can actually gate** (`toon_bend-udw`'s and
   `toon_bend-0i8`'s predicate: an arm of at least 100 ms). Every earlier attempt on the tabular encode
   was REFUSED_CV because the ORIGINAL's arm was 5.2 ms on the 163 KB `large_tabular_1500` case — the

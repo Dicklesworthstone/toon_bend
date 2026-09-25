@@ -16,7 +16,7 @@
   "commit": "706f00e",
   "instructions": 33403288191,
   "stdout_sha256_16": "fd8e2e839a31536f",
-  "note": "the published commit of the counted binary's code; the binary was built from its pre-rebase twin 494ef82, whose port/ code is byte-identical (round 19, R19-5)"
+  "note": "the published commit of the counted binary's code; the binary was built from its pre-rebase twin (a scratch commit that rebase replaced, in no published history), whose port/ code is byte-identical (round 19, R19-5)"
  },
  "ratio": 1.1807850360260959,
  "note": "instruction counts, not times: deterministic (two runs of one binary 80 apart in 7.3e9), blind to cache misses and allocation latency; never a MEASURED ratio"

@@ -67,6 +67,7 @@ import json, os, re, sys
 sys.path.insert(0, sys.argv[5])
 from markdown_evidence import visible_lines, split_row
 from case_manifest import regular_text
+import review_report
 def cells_of(line): return split_row(line, unescape=True)
 state, tier, oq, disc = sys.argv[1:5]
 txt = '\n'.join(visible_lines(regular_text(state)))
@@ -137,24 +138,20 @@ for r in rows:
     elif n and not fm: malformed.append(f'round {rid} has no numeric fixed count')
     # R22-1: a non-author round is evidence only through its report. A row with no docs/reviews/round-NN.md beside
     # PORT_STATE is a claim nobody can check: it is malformed and never clean (two fabricated `0 | 0 | yes` rows
-    # printed CONVERGED before this). From the counting-rule round, the row's number must also equal the report's
-    # own count of MEDIUM/HIGH BEHAVIOR rows, read case-insensitively (R22-2: `Medium | Behavior` escaped the audit).
-    if re.search(r"non-author", col(r, "lens"), re.I):
-        report = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), "reviews", "round-%02d.md" % rid)
-        if not os.path.isfile(report):
-            malformed.append(f"round {rid} is labelled non-author but has no report {os.path.relpath(report)}")
+    # printed CONVERGED before this). R23-1: keyed on the ASCII word, the rule missed a lens spelled with U+2011,
+    # and an EMPTY report satisfied it. So the lens is folded (NFKC, every dash to `-`), and from the counting-rule
+    # round EVERY row needs a report that scripts/review_report.py reads completely (R23-2: any layout it cannot
+    # read is an error, never zero findings), whose reviewed commit HEAD contains, and whose count is the table's.
+    report = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), "reviews", "round-%02d.md" % rid)
+    if rid >= COUNTING_RULE_ROUND:
+        problems = review_report.check(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[1]))),
+                                       os.path.relpath(report), rid, n)
+        if problems:
+            malformed.extend(problems)
             clean = False
-        elif rid >= COUNTING_RULE_ROUND:
-            rep_rows = [m.group(0) for m in re.finditer(r"(?m)^\|\s*\*{0,2}R%d-\d+\b[^\n]*" % rid, regular_text(report))
-                        if not re.search(r"not a finding|confirmation only", m.group(0), re.I)]
-            # The severity and the class are read from THEIR OWN cells (`| id | sev | class | what | spec |`): a
-            # document finding whose prose says "a MEDIUM-or-HIGH behaviour finding" is not a counted finding.
-            cells = lambda row: (row.split("|") + ["", "", ""])[2:4]
-            counted = sum(1 for sev, cls in map(cells, rep_rows)
-                          if re.match(r"\s*\*{0,2}(?:medium|high)\b", sev, re.I) and re.match(r"\s*\*{0,2}behaviou?r\b", cls, re.I))
-            if n is not None and counted != n:
-                malformed.append(f"round {rid}: the table says {n} counted finding(s), {os.path.relpath(report)} lists {counted}")
-                clean = False
+    elif review_report.is_non_author(col(r, "lens")) and not os.path.isfile(report):
+        malformed.append(f"round {rid} is labelled non-author but has no report {os.path.relpath(report)}")
+        clean = False
     # Reopened findings and adversarial counterexamples reset even a <3 round.
     if re.search(r"\bRE_OPENED\b|\badversarial counterexample\b", " ".join(r.values()), re.I): clean = False
     if reset_findings.intersection(re.findall(r'\bF-\d+-\d+\b', ' '.join(r.values()))): clean = False
@@ -165,7 +162,7 @@ for clean in reversed(clean_flags):
     if not clean: break
     clean_tail += 1
 last_two_clean = len(clean_flags) >= 2 and all(clean_flags[-2:])
-non_author = any(re.search(r'\(non-author\)\s*$', l) and not re.search(r'\(author\)', l) for l in lenses)
+non_author = any(re.search(r'\(non-author\)\s*$', review_report.fold(l)) and not re.search(r'\(author\)', l) for l in lenses)
 # OQ / DISC
 registers_missing = []
 open_oq, oq_ids = [], set()

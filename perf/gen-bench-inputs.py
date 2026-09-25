@@ -68,13 +68,16 @@ DOCS = {
     "tabular_30000.json": _big_rows(30000),
     # The four inputs the still-refused INCUMBENT captures need, each the SAME SHAPE as the small one
     # it replaces and longer only in length, so a capture on it is comparable with the earlier attempts.
-    # PORT_REPORT recorded all five remaining refusals as the host's fault ("on a quiet host"). Reading
-    # the arms says otherwise, and in the same way the tabular one was misread: the ORIGINAL's arm is
-    # 3.45 ms (decimals1_9000, cv 21.8%), 5.92 ms (ints_24000, 16.3%), 5.04 ms (sci_5000, 20.0%) and
-    # 4.29 ms (strings_7000, 21.9%), while the PORT's arm is 3.2-7.3% on three of the four. No quiet
-    # host times a 3 ms process to 5%: the binding constraint is the arm, and the predicate of beads
-    # toon_bend-udw and toon_bend-0i8 is "an arm of at least 100 ms". Sized by measuring `oracle/toon`
-    # (694d73b, the CURRENT pin) on candidates: 122.0, 126.4, 112.1 and 102.7 ms respectively.
+    # The five remaining refusals have SHORT original arms -- 3.45 ms (decimals1_9000, cv 21.8%), 5.92 ms
+    # (ints_24000, 16.3%), 5.04 ms (sci_5000, 20.0%), 4.29 ms (strings_7000, 21.9%) -- while the PORT's arm
+    # is 3.2-7.3% on three of the four. A longer arm is less sensitive to load, which is why these inputs
+    # are worth having and why the arm predicate of toon_bend-udw (closed) and toon_bend-0i8 says "at least
+    # 100 ms". It is NOT a precondition, and an earlier version of this comment claimed it was: this file's
+    # own register refutes that, because INCUMBENT.tabular-enc MEASURED a 6.28 ms original arm at cv 4.53%.
+    # What the evidence isolates is LOAD: a 118.59 ms arm REFUSED at cv 14.94% under load 5.42 while F1's
+    # 115.20 ms arm MEASURED at cv 3.54% on a quiet host -- same arm length, cv fourfold apart.
+    # Sized by measuring `oracle/toon` (694d73b, the CURRENT pin) on candidates, seven samples under load:
+    # 122.0, 126.4, 112.1 and 102.7 ms respectively.
     # The fifth refusal, INCUMBENT.startup, is `--version` and has NO input to scale; see PORT_STATE.
     "decimals1_300000.json": json.dumps([round(i * 3.7, 1) for i in range(300000)]),
     "ints_300000.json": json.dumps(list(range(100000, 100000 + 300000))),

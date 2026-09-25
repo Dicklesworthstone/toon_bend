@@ -30,7 +30,12 @@
 #   M20 the same re-spelled report                         -> claims-audit.py FINDINGS (R22-2, R23-2)
 #   M21 a round's report present but empty                 -> converge.sh names it (R23-1)
 #   M22 an unreachable commit in any file under perf/evidence -> claims-audit.py names the file (R23-3)
-# M14, M15, M18, M19 and M21 assert on converge.sh's MESSAGE, not its exit code: the gate is
+#   M23 the findings table hidden in an HTML comment, the visible copy re-headed -> converge.sh (R24-1)
+#   M24 an unreachable commit under a SYMLINKED subdirectory of perf/evidence -> claims-audit.py (R24-2)
+#   M25 the findings table in a BLOCKQUOTE, a decoy at top level with sev/class downgraded -> converge.sh
+# and one CONTROL, counted on its own axis, never as a mutation:
+#   C1  a hidden excerpt with a DIFFERENT count while the visible table stays correct -> every gate SILENT
+# M14, M15, M18, M19, M21, M23 and M25 assert on converge.sh's MESSAGE, not its exit code: the gate is
 # legitimately NOT_CONVERGED on the clean tree, so an exit-code mutation test
 # would report UNTESTABLE and prove nothing. Each requires its phrase to be
 # ABSENT on the clean copy and PRESENT after the mutation, so a phrase that was
@@ -769,6 +774,21 @@ if [[ -f scripts/review_report.py && -f docs/reviews/round-23.md ]]; then
     printf 'LEAK       %-24s the file under the symlinked subdirectory was not read\n' M24_evidence_symlinked_dir
     leaked+=(M24_evidence_symlinked_dir)
   fi
+  # M25 the fourth member of R24-1's family: the real table in a BLOCKQUOTE, a decoy at top level with
+  # every id and row count kept and only sev and class downgraded. Unlike M23 this one was ALREADY
+  # caught before the round-25 repair, and by a check that is not the reader: the rounds table of
+  # PORT_STATE records the counted total independently, so a decoy of all-LOW/DOCUMENT rows contradicts
+  # it ("the table says 2 counted finding(s)"). It is kept because R25-1 replaces the line-based reader
+  # with a real Markdown parser, which DOES parse a table inside a blockquote as a table -- so "which of
+  # the two tables is authoritative" becomes a live question that the line reader never had, and this is
+  # the test that the rewrite kept the property. Standalone, on the tree of 491c8ea, three constructions
+  # were tried and the first two were caught for reasons that had nothing to do with blockquotes: rows
+  # dropped (the cross-reference rule: an id named in prose with no row) and a class cell outside the
+  # vocabulary (the grammar check). The quoted table with NO decoy at all fails CLOSED, reporting
+  # "0 findings tables", which is why a blockquote alone cannot produce a false CONVERGED.
+  D="$(copy m25)"
+  python3 "$HERE/.hst-decoy.py" "$D/docs/reviews/round-23.md" block
+  expect_says M25_report_table_in_quote 'round 23' "$D" scripts/converge.sh docs/PORT_STATE.md
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -781,6 +801,8 @@ else
   n=$((n+1)); untestable+=(M23_report_decoy_in_comment)
   echo "UNTESTABLE M24_evidence_symlinked_dir   scripts/review_report.py or docs/reviews/round-23.md is not in this port"
   n=$((n+1)); untestable+=(M24_evidence_symlinked_dir)
+  echo "UNTESTABLE M25_report_table_in_quote    scripts/review_report.py or docs/reviews/round-23.md is not in this port"
+  n=$((n+1)); untestable+=(M25_report_table_in_quote)
 fi
 
 verdict=OK

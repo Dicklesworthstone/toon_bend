@@ -649,6 +649,13 @@ toonedge_quoted_key_cr_escape	["--decode"]	cases/inputs/hand/toonedge_quoted_key
 toonerr_semicolon_after_fields	["--decode"]	cases/inputs/hand/toonerr_semicolon_after_fields.toon	toon-error	S2.133: only White_Space may stand between `}` and the colon; `;` is no colon (H10)
 toonedge_space_and_tab_before_header_colon	["--decode"]	cases/inputs/hand/toonedge_space_and_tab_before_header_colon.toon	toon-edge	S2.133: a space or a TAB between `}` and `:` is skipped (H11)
 toonedge_quoted_field_not_expanded	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_quoted_field_not_expanded.toon	toon-edge	S2.137: a quoted field name keeps its dot under --expand-paths safe (H13)
+toonedge_list_item_ws_before_nested_array	["--decode"]	cases/inputs/hand/toonedge_list_item_ws_before_nested_array.toon	toon-edge	S4.222: White_Space before the nested array's `[` in a list item is skipped (D7)
+toonerr_colon_before_delimiter_row	["--decode"]	cases/inputs/hand/toonerr_colon_before_delimiter_row.toon	toon-error	S4.214: the FIRST colon comes before the first delimiter -> not a row (D25)
+toonedge_delimiter_before_colon_row	["--decode"]	cases/inputs/hand/toonedge_delimiter_before_colon_row.toon	toon-edge	S4.214: the FIRST delimiter comes before the first colon -> a row (D26)
+toonerr_list_line_after_full_table	["--decode"]	cases/inputs/hand/toonerr_list_line_after_full_table.toon	toon-error	S9.152: a `- ` line after a full root table is content after the root, not a surplus row (D5)
+usage_negative_exponent_dot_word	["--indent", "-1e5.3"]	-	usage	S1.156: '-1e5.3' is no number word (a '.' after the exponent) -> unknown -1 (C3)
+usage_negative_trailing_exponent_word	["--indent", "-1e"]	-	usage	S1.156: '-1e' is no number word (an exponent with no digit) -> unknown -1 (C5)
+usage_flatten_depth_negative_value	["--flatten-depth", "-1"]	-	usage	S1.156: --flatten-depth takes a negative number word as its value -> invalid digit (C6)
 toonedge_root_array_trailing_ignored	["--decode"]	cases/inputs/hand/toonedge_root_array_trailing_ignored.toon	toon-edge	S4.202: lines after a root array are ignored
 toonedge_rest_dropped_after_overindent	["--decode"]	cases/inputs/hand/toonedge_rest_dropped_after_overindent.toon	toon-edge	S4.204/S10.80: everything after the over-indented line is dropped -> {"a":{"b":1.0}}
 toonlenient_leftover_rows_drop_rest	["--decode", "--no-strict"]	cases/inputs/hand/toonlenient_leftover_rows_drop_rest.toon	toon-edge	S4.217: leftover row ends the document, k is lost
@@ -667,7 +674,7 @@ toonerr_blank_inside_multiline_item	["--decode"]	cases/inputs/hand/toonerr_blank
 toonerr_extra_bare_dash_undetected	["--decode"]	cases/inputs/hand/toonerr_extra_bare_dash_undetected.toon	toon-error	S10.85: surplus bare '-' is not reported, exit 0
 toonedge_list_first_field_list_depth	["--decode"]	cases/inputs/hand/toonedge_list_first_field_list_depth.toon	toon-edge	S4.224: items of a first-field list sit at item depth + 2
 toonerr_list_first_field_list_shallow	["--decode"]	cases/inputs/hand/toonerr_list_first_field_list_shallow.toon	toon-error	S4.224/S10.86: items at + 1 -> Expected 2 list array items, but got 0
-toonerr_sibling_bare_dash	["--decode"]	cases/inputs/hand/toonerr_sibling_bare_dash.toon	toon-error	S4.225: bare '-' sibling is read as a key -> Missing colon after key
+toonerr_sibling_bare_dash	["--decode"]	cases/inputs/hand/toonerr_sibling_bare_dash.toon	toon-error	S4.225 (amended round 25): a bare '-' sibling is over-indented -> Validation error at line 3
 toonedge_expand_quoted_unquoted_same_key	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonedge_expand_quoted_unquoted_same_key.toon	toon-edge	S3.26: both count as quoted -> conflict at key "a.b"
 toonedge_expand_quoted_unquoted_same_key_lenient	["--decode", "--expand-paths", "safe", "--no-strict"]	cases/inputs/hand/toonedge_expand_quoted_unquoted_same_key_lenient.toon	toon-edge	S3.26: -> {"a.b":2.0}
 toonerr_expand_value_error_first	["--decode", "--expand-paths", "safe"]	cases/inputs/hand/toonerr_expand_value_error_first.toon	toon-error	S4.242: inner conflict (key x) before the conflict at a

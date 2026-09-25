@@ -94,6 +94,12 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(encode_fraction_trailing_zeros_quoted|is_like_zero_in_phase_4_)", ["encoder primitives"]),
  (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
  (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
+ # round 25 (R25-3, R25-4): list items and the data-row test; strict and lenient table ends; argv number words and -o=
+ (r"(decode_list_item_ws_before_nested_array|decode_colon_before_delimiter_not_a_row|decode_delimiter_before_colon_is_a_row"
+  r"|decode_list_line_after_full_table|decode_bare_dash_sibling_over_indented)$", ["structural decoding"]),
+ (r"(decode_lenient_sibling_after_full_table|decode_blank_line_inside_table_refused)$", ["strict validation"]),
+ (r"(argv_negative_exponent_dot_word|argv_negative_trailing_exponent_word|argv_flatten_depth_negative_value"
+  r"|argv_output_equals_removed)$", ["argv: option spellings"]),
  # round 24 (R24-3, R24-4): the header colon and the fields segment, quoted and bare field names under expansion, quoted
  # key escapes; fold budgets in list items and at depth 2; an upper-case first key character
  (r"(decode_semicolon_after_fields_refused|decode_space_and_tab_before_header_colon|decode_quoted_field_not_expanded"

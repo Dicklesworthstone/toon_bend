@@ -2639,3 +2639,47 @@ def Laws.encode_flatten_depth_two_folds():
 # S4.21 closed: the whole pure core computed (round 24)
 def Laws.encode_upper_case_initial_keys_are_bare():
   {==}
+
+# S4.222 closed: the whole pure core computed (round 25)
+def Laws.decode_list_item_ws_before_nested_array():
+  {==}
+
+# S4.214 closed: the whole pure core computed (round 25)
+def Laws.decode_colon_before_delimiter_not_a_row():
+  {==}
+
+# S4.214 closed: the whole pure core computed (round 25)
+def Laws.decode_delimiter_before_colon_is_a_row():
+  {==}
+
+# S9.152 closed: the whole pure core computed (round 25)
+def Laws.decode_list_line_after_full_table():
+  {==}
+
+# S1.156 closed: the whole pure core computed (round 25)
+def Laws.argv_negative_exponent_dot_word():
+  {==}
+
+# S1.156 closed: the whole pure core computed (round 25)
+def Laws.argv_negative_trailing_exponent_word():
+  {==}
+
+# S1.156 closed: the whole pure core computed (round 25)
+def Laws.argv_flatten_depth_negative_value():
+  {==}
+
+# S4.217 closed: the whole pure core computed (round 25)
+def Laws.decode_lenient_sibling_after_full_table():
+  {==}
+
+# S4.225 closed: the whole pure core computed (round 25)
+def Laws.decode_bare_dash_sibling_over_indented():
+  {==}
+
+# S4.213 closed: the whole pure core computed (round 25)
+def Laws.decode_blank_line_inside_table_refused():
+  {==}
+
+# S1.8 closed: the argv tokenizer computed (round 25)
+def Laws.argv_output_equals_removed():
+  {==}

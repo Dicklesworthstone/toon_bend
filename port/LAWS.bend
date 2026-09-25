@@ -2829,3 +2829,46 @@ law encode_flatten_depth_two_folds:
 
 law encode_upper_case_initial_keys_are_bare:
   {C.run_pure(["--encode"], T.ascii_bytes("{\"Ab\":1,\"Zb\":2}", Nil{})) == C.Out{0n, "Ab: 1\nZb: 2\n", ""} : C.Out}
+
+# Round 25 (R25-3): seven behaviours whose hand mutants passed the whole corpus AND the whole 637-law proof, pinned with
+# bytes from the pinned original (each also has a captured case now). S4.222: White_Space before a nested array's `[` in
+# a list item is skipped (D7). S4.214: the data-row test compares the FIRST colon with the FIRST delimiter (D25 kept the
+# last colon, D26 the last delimiter). S9.152: a `- ` line after a full root table is content after the root (D5).
+# S1.156: `-1e5.3` and `-1e` are not number words (C3, C5), and --flatten-depth takes `-1` as its value (C6)
+law decode_list_item_ws_before_nested_array:
+  {C.run_pure(["--decode"], T.ascii_bytes("[2]:\n  -  [2]: 1,2\n  - \t[1]: 3\n", Nil{})) == C.Out{0n, "[\n  [\n    1,\n    2\n  ],\n  [\n    3\n  ]\n]\n", ""} : C.Out}
+
+law decode_colon_before_delimiter_not_a_row:
+  {C.run_pure(["--decode"], T.ascii_bytes("[1]{a,b}:\n  x:1,y:2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Expected 1 tabular rows, but got 0"} : C.Out}
+
+law decode_delimiter_before_colon_is_a_row:
+  {C.run_pure(["--decode"], T.ascii_bytes("[1]{a,b,c}:\n  1,x:y,z\n", Nil{})) == C.Out{0n, "[\n  {\n    \"a\": 1,\n    \"b\": \"x:y\",\n    \"c\": \"z\"\n  }\n]\n", ""} : C.Out}
+
+law decode_list_line_after_full_table:
+  {C.run_pure(["--decode"], T.ascii_bytes("[1]{a,b}:\n  1,2\n  - 3,4\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 3: Unexpected content after the document root"} : C.Out}
+
+law argv_negative_exponent_dot_word:
+  {C.run_pure(["--indent", "-1e5.3"], Nil{}) == C.Out{2n, "", "error: unexpected argument '-1' found\n\n  tip: to pass '-1' as a value, use '-- -1'\n\nUsage: toon [OPTIONS] [INPUT]\n\nFor more information, try '--help'."} : C.Out}
+
+law argv_negative_trailing_exponent_word:
+  {C.run_pure(["--indent", "-1e"], Nil{}) == C.Out{2n, "", "error: unexpected argument '-1' found\n\n  tip: to pass '-1' as a value, use '-- -1'\n\nUsage: toon [OPTIONS] [INPUT]\n\nFor more information, try '--help'."} : C.Out}
+
+law argv_flatten_depth_negative_value:
+  {C.run_pure(["--flatten-depth", "-1"], Nil{}) == C.Out{2n, "", "error: invalid value '-1' for '--flatten-depth <N>': invalid digit found in string\n\nFor more information, try '--help'."} : C.Out}
+
+# Round 25 (R25-4): mutants the corpus caught and no law did, pinned with bytes from the pinned original. S4.217: in
+# lenient mode a line at the table's own depth after a full table is a sibling field (D11). S4.225 (amended round 25): a
+# bare `-` sibling in a list-item object is over-indented (D12). S4.213: a blank line inside a table is refused in strict
+# mode (D14). S1.8: `-o=x` removes ONE leading `=` (C7; the pure core does not model the output path, so the law is on
+# the argv tokenizer that builds it)
+law decode_lenient_sibling_after_full_table:
+  {C.run_pure(["--decode", "--no-strict"], T.ascii_bytes("rows[2]{a,b}:\n  1,2\n  x: y\n", Nil{})) == C.Out{0n, "{\n  \"rows\": [\n    {\n      \"a\": 1,\n      \"b\": 2\n    }\n  ],\n  \"x\": \"y\"\n}\n", ""} : C.Out}
+
+law decode_bare_dash_sibling_over_indented:
+  {C.run_pure(["--decode"], T.ascii_bytes("l[1]:\n  - a: 1\n    -\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Validation error at line 3: Over-indented line: expected depth 0, but found 2"} : C.Out}
+
+law decode_blank_line_inside_table_refused:
+  {C.run_pure(["--decode"], T.ascii_bytes("rows[2]{id}:\n  1\n\n  2", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Line 3: Blank lines inside tabular array are not allowed in strict mode"} : C.Out}
+
+law argv_output_equals_removed:
+  {C.tok.out("=x") == C.TOut{True{}, "x"} : C.Tok}

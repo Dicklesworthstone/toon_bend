@@ -684,7 +684,7 @@ br close <id1> <id2>  # Close multiple issues at once
 br sync --flush-only  # Export to JSONL (NO git operations)
 ```
 
-**When `br` says "database is busy (recovery in progress)"** (this repository's database has done so since 2026-09-25; `toon_bend-2l4`): run the same command as `br --no-db <command>`, which works on `.beads/issues.jsonl` directly, and commit that file. Do not run `br doctor --repair` (it refuses) and do not delete or replace `.beads/beads.db*` (RULE 1; the owner repairs the database).
+**When `br` says "database is busy (recovery in progress)"** (this repository's database has done so since 2026-09-25; `toon_bend-2l4`): READ with `br --no-db <command>` (it reads `.beads/issues.jsonl` directly). Do not WRITE around it: in this checkout `br --no-db` refuses mutations because the database's pending merge cannot be inspected, and that refusal protects changes the database may hold that the JSONL lacks. A scratch clone has no database file, so writes there go through, but they bypass that protection; the bead writes of 2026-09-26 (the reality check's beads) were made that way and must be reconciled when the database is repaired. Do not run `br doctor --repair` (it refuses) and do not delete or replace `.beads/beads.db*` (RULE 1; the owner repairs the database).
 
 ### Workflow Pattern
 

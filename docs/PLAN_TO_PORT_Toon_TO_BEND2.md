@@ -29,6 +29,24 @@ fork is bound to the literal sequential twin by a law instead of by testing).
 > literals and does not finish on the shortest-digit generator.
 It also yields the first machine-checked statements of TOON's algebraic
 properties (escape/unescape round trip, quoting safety, fold/expand inverse).
+
+> **Amendment (2026-09-26, toon_bend-tqz).** One of the three properties is machine-checked, in a form this
+> amendment states exactly, and the other two are not. The escape/unescape ROUND TRIP: six quantified laws
+> (`escape_step_*` in `port/LAWS.bend`) say that escaping a byte of a given class and feeding the escaped
+> text back through the unescaper's loop leaves the unescaper in the state the raw byte would have
+> produced — that byte prepended to the text so far, no escape pending, no failure — for ANY accumulated
+> text, ANY carried bad character and ANY continuation; five closed laws (`escape_class_of_*`) pin the
+> classifier on the five bytes that have a class, and the plain class is stated on a representative byte.
+> A law quantified over the BYTE is not available: `esc.cls` and `unesc.cls` decide with `U32.is_eq` on the
+> scalar, which the checker does not reduce for an abstract argument (the wall EXP-016's classifier table
+> already names, and the wall that closed an earlier attempt at `unescape(escape(s)) == s`, bead
+> toon_bend-j6n). The whole-string composition of those steps is `unesc.go`'s own recursion: it stays
+> golden-tested (`encstr_*`, `decstr_*`) and is not called proved. Reaching it would need a law-side
+> inverse classifier, a forward escaper and the reverse/append lemmas relating it to the accumulator
+> form — identified and not attempted. QUOTING SAFETY needs that same per-byte classifier fact and is
+> unproved. The FOLD/EXPAND INVERSE is not an inverse pair on its whole domain at all — the format itself
+> loses the difference for quoted dotted keys — so the promise as written cannot hold; a law would have to
+> be stated on a restricted domain that is not yet written down. Both remain open on toon_bend-tqz.
 No GPU lane is planned: the workload is text with data-dependent structure,
 so no bang is placed (GPU-PORTS "Is the original a GPU port at all?": no).
 

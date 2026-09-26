@@ -765,7 +765,7 @@ def readme_examples(text):
             fence = line.strip() == "```bash"
             continue
         m = re.match(r"\s*(echo|printf) '([^']*)' \| \./toon\s+--\s+(.*?)\s*$", line) if fence else None
-        if not m:
+        if not (m or (fence and "./toon" in line)):
             continue
         claimed = []
         for follow in lines[n:]:
@@ -778,6 +778,16 @@ def readme_examples(text):
             claimed.append(body)
         if not claimed:
             continue  # a command shown without its output claims nothing
+        # A command this reader cannot bind, with output shown under it, must not pass in SILENCE: otherwise
+        # rewording one example ("cat x | ./toon", a file argument, different spacing) disables the gate
+        # without any gate saying so. The finding names the two shapes that ARE bound, which is the whole
+        # repair. Reached only when output follows, so the illustrative commands of the Quick Example block
+        # (a file in, `-o` out, `--stats`) stay silent as they should.
+        if not m:
+            out.append((n, "a README example shows output under a command this gate cannot bind to a case; "
+                           "write it as `echo '<bytes>' | ./toon -- <args>` or `printf '<bytes>' | ./toon "
+                           "-- <args>` so the output can be compared with goldens/<case>.out"))
+            continue
         case = idx.get((_sh_string(m.group(1), m.group(2)), tuple(m.group(3).split())))
         if case is None:
             out.append((n, "a README example pipes inline input into the port that matches no case of "

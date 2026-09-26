@@ -1318,6 +1318,65 @@ assert t.count(old) == 1, 'the decode example no longer shows `"id": 1,` once; r
 p.write_text(t.replace(old, '#       "id": 1.0,'), encoding='utf-8')
 PLANT
   expect_says M49_readme_example_output 'where goldens/happy_readme_users_decode.out line' "$D" python3 scripts/claims-audit.py
+  # M50, M51 and C3 exercise the OWNER'S DECISION of 2026-09-26 (toon_bend-txp): from round 32 a round is
+  # dirty only for a HIGH or MEDIUM **PORT** finding -- a stdout, stderr or exit-code difference on some
+  # lane, or a wrong proof verdict -- and the class words become PORT, HARNESS, CORPUS, LAW-COVERAGE and
+  # DOCUMENT, with BEHAVIOR refused. A rule that decides HOLD versus SHIP and is exercised by no plant is
+  # exactly the shape this script exists to refuse, and every existing plant uses a round below 32, so none
+  # of them touches it. The planted round is the last row's number plus ONE HUNDRED (>= 32 by construction,
+  # and free of the collision M18 hit), and its report is derived from the newest real one so that every
+  # other contract it must satisfy -- the fixed findings header, a reviewed commit HEAD contains, complete
+  # ids -- holds for reasons this plant does not have to reproduce.
+  plant_round32() {  # dir mode(behavior|harness|port) -> a round >= 32 report plus its rounds-table row
+    python3 - "$1" "$2" <<'PLANT'
+import re, sys
+from pathlib import Path
+d, mode = Path(sys.argv[1]), sys.argv[2]
+state = d / "docs" / "PORT_STATE.md"
+lines = state.read_text(encoding="utf-8").split("\n")
+rows = [(i, int(m.group(1))) for i, l in enumerate(lines) for m in [re.match(r"^\|\s*(\d+)\s*\|", l)] if m]
+assert rows, "no numeric round row in the rounds table"
+last_i, last_n = rows[-1]
+planted = last_n + 100
+assert planted >= 32, "the planted round must be at or above the PORT rule's first round"
+src = next((p for r in range(last_n, 0, -1) for p in [d / "docs" / "reviews" / ("round-%02d.md" % r)] if p.exists()), None)
+assert src is not None, "no review report to derive the planted round from"
+old = int(re.search(r"round-(\d+)\.md", src.name).group(1))
+rep = re.sub(r"\bR%d([-.])" % old, r"R%d\1" % planted, src.read_text(encoding="utf-8"))
+# One row carries the class and severity under test; every other row is made LOW DOCUMENT, so that
+# `counted` is 0 or 1 by construction whatever the source round's own severities were.
+special, out = {"behavior": ("MEDIUM", "BEHAVIOR"), "harness": ("HIGH", "HARNESS"), "port": ("MEDIUM", "PORT")}[mode], []
+first = True
+for ln in rep.split("\n"):
+    if re.match(r"^\|\s*\*{0,2}R%d-\d+\b" % planted, ln):
+        cells = ln.split("|")
+        cells[2], cells[3] = (" %s " % special[0], " %s " % special[1]) if first else (" LOW ", " DOCUMENT ")
+        ln, first = "|".join(cells), False
+    out.append(ln)
+assert not first, "no findings row of the derived report was rewritten; re-derive this plant"
+(d / "docs" / "reviews" / ("round-%02d.md" % planted)).write_text("\n".join(out), encoding="utf-8")
+cells = lines[last_i].split("|")
+cells[1] = " %d " % planted
+cells[3], cells[4], cells[5] = " 0 ", " 0 ", " yes "   # new genuine findings, fixed, clean?
+lines.insert(last_i + 1, "|".join(cells))
+state.write_text("\n".join(lines), encoding="utf-8")
+PLANT
+  }
+  # M50 a PORT finding of MEDIUM in a round from 32, with the row marked clean: under the decision this is
+  # exactly the finding that makes a round dirty, so a `0 | 0 | yes` row for it is the convergence lie the
+  # whole rule exists to refuse.
+  D="$(copy m50)"; plant_round32 "$D" port
+  expect_says M50_port_finding_marked_clean 'the table says 0 counted finding' "$D" python3 scripts/claims-audit.py
+  # M51 the same round carrying a BEHAVIOR class. BEHAVIOR is the word rounds 20 to 31 were briefed with and
+  # is REFUSED from 32: a report that keeps using it would otherwise count under a rule nobody adopted.
+  D="$(copy m51)"; plant_round32 "$D" behavior
+  expect_says M51_behavior_class_after_32 'does not start with a bare PORT' "$D" python3 scripts/claims-audit.py
+  # C3 the CONTROL for the same decision, and the half that matters most: a HARNESS finding of HIGH in a
+  # round from 32 with the row marked clean is HONEST -- the finding must still be repaired, which
+  # converge.sh's fixed column enforces, but it does not make the round dirty. If the gate objects here, the
+  # decision has been implemented as "any HIGH finding is dirty", which is the rule the owner did not choose.
+  D="$(copy c3)"; plant_round32 "$D" harness
+  expect_quiet C3_harness_high_is_clean 'counted finding|does not start with a bare' "$D" python3 scripts/claims-audit.py
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -1368,7 +1427,8 @@ else
               M40_severity_header M41_cf_in_findings_cell M42_paste_vs_command_ids \
               M43_paste_vs_stated_range M44_id_in_html_block M45_homoglyph_id \
               M46_paste_vs_flagged_ids M47_whole_run_wrong_commit M48_report_headline_corpus \
-              M49_readme_example_output; do
+              M49_readme_example_output M50_port_finding_marked_clean \
+              M51_behavior_class_after_32; do
     echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
     n=$((n+1)); untestable+=("$m")
   done

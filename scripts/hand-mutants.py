@@ -276,6 +276,20 @@ MUTANTS = [
   'hdr.c.colon.if: the text after a fields header colon is not trimmed (R30-4, X12)'),
  ('M129', 'decode.bend', '    case SNil{}:\n      HL{False{}, 44, SNil{}}', '    case SNil{}:\n      HL{True{}, 44, SNil{}}',
   'len.rev: empty bracket content is a usable length (0) (R30-5, X2)'),
+ # toon_bend-tqz: the escape/unescape round-trip laws. One mutant per side of the round trip plus one for the
+ # classifier, because the laws split exactly there: the six `escape_step_*` laws pin the two TABLES against
+ # each other for any state and any continuation, and the five `escape_class_of_*` laws pin the classifier on
+ # the bytes it can be pinned on. Each was run against the new laws alone before the laws were committed and
+ # each was killed by the law named here; they are in the inventory so the next change to either table is
+ # judged by the script rather than by hand.
+ ('M130', 'decode.bend', '    case False{} True{} 1n:\n      UE{False{}, SCon{Chr{10}, rev}, False{}, badc}',
+  '    case False{} True{} 1n:\n      UE{False{}, SCon{Chr{13}, rev}, False{}, badc}',
+  'unesc.tr: the escape `\\n` unescapes to CR (killed by escape_step_lf)'),
+ ('M131', 'encode.bend', '    case 3n:\n      SCon{Chr{110}, SCon{Chr{92}, acc}}',
+  '    case 3n:\n      SCon{Chr{114}, SCon{Chr{92}, acc}}',
+  'esc.ch: a line feed is escaped as `\\r` (killed by escape_step_lf)'),
+ ('M132', 'encode.bend', 'Bool.pick(Nat, U32.is_eq(c, 34), 2n,', 'Bool.pick(Nat, U32.is_eq(c, 34), 0n,',
+  'esc.cls: the quote has no escape class (killed by escape_class_of_quote)'),
 ]
 
 def reduced(laws_text, proof_text):

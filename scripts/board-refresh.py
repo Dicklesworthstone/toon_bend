@@ -99,6 +99,11 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(decode_escaped_quote_in_quoted_field_name|decode_spaces_after_fields_colon|decode_empty_brackets_are_a_key)$",
   ["tokens, string literals"]),
  (r"decode_duplicate_field_name_refused$", ["strict validation"]),
+ # toon_bend-tqz: the escape/unescape round trip. A step law binds the ENCODER's escape table to the
+ # DECODER's unescaper in one equation, so it belongs on both rows -- reading either row alone would
+ # otherwise suggest one side is pinned by itself. The classifier laws are about `esc.cls` only.
+ (r"escape_step_", ["encoder primitives", "tokens, string literals"]),
+ (r"escape_class_of_", ["encoder primitives"]),
  # round 29 (R29-3, R29-4): header brackets and the quoted key's next character; the sticky limb; the expansion
  # conflict's wording; `-0` as an indent (the utf8_verdict_ law falls under the strict UTF-8 rule)
  (r"(decode_bracket_only_delimiter_is_key|decode_char_after_quoted_key_refused)$", ["tokens, string literals"]),

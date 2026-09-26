@@ -3013,3 +3013,87 @@ law decode_spaces_after_fields_colon:
 
 law decode_empty_brackets_are_a_key:
   {C.run_pure(["--decode"], T.ascii_bytes("items[]: 1\n", Nil{})) == C.Out{0n, "{\n  \"items[]\": 1\n}\n", ""} : C.Out}
+
+# ---------------------------------------------------------------- escape / unescape: the round trip (toon_bend-tqz)
+#
+# PLAN §1 promises "the first machine-checked statements of TOON's algebraic properties (escape/unescape
+# round trip, ...)". Until this block there were none: every quantified law here was a control-flow law and
+# every closed one a single value. These are the round trip, and they say EXACTLY how far they reach.
+#
+# What each step law says: escaping a byte and feeding the escaped text back into the unescaper's loop
+# leaves the unescaper in the state it would have been in had the byte simply arrived — the byte itself
+# prepended to the text so far, no escape pending, no failure — and then continues with ANY remaining
+# input. All three of the accumulated text (`rev`), the carried bad character (`badc`) and the continuation
+# (`rest`) are universally quantified, so the escaper's two-byte output and the unescaper's two-step state
+# machine are bound together for every text they sit in, not on a value. What is NOT proved here is the
+# composition along a string: that is `esc.go`/`unesc.go`'s own recursion, character by character.
+#
+# What they do NOT reach, and why: the CLASSIFIER. `esc.cls` and `unesc.cls` decide with `U32.is_eq` on
+# the scalar, which the checker cannot reduce for an abstract byte (the same wall as EXP-016's table, and
+# the wall that closed toon_bend-j6n's attempt at `unescape(escape(s)) == s`), so a law cannot quantify
+# over the byte. The five bytes that HAVE a class are therefore pinned one by one below, and the plain
+# class is stated on a representative byte ('A'), never on an abstract one. A quantified whole-string law
+# would need a law-side inverse classifier plus a forward escaper and the reverse/append lemmas to relate
+# it to the accumulator form: identified and not attempted here. The whole-string round trip stays
+# golden-tested (`encstr_escapes_in_all` and `encstr_quoting` carry all five escapes in one document,
+# `decstr_quoted` and `decstr_keys` the decode side) and is not called proved.
+
+# S4.19 the escape classifier on each byte it escapes (closed: the abstract scalar does not reduce)
+law escape_class_of_backslash:
+  {E.esc.cls(92) == 1n : Nat}
+
+law escape_class_of_quote:
+  {E.esc.cls(34) == 2n : Nat}
+
+law escape_class_of_lf:
+  {E.esc.cls(10) == 3n : Nat}
+
+law escape_class_of_cr:
+  {E.esc.cls(13) == 4n : Nat}
+
+law escape_class_of_tab:
+  {E.esc.cls(9) == 5n : Nat}
+
+# S4.19/S2.123 one escape, then any continuation, from any unescaper state
+law escape_step_backslash:
+  for rest: String
+  for rev: String
+  for badc: U32
+  {D.unesc.go(String.reverse(E.esc.ch(1n, 92, SNil{})) ++ rest, D.UE{False{}, rev, False{}, badc})
+    == D.unesc.go(rest, D.UE{False{}, SCon{Chr{92}, rev}, False{}, badc}) : D.UE}
+
+law escape_step_quote:
+  for rest: String
+  for rev: String
+  for badc: U32
+  {D.unesc.go(String.reverse(E.esc.ch(2n, 34, SNil{})) ++ rest, D.UE{False{}, rev, False{}, badc})
+    == D.unesc.go(rest, D.UE{False{}, SCon{Chr{34}, rev}, False{}, badc}) : D.UE}
+
+law escape_step_lf:
+  for rest: String
+  for rev: String
+  for badc: U32
+  {D.unesc.go(String.reverse(E.esc.ch(3n, 10, SNil{})) ++ rest, D.UE{False{}, rev, False{}, badc})
+    == D.unesc.go(rest, D.UE{False{}, SCon{Chr{10}, rev}, False{}, badc}) : D.UE}
+
+law escape_step_cr:
+  for rest: String
+  for rev: String
+  for badc: U32
+  {D.unesc.go(String.reverse(E.esc.ch(4n, 13, SNil{})) ++ rest, D.UE{False{}, rev, False{}, badc})
+    == D.unesc.go(rest, D.UE{False{}, SCon{Chr{13}, rev}, False{}, badc}) : D.UE}
+
+law escape_step_tab:
+  for rest: String
+  for rev: String
+  for badc: U32
+  {D.unesc.go(String.reverse(E.esc.ch(5n, 9, SNil{})) ++ rest, D.UE{False{}, rev, False{}, badc})
+    == D.unesc.go(rest, D.UE{False{}, SCon{Chr{9}, rev}, False{}, badc}) : D.UE}
+
+# the plain class on a representative byte: every byte with no escape is copied through unchanged
+law escape_step_plain:
+  for rest: String
+  for rev: String
+  for badc: U32
+  {D.unesc.go(String.reverse(E.esc.ch(0n, 65, SNil{})) ++ rest, D.UE{False{}, rev, False{}, badc})
+    == D.unesc.go(rest, D.UE{False{}, SCon{Chr{65}, rev}, False{}, badc}) : D.UE}

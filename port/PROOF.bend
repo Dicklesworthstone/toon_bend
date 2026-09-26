@@ -2820,3 +2820,52 @@ def Laws.decode_spaces_after_fields_colon():
 # S2.135 closed: the whole pure core computed (round 30)
 def Laws.decode_empty_brackets_are_a_key():
   {==}
+
+# S4.19 the escape classifier on its five bytes: each side computes (toon_bend-tqz)
+def Laws.escape_class_of_backslash():
+  {==}
+
+# S4.19 as above, the quote
+def Laws.escape_class_of_quote():
+  {==}
+
+# S4.19 as above, the line feed
+def Laws.escape_class_of_lf():
+  {==}
+
+# S4.19 as above, the carriage return
+def Laws.escape_class_of_cr():
+  {==}
+
+# S4.19 as above, the tab
+def Laws.escape_class_of_tab():
+  {==}
+
+# S4.19/S2.123 the round trip, one escape at a time. Each side reduces to the same term: the escaper's
+# output for a known class is two closed bytes, `String.reverse` on a closed pair computes, appending onto
+# the quantified continuation exposes both bytes as constructors, and the unescaper's two steps (the
+# backslash arming the escape, the letter discharging it) leave the quantified state with exactly the
+# original byte prepended. No induction is needed for the step; the composition along a string is
+# `unesc.go`'s own recursion, and is golden-tested rather than proved (see the section's note in LAWS.bend).
+def Laws.escape_step_backslash(rest, rev, badc):
+  {==}
+
+# S4.19/S2.123 as above, the quote: `\"` back to one quote
+def Laws.escape_step_quote(rest, rev, badc):
+  {==}
+
+# S4.19/S2.123 as above, the line feed: `\n` back to byte 10
+def Laws.escape_step_lf(rest, rev, badc):
+  {==}
+
+# S4.19/S2.123 as above, the carriage return: `\r` back to byte 13
+def Laws.escape_step_cr(rest, rev, badc):
+  {==}
+
+# S4.19/S2.123 as above, the tab: `\t` back to byte 9
+def Laws.escape_step_tab(rest, rev, badc):
+  {==}
+
+# S4.19/S2.123 the plain class on a representative byte: copied through, no escape armed
+def Laws.escape_step_plain(rest, rev, badc):
+  {==}

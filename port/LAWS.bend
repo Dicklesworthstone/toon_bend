@@ -2972,3 +2972,27 @@ law argv_key_folding_similar_tie:
 
 law decode_list_item_first_tabular_then_field:
   {C.run_pure(["--decode"], T.ascii_bytes("l[1]:\n  - rows[2]{a}:\n      1\n      2\n    n: 1\n", Nil{})) == C.Out{0n, "{\n  \"l\": [\n    {\n      \"rows\": [\n        {\n          \"a\": 1\n        },\n        {\n          \"a\": 2\n        }\n      ],\n      \"n\": 1\n    }\n  ]\n}\n", ""} : C.Out}
+
+# Round 29 (R29-3, R29-4): behaviours whose hand mutants the corpus did not catch (R29-3) or no law did (R29-4), pinned
+# with bytes from the pinned original, each law checked ALONE and against its mutant under a 6 GB / 180 s cap before
+# it was added. S2.135 and S2.130: bracket content that is only a delimiter is no length, and only `[` or `:` follows
+# a quoted key (H5, H6). S2.2: U+DFFF is invalid (U10). S7.21: a dropped nonzero limb sets sticky (N1). S4.244: the
+# expansion conflict names the object first (E3). S1.31: `-0` is an indent (C2). Case-pinned by design: F6 and F7
+# (fraction printing; the corpus catches both)
+law decode_bracket_only_delimiter_is_key:
+  {C.run_pure(["--decode"], T.ascii_bytes("a[|]:\n", Nil{})) == C.Out{0n, "{\n  \"a[|]\": {}\n}\n", ""} : C.Out}
+
+law decode_char_after_quoted_key_refused:
+  {C.run_pure(["--decode"], T.ascii_bytes("\"k\"x1]: 5\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Missing colon after key"} : C.Out}
+
+law utf8_verdict_rejects_last_surrogate:
+  {T.utf8.finish(T.utf8.bytes([237, 191, 191], T.utf8.init.verdict())) == None{} : Maybe<&2, String>}
+
+law bn_limbs_down_sticky:
+  {BN.limbs_down(1n, [5, 7], False{}) == ([7], True{}) : List<&2, U32> & Bool}
+
+law decode_expand_conflict_names_object_first:
+  {C.run_pure(["--decode", "--expand-paths", "safe"], T.ascii_bytes("a.b: 1\na: 2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Path expansion conflict at key \"a\": cannot merge object with primitive"} : C.Out}
+
+law argv_indent_minus_zero:
+  {C.run_pure(["--encode", "--indent", "-0"], T.ascii_bytes("{\"a\":1}", Nil{})) == C.Out{1n, "", "Indentation size must be at least 1 when encoding TOON"} : C.Out}

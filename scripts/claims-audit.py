@@ -209,8 +209,10 @@ def facts():
     # len(MUTANTS), as the inventory's own docstring says to count it: a regex over `("M` missed entries written
     # with single quotes (round 23's M60-M73) and would miss any other spelling of the same Python literal.
     import ast
-    f["mutants"] = next((len(ast.literal_eval(n.value)) for n in ast.parse(read("scripts/hand-mutants.py")).body
-                         if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "MUTANTS" for t in n.targets)), 0)
+    inventory = next((ast.literal_eval(n.value) for n in ast.parse(read("scripts/hand-mutants.py")).body
+                      if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "MUTANTS" for t in n.targets)), [])
+    f["mutants"] = len(inventory)
+    f["mutant_ids"] = {int(e[0][1:]) for e in inventory}   # round 29 (R29-2): a selection is counted against its ids
     # harness-selftest.sh names each of its mutations `M<n>_<slug>`. Round 13's R13-3 was one gate pasted
     # into two documents with two numbers (11 and 12); it was repaired by hand and never gated, so it
     # would recur silently the day a thirteenth mutation is added. (`"mutants"` above is hand-mutants.py,
@@ -797,23 +799,36 @@ def audit(files, f, gates, verbose):
                     if bound and m.group(1) != f["oracle_sha"]:
                         hit(path, n, "names an oracle sha256 %s…; docs/PIN.toml pins %s…"
                             % (m.group(1)[:12], f["oracle_sha"][:12]), line)
-            # `hand-mutants.py M24 M25 M26` runs a SELECTION and reports that many mutants: a line that names
-            # the ids it ran is not a stale full-set line. It must still name ids that exist (REFERENCES).
-            # Ids run past M99 since round 26 (M100..): two digits or more, or a scoped run of M104..M108 reads as the set.
-            selective = bool(re.search(r"\bM\d{2,}\b[^\n]*\bM\d{2,}\b", line))
             for name, pat, want in counts:
                 if want is None or path in ARCHIVE:
                     continue
                 for m in re.finditer(pat, line):
                     said = int(next(g for g in m.groups() if g))
+                    # A pasted `"mutants": N` reports ONE run, and what that run covered is stated beside it. Round
+                    # 29 (R29-2): "two ids anywhere on the line, N below the inventory" excused a stale whole-run
+                    # count with ids in the prose after it, and `hand-mutants.py M118 M119` reporting 117. Each paste
+                    # is now judged by the text since the previous paste: the ids its own `hand-mutants.py` command
+                    # lists, else a range `M<a> to M<b>` named there (the inventory's ids inside it), else the
+                    # whole inventory. The first two must match EXACTLY; the third is the ordinary check below.
+                    if name == "mutants in a pasted line":
+                        since = line[:m.start()]
+                        prior = list(re.finditer(r'"mutants": \d+', since))
+                        span = since[prior[-1].end():] if prior else since
+                        cmd = re.findall(r"hand-mutants\.py((?: M\d+)+)", span)
+                        rng = re.findall(r"\bM(\d+) to M(\d+)\b", span)
+                        scope = None
+                        if cmd:
+                            scope = len(set(re.findall(r"M\d+", cmd[-1])))
+                            what = "the %d ids its hand-mutants.py command lists" % scope
+                        elif rng:
+                            lo, hi = int(rng[-1][0]), int(rng[-1][1])
+                            scope = sum(1 for k in f["mutant_ids"] if lo <= k <= hi)
+                            what = "the %d inventory ids in M%d to M%d" % (scope, lo, hi)
+                        if scope is not None:
+                            if said != scope:
+                                hit(path, n, "%s: says %d for %s" % (name, said, what), line)
+                            continue
                     if said == want:
-                        continue
-                    # A line that names mutant ids reports a SELECTION, which may be smaller than the set but
-                    # never larger. This used to skip every mutant count on such a line, so round 15 wrote
-                    # `"mutants": 99` beside two ids and nothing objected.
-                    # Round 28 (R28-2): only a run's own pasted `"mutants": N` is a selection. A prose total ("100
-                    # mutants in all", "N hand-written mutants") names the inventory even beside two ids.
-                    if selective and name == "mutants in a pasted line" and said < want:
                         continue
                     # Judged on the CLAUSE around this number. The exemption used to cover the whole line, so
                     # appending "earlier" to a line made every count on it unchecked -- and README's headline

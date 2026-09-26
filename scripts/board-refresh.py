@@ -94,6 +94,12 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(encode_fraction_trailing_zeros_quoted|is_like_zero_in_phase_4_)", ["encoder primitives"]),
  (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
  (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
+ # round 29 (R29-3, R29-4): header brackets and the quoted key's next character; the sticky limb; the expansion
+ # conflict's wording; `-0` as an indent (the utf8_verdict_ law falls under the strict UTF-8 rule)
+ (r"(decode_bracket_only_delimiter_is_key|decode_char_after_quoted_key_refused)$", ["tokens, string literals"]),
+ (r"bn_limbs_down_sticky$", ["JSON number reading"]),
+ (r"decode_expand_conflict_names_object_first$", ["safe path expansion", "JSON writer B"]),
+ (r"argv_indent_minus_zero$", ["argv: option spellings"]),
  # round 28 (R28-3, R28-4): integer option limits; similarity tips; a list item's fields after a tabular first field
  # (the four utf8_verdict_ laws fall under the strict UTF-8 rule above)
  (r"(argv_indent_i64_min|argv_indent_i64_max|argv_flatten_depth_u64_max)$", ["argv: option spellings"]),

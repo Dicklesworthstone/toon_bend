@@ -2780,3 +2780,27 @@ def Laws.argv_key_folding_similar_tie():
 # S3.20 closed: the whole pure core computed (round 28)
 def Laws.decode_list_item_first_tabular_then_field():
   {==}
+
+# S2.135 closed: the whole pure core computed (round 29)
+def Laws.decode_bracket_only_delimiter_is_key():
+  {==}
+
+# S2.130 closed: the whole pure core computed (round 29)
+def Laws.decode_char_after_quoted_key_refused():
+  {==}
+
+# S2.2 closed: the whole pure core computed (round 29)
+def Laws.utf8_verdict_rejects_last_surrogate():
+  {==}
+
+# S7.21 closed: the whole pure core computed (round 29)
+def Laws.bn_limbs_down_sticky():
+  {==}
+
+# S4.244 closed: the whole pure core computed (round 29)
+def Laws.decode_expand_conflict_names_object_first():
+  {==}
+
+# S1.31 closed: the whole pure core computed (round 29)
+def Laws.argv_indent_minus_zero():
+  {==}

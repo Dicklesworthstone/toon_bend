@@ -12,8 +12,10 @@ The contract a report from round 20 on must meet (the review brief states the sa
   - it is read as a renderer reads it (rounds 24-25): parsed with a CommonMark parser with GitHub tables
     (markdown-it-py; without it every report is an error), so HTML, code and struck-through text are not read
     and a table counts wherever it renders (top level, blockquote, list item);
-  - it has exactly ONE findings table, found by its header cells `id`, `sev` and `class` (any order, any other
-    columns), possibly with no rows, and no other rendered table lists this round's ids in its first column;
+  - it has exactly ONE table whose header mentions sev or class in any spelling (round 29), and that table's header
+    is exactly `| id | sev | class | what | spec |`; it may have no rows, and no other rendered table lists this
+    round's ids in its first column;
+  - no table cell contains inline HTML (rounds 27-28) or an invisible format character, Unicode Cf (round 29);
   - every row of that table has an id `R<n>-<k>` of THIS round, a sev HIGH, MEDIUM or LOW, and a class that
     starts BEHAVIOR (or BEHAVIOUR), LAW-COVERAGE or DOCUMENT, after markup is removed;
   - every `R<n>-<k>` of this round named anywhere in the report has a row in that table (a finding written as
@@ -35,6 +37,7 @@ import unicodedata
 DASHES = dict.fromkeys(map(ord, "‐‑‒–—―−﹘﹣－"), "-")
 SEVERITIES = ("HIGH", "MEDIUM", "LOW")
 CLASSES = ("BEHAVIOUR", "BEHAVIOR", "LAW-COVERAGE", "DOCUMENT")
+HEADER = ("id", "sev", "class", "what", "spec")   # the findings table's header, as every review brief states it
 
 
 def fold(text):
@@ -127,24 +130,26 @@ def parse(text, rnd):
                     out["commit"] = m.group(1).lower()
     if not out["commit"]:
         err("no `| reviewed commit | <hex> |` header row names the commit this round reviewed")
-    found = []
+    # Round 29 (R29-1): the sixth round in a row found a header the reader matched differently from how a page shows
+    # it (`Severity:` or `sev` + U+200B beside `sev`). The reader no longer MATCHES headers: the findings header is the
+    # brief's fixed contract, exactly `| id | sev | class | what | spec |`. Any table whose header mentions sev or
+    # class in ANY spelling is a candidate, there must be exactly one, and it must be exactly that header; and an
+    # invisible format character (Unicode Cf: zero-width spaces, joiners, bidi controls) in any table cell is refused.
     for n, rows in enumerate(tables):
-        head = [c.lower() for c in rows[0]] if rows else []
-        cols = {name: head.index(name) for name in ("id", "sev", "class") if name in head}
-        if "sev" not in cols and "severity" in head:
-            cols["sev"] = head.index("severity")
-        if len(cols) == 3:
-            found.append((n, cols))
+        for i, row in enumerate(rows):
+            if any(unicodedata.category(ch) == "Cf" for cell in row for ch in cell):
+                err("table %d, row %d: a cell contains an invisible format character (Unicode Cf)" % (n + 1, i + 1))
+    found = [n for n, rows in enumerate(tables) if rows
+             and any(re.search(r"sev|class", re.sub(r"[^a-z]", "", c.lower())) for c in rows[0])]
     if len(found) != 1:
-        err("%d findings tables (header cells `id`, `sev`, `class`); a report has exactly one" % len(found))
+        err("%d findings tables (a header naming sev or class); a report has exactly one" % len(found))
         return out
-    tn, cols = found[0]
-    # Two columns a reader could take for one field (`| id | sev | sev | class |`, or `sev` beside `severity`):
-    # which one the gate reads would be a choice the page does not show.
-    head = [c.lower() for c in tables[tn][0]]
-    for name in ("id", "sev", "class"):
-        if head.count(name) + (head.count("severity") if name == "sev" else 0) > 1:
-            err("the findings table has more than one `%s` column" % name)
+    tn = found[0]
+    if [c.lower() for c in tables[tn][0]] != list(HEADER):
+        err("the findings header is `| %s |`; it must be exactly `| %s |`"
+            % (" | ".join(tables[tn][0])[:120], " | ".join(HEADER)))
+        return out
+    cols = {name: HEADER.index(name) for name in ("id", "sev", "class")}
     seen = set()
     for r in tables[tn][1:]:
         ident, sev, cls = (r[cols[k]] if cols[k] < len(r) else "" for k in ("id", "sev", "class"))

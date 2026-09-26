@@ -252,6 +252,20 @@ MUTANTS = [
   'best.pick: among equal J the EARLIER candidate wins (R28-4, K4)'),
  ('M119', 'decode.bend', 'FObj{J.JNil{}, T.kt.empty(), HNil{}, 1n+t, 1n+t, True{}, key, quoted}', 'FObj{J.JNil{}, T.kt.empty(), HNil{}, 1n+t, 2n+t, True{}, key, quoted}',
   "item.route: after a tabular first field the item's other fields are expected one level deeper (R28-4, I1)"),
+ # round 29: the reviewer's own mutant texts (r29/m29defs.py). Not here: F6 and F7 (the corpus catches both;
+ # their laws would print through the software float).
+ ('M120', 'decode.bend', '    case SNil{}:\n      False{}\n    case SCon{c, rest}:\n      all_digits.go(SCon{c, rest}, True{})', '    case SNil{}:\n      True{}\n    case SCon{c, rest}:\n      all_digits.go(SCon{c, rest}, True{})',
+  'all_digits: empty bracket content is a length (0) (R29-3, H5)'),
+ ('M121', 'decode.bend', 'hdr.a.after(T.head_is(after, 91), inner, after)', 'hdr.a.after(Bool.not(String.is_empty(after)), inner, after)',
+  "hdr.a.quoted: any character after a quoted key's closing quote opens the bracket (R29-3, H6)"),
+ ('M122', 'text.bend', 'U32.is_gt(value, 57343)', 'U32.is_ge(value, 57343)',
+  'utf8.cont: U+DFFF accepted (R29-3, U10)'),
+ ('M123', 'bignat.bend', 'limbs_down(p, xs, Bool.or(sticky, Bool.not(U32.is_eq(x, 0))))', 'limbs_down(p, xs, sticky)',
+  'limbs_down: whole dropped limbs never set sticky (R29-4, N1)'),
+ ('M124', 'decode.bend', 'plan.conf(strict, k, "object", ty(other))', 'plan.conf(strict, k, ty(other), "object")',
+  'plan.head: object/other conflict names the types in the wrong order (R29-4, E3)'),
+ ('M125', 'cli.bend', 'Bool.and(Bool.or(Bool.not(neg), T.str_eq(c, "0")), Nat.is_le(', 'Bool.and(Bool.not(neg), Nat.is_le(',
+  'indent.check.c: -0 out of range (R29-4, C2)'),
 ]
 
 def reduced(laws_text, proof_text):

@@ -684,6 +684,8 @@ br close <id1> <id2>  # Close multiple issues at once
 br sync --flush-only  # Export to JSONL (NO git operations)
 ```
 
+**When `br` says "database is busy (recovery in progress)"** (this repository's database has done so since 2026-09-25; `toon_bend-2l4`): run the same command as `br --no-db <command>`, which works on `.beads/issues.jsonl` directly, and commit that file. Do not run `br doctor --repair` (it refuses) and do not delete or replace `.beads/beads.db*` (RULE 1; the owner repairs the database).
+
 ### Workflow Pattern
 
 1. **Start**: Run `br ready` to find actionable work

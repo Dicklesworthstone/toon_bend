@@ -41,6 +41,9 @@
 #   M31 a findings table behind a FULLWIDTH fence, with a fullwidth decoy    -> converge.sh (R26-1)
 #   M32 an unreachable commit hidden behind a DUPLICATE `commit` key         -> claims-audit.py (R26-2)
 #   M33 a wrong closed-law count in README's own phrasing                    -> claims-audit.py (R26-5)
+#   M34 inline HTML strikethrough in a sev cell                             -> converge.sh (R27-1)
+#   M35 an escaped commit in a JSONL file with one unparseable line         -> claims-audit.py (R27-2)
+#   M36 a mutant count OVERSTATED beside three-digit ids                    -> claims-audit.py
 # and one CONTROL, counted on its own axis, never as a mutation:
 #   C1  a hidden excerpt with a DIFFERENT count while the visible table stays correct -> every gate SILENT
 # M14, M15, M18, M19, M21, M23 and M25 assert on converge.sh's MESSAGE, not its exit code: the gate is
@@ -986,6 +989,77 @@ assert m, 'README no longer says "<n> are closed instances"; re-derive this plan
 p.write_text(t[:m.start(1)] + str(int(m.group(1)) + 7) + t[m.end(1):], encoding='utf-8')
 PLANT
   expect M33_readme_closed_count "$b_audit" 1 "$D" python3 scripts/claims-audit.py
+  # M34 inline HTML strikethrough in a sev cell (R27-1, a defect INSIDE R25-1/R26-1's repair). `_text`
+  # collected text and code and skipped the `~~` strikethrough tokens, but inline HTML tags were dropped
+  # while the text INSIDE them was kept, so a browser showed `LOW` struck out and the gate read it. The
+  # struck text must come FIRST, because the reader takes the cell's first word: probed on b5ac14b,
+  # `<del>LOW</del> MEDIUM`, `<s>LOW</s> MEDIUM` and `<span hidden>LOW</span> MEDIUM` each read sev LOW
+  # with counted 0, while the control `~~LOW~~ MEDIUM` correctly read MEDIUM with counted 1 -- the
+  # asymmetry that IS the finding. Since R27-1 any findings cell containing inline HTML is refused.
+  D="$(copy m34)"
+  python3 - "$D/docs/reviews/round-23.md" <<'PLANT'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); t = p.read_text(encoding='utf-8')
+lines = t.split('\n')
+i = next(k for k, l in enumerate(lines) if re.match(r'^\|\s*id\s*\|\s*sev\s*\|\s*class\s*\|', l))
+row = next(k for k in range(i + 2, len(lines))
+           if lines[k].startswith('|') and re.search(r'\|\s*\**MEDIUM\**\s*\|', lines[k]))
+c = lines[row].split('|')
+sev = next(j for j, x in enumerate(c) if re.fullmatch(r'\s*\**MEDIUM\**\s*', x))
+c[sev] = ' <del>LOW</del> MEDIUM '          # a browser strikes the LOW; the old reader took it as the sev
+lines[row] = '|'.join(c)
+assert '<del>' in lines[row]
+p.write_text('\n'.join(lines), encoding='utf-8')
+PLANT
+  expect_says M34_html_strike_in_sev 'inline HTML' "$D" scripts/converge.sh docs/PORT_STATE.md
+  # M35 an escaped commit in a JSONL evidence file with ONE unparseable line (R27-2, a defect INSIDE
+  # R25-2/R26-2's repair): the bad line made the WHOLE file fall back to the raw scan, where \u escapes stay
+  # encoded. Probed on 3424efa with its own control -- the same file WITHOUT the bad line was CAUGHT, so the
+  # bad line is the cause and not the escape. This is the ONLY exercise of that branch: perf/evidence holds
+  # one .jsonl file, it has no unparseable line, and no evidence file carries a literal \uXXXX escape today.
+  D="$(copy m35)"; n=$((n+1)); ln -s "$PWD/.git" "$D/.git" 2>/dev/null
+  ( cd "$D" && python3 scripts/claims-audit.py --verbose ) >"$T/M35.control.log" 2>&1
+  python3 - "$D/perf/evidence/COUNTED.selftest-m35.jsonl" "$DEADREV" "$(git rev-parse HEAD)" <<'PLANT'
+import json, re, sys
+from pathlib import Path
+out, dead, live = sys.argv[1], sys.argv[2], sys.argv[3]
+esc = ''.join('\\u%04x' % ord(c) if k % 3 == 2 else c for k, c in enumerate(dead))
+Path(out).write_text('{"kind":"counted","after":{"commit":"%s","instructions":10}}\n'
+                     '{this line is not JSON\n'
+                     '{"kind":"counted","after":{"commit":"%s","instructions":11}}\n' % (esc, live),
+                     encoding='utf-8')
+raw = Path(out).read_text(encoding='utf-8')
+assert dead not in raw, 'the hidden commit is literal in the raw text'
+assert not [r for r in re.findall(r'(?<![0-9A-Fa-f])[0-9A-Fa-f]{7,}(?![0-9A-Fa-f])', raw) if r != live], \
+    'a fragment of the hidden commit reached the raw floor: this would be caught for the wrong reason'
+assert sum(1 for l in raw.split('\n') if l.strip() and not l.startswith('{"kind"')) == 1, 'need one bad line'
+PLANT
+  ( cd "$D" && python3 scripts/claims-audit.py --verbose ) >"$T/M35.log" 2>&1
+  if grep -q "$DEADREV" "$T/M35.control.log"; then
+    printf 'UNTESTABLE %-24s the control run already names the planted commit\n' M35_jsonl_bad_line_escape
+    untestable+=(M35_jsonl_bad_line_escape)
+  elif grep -q "$DEADREV" "$T/M35.log"; then
+    printf 'CAUGHT     %-24s %s\n' M35_jsonl_bad_line_escape "the escaped commit beside an unparseable JSONL line"; caught=$((caught+1))
+  else
+    printf 'LEAK       %-24s the escaped commit beside a bad JSONL line was not named\n' M35_jsonl_bad_line_escape
+    leaked+=(M35_jsonl_bad_line_escape)
+  fi
+  # M36 a mutant count OVERSTATED beside three-digit ids, the reviewer's own suggestion after they widened
+  # `\bM\d\d\b` to `\bM\d{2,}\b` so that a scoped run of M104..M108 stops reading as a claim about the whole
+  # inventory. That exemption is deliberately one-sided -- it applies only when the stated count is SMALLER
+  # than the inventory -- and this plant is what holds it one-sided, because the same widening would
+  # otherwise be a licence to overstate beside any two three-digit ids.
+  D="$(copy m36)"
+  python3 - "$D/docs/PORT_STATE.md" <<'PLANT'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+p.write_text(p.read_text(encoding='utf-8') +
+             '\n- law admission, planted: `python3 scripts/hand-mutants.py M104 M105 M106 M107 M108` -> '
+             '`{"mutants": 999, "killed": 999, "survived": [], "verdict": "STRONG"}`\n', encoding='utf-8')
+PLANT
+  expect M36_mutant_count_overstated "$b_audit" 1 "$D" python3 scripts/claims-audit.py
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -1001,7 +1075,8 @@ else
   echo "UNTESTABLE M25_report_table_in_quote    scripts/review_report.py or docs/reviews/round-23.md is not in this port"
   n=$((n+1)); untestable+=(M25_report_table_in_quote)
   for m in M26_rounds_row_prose_only M27_report_without_row M28_round_cell_not_a_number M29_escaped_commit M30_accepted_disc_no_approver \
-              M31_fullwidth_fence_decoy M32_duplicate_commit_key M33_readme_closed_count; do
+              M31_fullwidth_fence_decoy M32_duplicate_commit_key M33_readme_closed_count \
+              M34_html_strike_in_sev M35_jsonl_bad_line_escape M36_mutant_count_overstated; do
     echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
     n=$((n+1)); untestable+=("$m")
   done

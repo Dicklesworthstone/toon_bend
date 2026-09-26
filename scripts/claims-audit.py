@@ -72,6 +72,18 @@ def reachable(rev):
 
 
 _INVENTORY = {}
+_GIT = []
+
+
+def git_tree():
+    """Whether ROOT is inside a git work tree (cached)."""
+    if not _GIT:
+        try:
+            _GIT.append(subprocess.run(["git", "-C", ROOT, "rev-parse", "--is-inside-work-tree"], stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL, timeout=10, check=False).returncode == 0)
+        except Exception:
+            _GIT.append(False)
+    return _GIT[0]
 
 
 def inventory_at(rev):
@@ -853,6 +865,10 @@ def audit(files, f, gates, verbose):
                             scope = len(set(re.findall(r"\bM\d+\b", cmd[-1])))
                             what = "the %d ids its hand-mutants.py command lists" % scope
                         elif cmd:
+                            # Without git (a copy of the tree, as harness-selftest makes) history cannot be read: like
+                            # `reachable`, a git failure adds no finding. With git, an unnamed or unknown commit is one.
+                            if not git_tree():
+                                continue
                             shas = [s for s in re.findall(r"`([0-9a-f]{7,40})`", span) if inventory_at(s) is not None]
                             if not shas:
                                 hit(path, n, "%s: a whole-inventory run (its command lists no ids) says %d and names "

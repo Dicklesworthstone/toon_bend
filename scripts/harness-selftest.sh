@@ -51,6 +51,10 @@
 #   M41 an invisible Cf character in a findings BODY cell                   -> converge.sh (R29-1)
 #   M42 a pasted mutant count disagreeing with its command's ids            -> claims-audit.py (R29-2)
 #   M43 a pasted mutant count disagreeing with its stated range             -> claims-audit.py (R29-2)
+#   M44 an id a reader sees in an HTML block, with no row                   -> converge.sh (R30-1)
+#   M45 an id spelled with a Cyrillic letter                                -> converge.sh (R30-1)
+#   M46 a pasted count against ids its command spells past a flag           -> claims-audit.py (R30-3)
+#   M47 a whole-inventory count against the inventory git records (NEEDS GIT) -> claims-audit.py (R30-3)
 # and one CONTROL, counted on its own axis, never as a mutation:
 #   C1  a hidden excerpt with a DIFFERENT count while the visible table stays correct -> every gate SILENT
 # M14, M15, M18, M19, M21, M23 and M25 assert on converge.sh's MESSAGE, not its exit code: the gate is
@@ -1217,6 +1221,69 @@ p.write_text(p.read_text(encoding='utf-8') +
              '"verdict": "STRONG"}`\n', encoding='utf-8')
 PLANT
   expect_says M43_paste_vs_stated_range 'inventory ids in M1 to M10' "$D" python3 scripts/claims-audit.py
+  # M44/M45 round 30's THIRD surface (R30-1, code e19d8b5). The completeness check "every id named has a row"
+  # read ids from RENDERED inline text only, so an id in an HTML block or comment, or spelled with a non-ASCII
+  # letter, was never "named" while the page showed it. Neither the header contract nor the cell contract
+  # claimed this surface, which is why the family reached a seventh instance with both of them holding.
+  D="$(copy m44)"
+  python3 - "$D/docs/reviews/round-23.md" <<'PLANT'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+# an id a reader SEES (an HTML block renders) with no row in the findings table
+p.write_text(p.read_text(encoding='utf-8') +
+             '\n<p>R23-98 is a further MEDIUM behaviour finding of this round.</p>\n', encoding='utf-8')
+PLANT
+  expect_says M44_id_in_html_block 'is named in the report but has no row' "$D" \
+    scripts/converge.sh docs/PORT_STATE.md
+  D="$(copy m45)"
+  python3 - "$D/docs/reviews/round-23.md" <<'PLANT'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+# U+0420 CYRILLIC CAPITAL LETTER ER: a reader sees R23-97, the old check never matched it
+p.write_text(p.read_text(encoding='utf-8') +
+             '\nР23-97 is a further MEDIUM behaviour finding of this round.\n', encoding='utf-8')
+PLANT
+  expect_says M45_homoglyph_id 'instead of R' "$D" scripts/converge.sh docs/PORT_STATE.md
+  # M46 a pasted count against the ids its OWN command lists, where the command spells them past a flag
+  # (`--all-laws M120 M121`): round 30 widened the scope to ALL `M<n>` arguments, so a flag no longer hides
+  # them. This one needs no git and runs in the copy.
+  D="$(copy m46)"
+  python3 - "$D/docs/PORT_STATE.md" <<'PLANT'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+p.write_text(p.read_text(encoding='utf-8') +
+             '\n- planted: `python3 scripts/hand-mutants.py --all-laws M120 M121` -> `{"mutants": 124, '
+             '"killed": 124, "survived": [], "verdict": "STRONG"}`\n', encoding='utf-8')
+PLANT
+  expect_says M46_paste_vs_flagged_ids 'ids its hand-mutants.py command lists' "$D" python3 scripts/claims-audit.py
+  # M47 a WHOLE-inventory run naming a commit whose inventory differs from the pasted count. This plant NEEDS
+  # GIT and says so, which is the whole point: `inventory_at` reads history, and without git the check adds no
+  # finding by design (the `reachable` convention). In harness-selftest's no-git copy it would report LEAK for
+  # the environment rather than for the gate -- the mistake M16 and M24 both record making. So .git is linked
+  # and the control is taken from the SAME tree before the line is planted, as M24 does.
+  D="$(copy m47)"; n=$((n+1)); ln -s "$PWD/.git" "$D/.git" 2>/dev/null
+  ( cd "$D" && python3 scripts/claims-audit.py ) >"$T/M47.control.log" 2>&1
+  python3 - "$D/docs/PORT_STATE.md" "$(git rev-parse --short=12 HEAD)" <<'PLANT'
+import sys
+from pathlib import Path
+p, sha = Path(sys.argv[1]), sys.argv[2]
+p.write_text(p.read_text(encoding='utf-8') +
+             '\n- planted: `python3 scripts/hand-mutants.py` over the whole inventory at `%s` -> '
+             '`{"mutants": 3, "killed": 3, "survived": [], "verdict": "STRONG"}`\n' % sha, encoding='utf-8')
+PLANT
+  ( cd "$D" && python3 scripts/claims-audit.py ) >"$T/M47.log" 2>&1
+  if grep -q 'the whole inventory at' "$T/M47.control.log"; then
+    printf 'UNTESTABLE %-24s the control run already names the whole-inventory rule\n' M47_whole_run_wrong_commit
+    untestable+=(M47_whole_run_wrong_commit)
+  elif grep -q 'the whole inventory at' "$T/M47.log"; then
+    printf 'CAUGHT     %-24s %s\n' M47_whole_run_wrong_commit "a whole-inventory count against the inventory git records"; caught=$((caught+1))
+  else
+    printf 'LEAK       %-24s the whole-inventory count was not judged against git history\n' M47_whole_run_wrong_commit
+    leaked+=(M47_whole_run_wrong_commit)
+  fi
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -1236,7 +1303,8 @@ else
               M34_html_strike_in_sev M35_jsonl_bad_line_escape M36_mutant_count_overstated \
               M37_header_html M38_duplicate_sev_column M39_mutant_prose_total \
               M40_severity_header M41_cf_in_findings_cell M42_paste_vs_command_ids \
-              M43_paste_vs_stated_range; do
+              M43_paste_vs_stated_range M44_id_in_html_block M45_homoglyph_id \
+              M46_paste_vs_flagged_ids M47_whole_run_wrong_commit; do
     echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
     n=$((n+1)); untestable+=("$m")
   done

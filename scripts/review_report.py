@@ -17,10 +17,12 @@ The contract a report from round 20 on must meet (the review brief states the sa
     round's ids in its first column;
   - no table cell contains inline HTML (rounds 27-28) or an invisible format character, Unicode Cf (round 29);
   - every row of that table has an id `R<n>-<k>` of THIS round, a sev HIGH, MEDIUM or LOW, and a class that
-    starts BEHAVIOR (or BEHAVIOUR), LAW-COVERAGE or DOCUMENT, after markup is removed;
+    starts BEHAVIOR (or BEHAVIOUR), LAW-COVERAGE or DOCUMENT before round 32, and PORT, HARNESS, CORPUS,
+    LAW-COVERAGE or DOCUMENT from round 32 (the owner's decision of 2026-09-26, PORT_RULE_ROUND below);
   - every `R<n>-<k>` of this round named anywhere in the report has a row in that table (a finding written as
     a bullet or in prose only is an error, not an absence).
-The counted findings are the rows whose sev is HIGH or MEDIUM and whose class is BEHAVIOR.
+The counted findings are the rows whose sev is HIGH or MEDIUM and whose class is BEHAVIOR (before round 32) or
+PORT (from round 32).
 
 What no parser can do: tell a complete, well-formed report written by the table's own author from a real one.
 The gates check that the record is complete and consistent, not who wrote it (docs/PORT_STATE.md says so).
@@ -37,6 +39,15 @@ import unicodedata
 DASHES = dict.fromkeys(map(ord, "‐‑‒–—―−﹘﹣－"), "-")
 SEVERITIES = ("HIGH", "MEDIUM", "LOW")
 CLASSES = ("BEHAVIOUR", "BEHAVIOR", "LAW-COVERAGE", "DOCUMENT")
+LEGACY_CLASSES = CLASSES
+# The owner's decision of 2026-09-26 (toon_bend-txp, option 4: "I approve it all"): from this round on, only a
+# difference between the port and the pinned original decides convergence. PORT: a stdout, stderr or exit-code
+# difference on some lane, or a wrong proof verdict. HARNESS: a gate that misreads. CORPUS: a hand mutant that
+# survives the corpus and the proof. HARNESS, CORPUS, LAW-COVERAGE and DOCUMENT findings are recorded and must be
+# repaired (the rounds table's `fixed` column), but do not make a round dirty. BEHAVIOR is refused from this round:
+# it named both kinds at once. Applied from the first round briefed under the decision, not to earlier rounds.
+PORT_RULE_ROUND = 32
+PORT_CLASSES = ("PORT", "HARNESS", "CORPUS", "LAW-COVERAGE", "DOCUMENT")
 HEADER = ("id", "sev", "class", "what", "spec")   # the findings table's header, as every review brief states it
 
 
@@ -174,13 +185,16 @@ def parse(text, rnd):
             err("%s has two rows in the findings table" % ident)
         seen.add(ident)
         sev_word = sev if sev in SEVERITIES else ""
-        cls_word = (re.match(r"(BEHAVIOUR|BEHAVIOR|LAW-COVERAGE|DOCUMENT)(?=$| )", cls) or [""])[0]
+        classes = PORT_CLASSES if rnd >= PORT_RULE_ROUND else LEGACY_CLASSES
+        cls_word = (re.match(r"(%s)(?=$| )" % "|".join(classes), cls) or [""])[0]
         if not sev_word:
             err("%s: the sev cell `%s` is not exactly HIGH, MEDIUM or LOW" % (ident, sev[:30]))
         if not cls_word:
-            err("%s: the class cell `%s` does not start with a bare BEHAVIOR, LAW-COVERAGE or DOCUMENT" % (ident, cls[:30]))
+            err("%s: the class cell `%s` does not start with a bare %s" % (ident, cls[:30], ", ".join(classes)))
         out["rows"].append({"id": ident, "sev": sev_word, "class": cls_word})
-        if sev_word in ("HIGH", "MEDIUM") and cls_word.startswith("BEHAVIO"):
+        # Before PORT_RULE_ROUND a HIGH or MEDIUM BEHAVIOR finding counts (the rule of 2026-09-23, under which those
+        # rounds were briefed); from it, only a HIGH or MEDIUM PORT finding does (the owner's decision, toon_bend-txp).
+        if sev_word in ("HIGH", "MEDIUM") and cls_word in (("PORT",) if rnd >= PORT_RULE_ROUND else ("BEHAVIOR", "BEHAVIOUR")):
             out["counted"] += 1
     # Only the findings table may list this round's findings: another rendered table whose FIRST cell is one of this
     # round's ids (a re-headed copy, R24-1; a copy in a blockquote or a list item, R25-1) is refused.

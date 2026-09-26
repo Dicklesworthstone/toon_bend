@@ -1302,6 +1302,22 @@ lines[0] = lines[0].replace(m.group(0), '(%d cases)' % (int(m.group(1).replace('
 p.write_text('\n'.join(lines), encoding='utf-8')
 PLANT
   expect_says M48_report_headline_corpus 'the headline states a corpus of' "$D" python3 scripts/claims-audit.py
+  # M49 README's Quick Example showing output the port does not print. Found 2026-09-26 in the same reading
+  # as M48: the decode example printed `"id": 1.0` -- the ONE bug of the original that README's own table
+  # names as fixed upstream -- shown as this port's output, while `happy_readme_users_decode` in the corpus
+  # printed `1`. No gate read an example's output at all: the performance section's numbers were checked
+  # against perf/evidence/ and every count against the repository, but the bytes a reader compares with
+  # their own terminal rested on nothing. The plant is that exact defect, one line of a twelve-line block.
+  D="$(copy m49)"
+  python3 - "$D/README.md" <<'PLANT'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1]); t = p.read_text(encoding='utf-8')
+old = '#       "id": 1,'
+assert t.count(old) == 1, 'the decode example no longer shows `"id": 1,` once; re-derive this plant'
+p.write_text(t.replace(old, '#       "id": 1.0,'), encoding='utf-8')
+PLANT
+  expect_says M49_readme_example_output 'where goldens/happy_readme_users_decode.out line' "$D" python3 scripts/claims-audit.py
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -1311,6 +1327,11 @@ PLANT
   # finding the round-30 reviewer hit with their own pointer sentence. A mention is not a command, so this
   # must stay SILENT; if it speaks, the detector has been widened back and reads prose as an invocation.
   # The count is the true inventory, so the ordinary check passes and only the scoping is under test.
+  # TWO shapes, because the first repair fixed only one of them: the mention BESIDE a count, and a mention
+  # on one line of a paragraph with the paste on the NEXT line. The audit carries "the last hand-mutants.py
+  # command of the paragraph" forward across lines (a table's rows are one paragraph), and that carrier kept
+  # the broad pattern, so the second shape still demanded a sha. It was found by writing exactly that pair
+  # into docs/PORT_REPORT.md, not by this control -- which is why the control now covers it.
   D="$(copy c2)"
   python3 - "$D/docs/PORT_STATE.md" "$(python3 -c "
 import ast
@@ -1322,7 +1343,11 @@ p, total = Path(sys.argv[1]), sys.argv[2]
 assert total.isdigit() and int(total) > 0, 'could not read the inventory size'
 p.write_text(p.read_text(encoding='utf-8') +
              '\n- planted control: a def that `scripts/hand-mutants.py` covers -> `{"mutants": %s, '
-             '"killed": %s, "survived": [], "verdict": "STRONG"}`\n' % (total, total), encoding='utf-8')
+             '"killed": %s, "survived": [], "verdict": "STRONG"}`\n'
+             # the second shape: the mention and the paste on two lines of ONE paragraph (a table's rows)
+             '\n| a def that `scripts/hand-mutants.py` covers | planted control |\n'
+             '| `{"mutants": %s, "killed": %s, "survived": [], "verdict": "STRONG"}` | planted control |\n'
+             % (total, total, total, total), encoding='utf-8')
 PLANT
   expect_quiet C2_prose_mention_not_a_command 'mutants in a pasted line' "$D" python3 scripts/claims-audit.py
   D="$(copy c1)"
@@ -1342,7 +1367,8 @@ else
               M37_header_html M38_duplicate_sev_column M39_mutant_prose_total \
               M40_severity_header M41_cf_in_findings_cell M42_paste_vs_command_ids \
               M43_paste_vs_stated_range M44_id_in_html_block M45_homoglyph_id \
-              M46_paste_vs_flagged_ids M47_whole_run_wrong_commit M48_report_headline_corpus; do
+              M46_paste_vs_flagged_ids M47_whole_run_wrong_commit M48_report_headline_corpus \
+              M49_readme_example_output; do
     echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
     n=$((n+1)); untestable+=("$m")
   done

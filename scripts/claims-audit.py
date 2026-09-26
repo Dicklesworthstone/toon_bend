@@ -702,6 +702,103 @@ def live_mismatches(o, f, gates):
     return out
 
 
+def mutant_cmds(span):
+    """The `hand-mutants.py` INVOCATIONS in `span`, as the text that follows each one.
+
+    A MENTION IS NOT A COMMAND. The rule that scopes a pasted mutant count by "the ids its own command
+    lists" matched any prose naming the script, so a sentence like "a def that `scripts/hand-mutants.py`
+    covers" beside a paste made the audit treat it as a WHOLE-INVENTORY run and demand a commit sha -- a
+    false finding, reported by the round-30 reviewer as a side effect of their own pointer sentence
+    (2026-09-26, R30-3). The discriminator is checked against how these documents actually spell things,
+    not guessed: every real invocation carries an interpreter or a path prefix (`python3
+    scripts/hand-mutants.py …`, five of them), every prose mention is a bare backticked path, and a
+    mention that still LISTS ids stays a command whatever its prefix, because ids are unambiguous. A bare
+    mention falls through to the ordinary count check, which is the check it always deserved."""
+    return [t for pre, t in re.findall(r"((?:python3\s+|\./)?)(?:scripts/)?hand-mutants\.py([^`\n|]*)", span)
+            if pre or re.search(r"\bM\d+\b", t)]
+
+
+def _sh_string(kind, body):
+    """The bytes a single-quoted `echo` or `printf` argument sends to stdin (the two spellings README uses)."""
+    if kind == "echo":
+        return body + "\n"
+    esc = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", "'": "'", '"': '"', "0": "\0"}
+    out, i = [], 0
+    while i < len(body):
+        if body[i] == "\\" and i + 1 < len(body):
+            out.append(esc.get(body[i + 1], "\\" + body[i + 1]))
+            i += 2
+        else:
+            out.append(body[i])
+            i += 1
+    return "".join(out)
+
+
+# 49v: README's example OUTPUT rested on nothing. Every ratio of the performance section is checked against
+# perf/evidence/ and every count against the repository, but the bytes a reader compares with their own
+# terminal were checked by no gate -- and the reality check of 2026-09-26 found the decode example printing
+# `"id": 1.0` where the port and the original both print `1`: the exact bug the README's own table says was
+# FIXED upstream, shown as this port's output. The corpus already covers both examples
+# (`happy_readme_users`, `happy_readme_users_decode`), so this is a comparison, not a new capture.
+#
+# An example is `echo`/`printf` piped into the port inside a ```bash fence, followed immediately by
+# `# `-prefixed lines. Those lines are read as a claim about stdout only when at least one of them already
+# equals the golden at its own index: a comment block that matches nothing is prose (the Quick Build block's
+# "# or, with the original's exact command line ...") and is not an output claim. THE HOLE THAT LEAVES: an
+# example rewritten so that NO line survives reads as prose and is skipped. Closing it needs a spelled
+# convention in README; the drift this catches is a line or two moving, which is what actually happened.
+def readme_examples(text):
+    """(line, finding) for every README example whose shown output is not the captured golden."""
+    idx = {}
+    for row in read_opt("goldens/cases.tsv").splitlines():
+        col = row.split("\t")
+        if row.startswith("#") or len(col) < 3 or col[2] == "-":
+            continue
+        try:
+            key = (read(col[2]), tuple(json.loads(col[1])))
+        except (OSError, ValueError):
+            continue  # a partial copy of the port, or a row whose argv is not JSON (cases-lint's finding)
+        idx.setdefault(key, col[0])
+    out, lines, fence = [], text.splitlines(), False
+    for n, line in enumerate(lines, 1):
+        if line.startswith("```"):
+            fence = line.strip() == "```bash"
+            continue
+        m = re.match(r"\s*(echo|printf) '([^']*)' \| \./toon\s+--\s+(.*?)\s*$", line) if fence else None
+        if not m:
+            continue
+        claimed = []
+        for follow in lines[n:]:
+            c = re.match(r"#(?: (.*)|$)", follow)
+            if not c:
+                break
+            body = c.group(1) or ""
+            if body.strip() in ("...", "…") or body.startswith("("):
+                break  # an elision, or a note about the example: the claim ends here
+            claimed.append(body)
+        if not claimed:
+            continue  # a command shown without its output claims nothing
+        case = idx.get((_sh_string(m.group(1), m.group(2)), tuple(m.group(3).split())))
+        if case is None:
+            out.append((n, "a README example pipes inline input into the port that matches no case of "
+                           "goldens/cases.tsv, so the output it shows is checked by nothing"))
+            continue
+        golden = read_opt("goldens/%s.out" % case).splitlines()
+        if not any(c == golden[i] for i, c in enumerate(claimed[:len(golden)])):
+            continue  # prose, not an output claim (the hole named above)
+        for i, c in enumerate(claimed[:len(golden)]):
+            if c != golden[i]:
+                out.append((n + 1 + i, "the README example of case %s shows `%s` where goldens/%s.out line %d "
+                                       "is `%s`" % (case, c[:60], case, i + 1, golden[i][:60])))
+                break
+        else:
+            if len(claimed) < len(golden):
+                out.append((n + len(claimed), "the README example of case %s shows %d lines of the %d in "
+                                              "goldens/%s.out and does not mark the elision"
+                                              % (case, len(claimed), len(golden), case)))
+    return out
+
+
 def audit(files, f, gates, verbose):
     findings, absent = [], []
     exempt = 0
@@ -856,18 +953,7 @@ def audit(files, f, gates, verbose):
                         since = line[:m.start()]
                         prior = list(re.finditer(r'"mutants": \d+', since))
                         span = since[prior[-1].end():] if prior else since
-                        # A MENTION is not a command. `re.findall(r"hand-mutants\.py…")` matched any prose
-                        # naming the script, so a sentence like "a def that `scripts/hand-mutants.py`'s
-                        # inventory covers" before a pasted count made the `elif cmd` branch below treat the
-                        # paste as a WHOLE-INVENTORY run and demand a commit sha — a false finding, reported by
-                        # the round-30 reviewer as a side effect of their own pointer sentence (2026-09-26).
-                        # The discriminator is checked against how these documents actually spell things, not
-                        # guessed: every real invocation carries an interpreter or a path prefix
-                        # (`python3 scripts/hand-mutants.py …`, five of them), and every prose mention is a bare
-                        # backticked path. A mention that still LISTS ids stays a command whatever its prefix,
-                        # because ids are unambiguous; a bare mention falls through to the ordinary check.
-                        cmd = [t for pre, t in re.findall(r"((?:python3\s+|\./)?)(?:scripts/)?hand-mutants\.py([^`\n|]*)", span)
-                               if pre or re.search(r"\bM\d+\b", t)]
+                        cmd = mutant_cmds(span)   # a MENTION is not a command: see mutant_cmds (R30-3)
                         if not cmd and not prior and para_cmd is not None:
                             cmd = [para_cmd]
                         rng = re.findall(r"\bM(\d+) to M(\d+)\b", span)
@@ -904,7 +990,11 @@ def audit(files, f, gates, verbose):
                         exempt += 1
                     else:
                         hit(path, n, "%s: says %d, the repository has %d" % (name, said, want), line)
-            cmds = re.findall(r"hand-mutants\.py([^`\n|]*)", line)
+            # The paragraph CARRIER takes invocations only, by the same test: it used the broad pattern, so a
+            # prose mention on one table row made the NEXT row's paste inherit it as a whole-inventory command
+            # and demand a commit sha. Found by writing exactly that pair into docs/PORT_REPORT.md while
+            # recording this repair (2026-09-26), which is why both sites now call one function.
+            cmds = mutant_cmds(line)
             if cmds:
                 para_cmd = cmds[-1]
             # references that must exist
@@ -1036,6 +1126,10 @@ def audit(files, f, gates, verbose):
                 % ((re.search(r"\((\d[\d,]*)\s+cases\)", first) or [""])[1], f["cases"]), first)
     # every number of README's performance section must come from perf/evidence/
     readme = read("README.md")
+    if "README.md" in files:
+        rl = readme.splitlines()
+        for n, why in readme_examples(readme):
+            hit("README.md", n, why, rl[n - 1] if 0 < n <= len(rl) else "")
     a = readme.find("## Performance")
     b = readme.find("## Design Philosophy", a + 1)
     if a > 0 and b > a and "README.md" in files:

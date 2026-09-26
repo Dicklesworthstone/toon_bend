@@ -84,7 +84,12 @@ usage() { sed -n '2,/^set -/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; }
 [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] && { usage; exit 0; }
 [[ $# -lt 2 ]] && { usage >&2; exit 2; }
 PORT="$1"; shift
-FILE="main.bend"; PROOF="PROOF.bend"; OPS=""; TO=90; KEEP=0; DEFS=()
+# The default timeout is sized for THIS port's proof, and the direction of the error matters. A mutant the
+# laws catch is refuted fast, so a short cap looks adequate; a mutant that SURVIVES runs the whole proof,
+# which is 7 min 52 s over 662 laws here. At the old default of 90 s every survivor -- the only outcome that
+# is a finding -- came back TIMEOUT, so the cap hid exactly what the tool exists to report (2026-09-25: a
+# batch was launched at 90 s and could not even get a green baseline).
+FILE="main.bend"; PROOF="PROOF.bend"; OPS=""; TO=900; KEEP=0; DEFS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in --file|--proof|--ops|--timeout) [[ $# -ge 2 && -n "$2" ]] || { echo "error: $1 needs a value" >&2; exit 2; };; esac
   case "$1" in
@@ -146,6 +151,14 @@ elapsed() { awk -v a="$1" -v b="$2" 'BEGIN{printf "%.2f", b-a}'; }
 # baseline: the proof must be green before any mutation
 rc=$(brun "$T/base" "$T/base.out" "$PROOF")
 if [[ "$rc" -ne 0 ]] || ! tail -1 "$T/base.out" | grep -Eq '^All terms check(, with [0-9]+ unsafe annotations?)?\.$'; then
+  # A TIMEOUT is not a red baseline, and saying so matters: told "not green", a reader goes looking for a
+  # broken law when the only thing wrong is the cap. brun reports 125 for a timeout (rc is None upstream).
+  if [[ "$rc" -eq 125 ]]; then
+    echo "error: baseline $PROOF did not finish within --timeout ${TO}s, so there is no baseline and no" >&2
+    echo "       evidence about any law. This is a cap, not a red proof: the proof here takes about 8 min" >&2
+    echo "       over 662 laws. Re-run with a larger --timeout." >&2
+    exit 2
+  fi
   echo "error: baseline $PROOF is not green (exit $rc): $(tail -1 "$T/base.out")" >&2; exit 2
 fi
 echo "baseline: $(tail -1 "$T/base.out")"

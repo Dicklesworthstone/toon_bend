@@ -2935,3 +2935,40 @@ law argv_indent_negative_exponent_word:
 
 law encode_nested_body_sibling_set:
   {C.run_pure(["--encode", "--key-folding", "safe"], T.ascii_bytes("{\"x\":{\"a.b\":1,\"a\":{\"b\":2}}}", Nil{})) == C.Out{0n, "x:\n  a.b: 1\n  a:\n    b: 2\n", ""} : C.Out}
+
+# Round 28 (R28-3, R28-4): behaviours whose hand mutants the corpus did not catch (R28-3) or no law did (R28-4), pinned
+# with bytes from the pinned original, each law checked ALONE and against its mutant under a 6 GB / 180 s cap before
+# it was added. S2.2: the LAST overlong value of each length, a C0 continuation byte and U+110000 are invalid UTF-8
+# (U3, U4, U6, U2). S1.31: i64::MIN and i64::MAX indents and a u64::MAX flatten depth parse, then meet their range
+# checks (Ce, Cc, Cd). S1.40: the similarity tip's Jaro window and its tie (K2, K3, K4). S3.20: a list item's fields
+# after a tabular first field (I1). Case-pinned by design: F2 and F3 (a 17-digit number through the whole pipeline
+# did not finish in 180 s), B12 and F1 (fraction printing, the same cost; the corpus catches both)
+law utf8_verdict_rejects_last_overlong_3byte:
+  {T.utf8.finish(T.utf8.bytes([224, 159, 191], T.utf8.init.verdict())) == None{} : Maybe<&2, String>}
+
+law utf8_verdict_rejects_last_overlong_4byte:
+  {T.utf8.finish(T.utf8.bytes([240, 143, 191, 191], T.utf8.init.verdict())) == None{} : Maybe<&2, String>}
+
+law utf8_verdict_rejects_c0_continuation:
+  {T.utf8.finish(T.utf8.bytes([195, 192], T.utf8.init.verdict())) == None{} : Maybe<&2, String>}
+
+law utf8_verdict_rejects_above_max:
+  {T.utf8.finish(T.utf8.bytes([244, 144, 128, 128], T.utf8.init.verdict())) == None{} : Maybe<&2, String>}
+
+law argv_indent_i64_min:
+  {C.run_pure(["--encode", "--indent=-9223372036854775808"], T.ascii_bytes("{}", Nil{})) == C.Out{2n, "", "error: invalid value '-9223372036854775808' for '--indent <INDENT>': -9223372036854775808 is not in 0..=16\n\nFor more information, try '--help'."} : C.Out}
+
+law argv_indent_i64_max:
+  {C.run_pure(["--encode", "--indent", "9223372036854775807"], T.ascii_bytes("{}", Nil{})) == C.Out{2n, "", "error: invalid value '9223372036854775807' for '--indent <INDENT>': 9223372036854775807 is not in 0..=16\n\nFor more information, try '--help'."} : C.Out}
+
+law argv_flatten_depth_u64_max:
+  {C.run_pure(["--encode", "--key-folding", "safe", "--flatten-depth", "18446744073709551615"], T.ascii_bytes("{\"a\":{\"b\":{\"c\":1}}}", Nil{})) == C.Out{0n, "a.b.c: 1\n", ""} : C.Out}
+
+law argv_key_folding_similar_picks_best:
+  {C.run_pure(["--encode", "--key-folding", "sofa"], T.ascii_bytes("{}", Nil{})) == C.Out{2n, "", "error: invalid value 'sofa' for '--key-folding <KEY_FOLDING>'\n  [possible values: off, safe]\n\n  tip: a similar value exists: 'off'\n\nFor more information, try '--help'."} : C.Out}
+
+law argv_key_folding_similar_tie:
+  {C.run_pure(["--encode", "--key-folding", "ofae"], T.ascii_bytes("{}", Nil{})) == C.Out{2n, "", "error: invalid value 'ofae' for '--key-folding <KEY_FOLDING>'\n  [possible values: off, safe]\n\n  tip: a similar value exists: 'safe'\n\nFor more information, try '--help'."} : C.Out}
+
+law decode_list_item_first_tabular_then_field:
+  {C.run_pure(["--decode"], T.ascii_bytes("l[1]:\n  - rows[2]{a}:\n      1\n      2\n    n: 1\n", Nil{})) == C.Out{0n, "{\n  \"l\": [\n    {\n      \"rows\": [\n        {\n          \"a\": 1\n        },\n        {\n          \"a\": 2\n        }\n      ],\n      \"n\": 1\n    }\n  ]\n}\n", ""} : C.Out}

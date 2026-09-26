@@ -811,7 +811,9 @@ def audit(files, f, gates, verbose):
                     # A line that names mutant ids reports a SELECTION, which may be smaller than the set but
                     # never larger. This used to skip every mutant count on such a line, so round 15 wrote
                     # `"mutants": 99` beside two ids and nothing objected.
-                    if selective and name.startswith("mutants") and said < want:
+                    # Round 28 (R28-2): only a run's own pasted `"mutants": N` is a selection. A prose total ("100
+                    # mutants in all", "N hand-written mutants") names the inventory even beside two ids.
+                    if selective and name == "mutants in a pasted line" and said < want:
                         continue
                     # Judged on the CLAUSE around this number. The exemption used to cover the whole line, so
                     # appending "earlier" to a line made every count on it unchecked -- and README's headline

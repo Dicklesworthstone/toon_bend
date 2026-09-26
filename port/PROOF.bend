@@ -2740,3 +2740,43 @@ def Laws.argv_indent_negative_exponent_word():
 # S4.70 closed: the whole pure core computed (round 27)
 def Laws.encode_nested_body_sibling_set():
   {==}
+
+# S2.2 closed: the whole pure core computed (round 28)
+def Laws.utf8_verdict_rejects_last_overlong_3byte():
+  {==}
+
+# S2.2 closed: the whole pure core computed (round 28)
+def Laws.utf8_verdict_rejects_last_overlong_4byte():
+  {==}
+
+# S2.2 closed: the whole pure core computed (round 28)
+def Laws.utf8_verdict_rejects_c0_continuation():
+  {==}
+
+# S2.2 closed: the whole pure core computed (round 28)
+def Laws.utf8_verdict_rejects_above_max():
+  {==}
+
+# S1.31 closed: the whole pure core computed (round 28)
+def Laws.argv_indent_i64_min():
+  {==}
+
+# S1.31 closed: the whole pure core computed (round 28)
+def Laws.argv_indent_i64_max():
+  {==}
+
+# S1.31 closed: the whole pure core computed (round 28)
+def Laws.argv_flatten_depth_u64_max():
+  {==}
+
+# S1.40 closed: the whole pure core computed (round 28)
+def Laws.argv_key_folding_similar_picks_best():
+  {==}
+
+# S1.40 closed: the whole pure core computed (round 28)
+def Laws.argv_key_folding_similar_tie():
+  {==}
+
+# S3.20 closed: the whole pure core computed (round 28)
+def Laws.decode_list_item_first_tabular_then_field():
+  {==}

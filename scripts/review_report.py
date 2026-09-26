@@ -113,6 +113,12 @@ def parse(text, rnd):
     tokens = md.parse(text)
     html = set()
     tables = _tables(tokens, html)
+    # Round 27 (R27-1): `<del>LOW</del> MEDIUM` renders MEDIUM and was read LOW. Round 28 (R28-1): refusing it only in
+    # the findings BODY left the header, where `<del>sev</del> | sev` chooses which column is read, and every other
+    # table (the reviewed commit's). How a browser renders inline HTML is not decided here: ANY table cell with inline
+    # HTML is refused (a placeholder belongs in backticks, which is code, not HTML).
+    for n, i in sorted(html):
+        err("table %d, row %d: a cell contains inline HTML; write it as text (a placeholder in backticks)" % (n + 1, i + 1))
     for rows in tables:
         for r in rows:
             if len(r) >= 2 and r[0].lower() == "reviewed commit" and not out["commit"]:
@@ -133,18 +139,20 @@ def parse(text, rnd):
         err("%d findings tables (header cells `id`, `sev`, `class`); a report has exactly one" % len(found))
         return out
     tn, cols = found[0]
+    # Two columns a reader could take for one field (`| id | sev | sev | class |`, or `sev` beside `severity`):
+    # which one the gate reads would be a choice the page does not show.
+    head = [c.lower() for c in tables[tn][0]]
+    for name in ("id", "sev", "class"):
+        if head.count(name) + (head.count("severity") if name == "sev" else 0) > 1:
+            err("the findings table has more than one `%s` column" % name)
     seen = set()
-    for i, r in enumerate(tables[tn][1:], 1):
+    for r in tables[tn][1:]:
         ident, sev, cls = (r[cols[k]] if cols[k] < len(r) else "" for k in ("id", "sev", "class"))
         m = re.fullmatch(r"R(\d+)[-.]0*(\d+)", ident, re.I)
         if not m or int(m.group(1)) != rnd:
             err("a findings row whose id `%s` is not R%d-<k>" % (ident[:40], rnd))
             continue
         ident = "R%d-%d" % (rnd, int(m.group(2)))
-        # Round 27 (R27-1): `<del>LOW</del> MEDIUM` renders MEDIUM and was read LOW. How a browser renders inline HTML
-        # is not decided here: a findings row with any is refused (a placeholder belongs in backticks).
-        if (tn, i) in html:
-            err("%s: a findings cell contains inline HTML; write it as text (a placeholder in backticks)" % ident)
         if ident in seen:
             err("%s has two rows in the findings table" % ident)
         seen.add(ident)

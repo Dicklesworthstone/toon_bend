@@ -228,6 +228,30 @@ MUTANTS = [
   'num.go: a digit after the exponent letter does not clear `last_e` (`-1e5` is not a number) (R27-3, C11)'),
  ('M108', 'encode.bend', 'emit(entries, CFields{dc, fc, keys.kt(fc.on(fc), entries)}', 'emit(entries, CFields{dc, fc, T.kt.empty()}',
   'a NESTED object body has no sibling set: sibling collisions below the root are not seen (R27-4, E6)'),
+ # round 28: the reviewer's own mutant texts (r28/m28defs.py). Not here, each pinned by captured cases: F2 and F3
+ # (17-digit interval ends), B12 and F1 (the corpus catches both; their laws would print through the software float).
+ ('M109', 'text.bend', 'Decoding{2n, (c .&. 15 : U32), 2048, keep, rev}', 'Decoding{2n, (c .&. 15 : U32), 2047, keep, rev}',
+  'utf8.start: 3-byte minimum 0x7FF (overlong E0 9F BF accepted) (R28-3, U3)'),
+ ('M110', 'text.bend', 'Decoding{3n, (c .&. 7 : U32), 65536, keep, rev}', 'Decoding{3n, (c .&. 7 : U32), 65535, keep, rev}',
+  'utf8.start: 4-byte minimum 0xFFFF (overlong F0 8F BF BF accepted) (R28-3, U4)'),
+ ('M111', 'text.bend', 'utf8.cont(Bool.and(U32.is_ge(c, 128), U32.is_le(c, 191))', 'utf8.cont(Bool.and(U32.is_ge(c, 128), U32.is_le(c, 192))',
+  'utf8.step: C0 accepted as a continuation byte (R28-3, U6)'),
+ ('M112', 'text.bend', 'U32.is_le(value, 1114111)', 'U32.is_le(value, 1179647)',
+  'utf8.cont: scalars up to U+11FFFF accepted (F4 90 80 80) (R28-4, U2)'),
+ ('M113', 'cli.bend', 'int.beyond(c, "9223372036854775808")', 'int.beyond(c, "9223372036854775807")',
+  'indent: i64::MIN is too small (R28-3, Ce)'),
+ ('M114', 'cli.bend', 'String.is_gt(c, lim)', 'String.is_ge(c, lim)',
+  'int.beyond: exactly the 19-digit limit is out of range (R28-4, Cc)'),
+ ('M115', 'cli.bend', 'String.is_le(d, "18446744073709551615")', 'String.is_lt(d, "18446744073709551615")',
+  'u64.fits: u64::MAX is too large (R28-4, Cd)'),
+ ('M116', 'cli.bend', 'Nat.sub(Nat.div(Nat.max(la, lb), 2n), 1n)', 'Nat.div(Nat.max(la, lb), 2n)',
+  'jaro.window: one wider (R28-4, K2)'),
+ ('M117', 'cli.bend', 'Bool.and(Nat.is_ge(j, lo), Nat.is_le(j, hi))', 'Bool.and(Nat.is_gt(j, lo), Nat.is_le(j, hi))',
+  "jaro.pos: the window's low end excluded (R28-4, K3)"),
+ ('M118', 'cli.bend', '    case True{} LT{}:\n      old', '    case True{} LT{}:\n      old\n    case True{} EQ{}:\n      old',
+  'best.pick: among equal J the EARLIER candidate wins (R28-4, K4)'),
+ ('M119', 'decode.bend', 'FObj{J.JNil{}, T.kt.empty(), HNil{}, 1n+t, 1n+t, True{}, key, quoted}', 'FObj{J.JNil{}, T.kt.empty(), HNil{}, 1n+t, 2n+t, True{}, key, quoted}',
+  "item.route: after a tabular first field the item's other fields are expected one level deeper (R28-4, I1)"),
 ]
 
 def reduced(laws_text, proof_text):

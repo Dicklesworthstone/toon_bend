@@ -94,6 +94,11 @@ RULES = [  # (regex on the law name, rows) — first match wins
  (r"(encode_fraction_trailing_zeros_quoted|is_like_zero_in_phase_4_)", ["encoder primitives"]),
  (r"(decode_final_cr_without_lf|decode_bom_after_the_first_line_kept)$", ["TOON scanning"]),
  (r"(decode_escaped_quote_before_colon_in_cell)$", ["tokens, string literals"]),
+ # round 28 (R28-3, R28-4): integer option limits; similarity tips; a list item's fields after a tabular first field
+ # (the four utf8_verdict_ laws fall under the strict UTF-8 rule above)
+ (r"(argv_indent_i64_min|argv_indent_i64_max|argv_flatten_depth_u64_max)$", ["argv: option spellings"]),
+ (r"(argv_key_folding_similar_picks_best|argv_key_folding_similar_tie)$", ["clap error shapes"]),
+ (r"decode_list_item_first_tabular_then_field$", ["structural decoding"]),
  # round 27 (R27-3, R27-4): fold budgets, prefixes and nested sibling sets; the EF BB non-BOM; a negative exponent word
  (r"(encode_flatten_depth_100_folds_100|encode_partial_fold_keeps_enclosing_prefix|encode_nested_body_sibling_set)$", ["safe key folding"]),
  (r"encode_ef_bb_not_a_bom$", ["JSON text input"]),

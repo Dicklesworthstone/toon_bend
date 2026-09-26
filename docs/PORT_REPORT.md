@@ -1,4 +1,4 @@
-# Port report: Toon → Bend 2   HOLD   gates on this commit's port/ and goldens/ (1071 cases), this report at the newest commit of main   2026-09-22   bend 2.0.16
+# Port report: Toon → Bend 2   HOLD   gates on this commit's port/ and goldens/ (1127 cases), this report at the newest commit of main   2026-09-26   bend 2.0.16
 
 <!-- Phase 6 document (SHIP-AND-CERTIFY). Every constant is computed from an
      artifact and pasted; every claim is proved / golden-tested / measured

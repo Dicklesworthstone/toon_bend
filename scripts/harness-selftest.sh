@@ -55,6 +55,7 @@
 #   M45 an id spelled with a Cyrillic letter                                -> converge.sh (R30-1)
 #   M46 a pasted count against ids its command spells past a flag           -> claims-audit.py (R30-3)
 #   M47 a whole-inventory count against the inventory git records (NEEDS GIT) -> claims-audit.py (R30-3)
+#   M48 the SHIP report's headline stating a corpus it was not gated on    -> claims-audit.py
 # and one CONTROL, counted on its own axis, never as a mutation:
 #   C1  a hidden excerpt with a DIFFERENT count while the visible table stays correct -> every gate SILENT
 # M14, M15, M18, M19, M21, M23 and M25 assert on converge.sh's MESSAGE, not its exit code: the gate is
@@ -1284,6 +1285,23 @@ PLANT
     printf 'LEAK       %-24s the whole-inventory count was not judged against git history\n' M47_whole_run_wrong_commit
     leaked+=(M47_whole_run_wrong_commit)
   fi
+  # M48 the SHIP report's headline stating a corpus it was not gated on. Found 2026-09-26 by reading the
+  # report a reader meets first: it said 1071 cases while its own pasted lanes line said "passed":1127, 56
+  # cases stale, and no rule saw it because the count patterns want "N captured cases" while a headline says
+  # "N cases". Widening the global pattern would have been wrong -- about twenty lines in these documents
+  # state a case count for a NAMED commit, which is provenance and not today's number -- so the check reads
+  # the headline itself and asks only that the current count appear in it.
+  D="$(copy m48)"
+  python3 - "$D/docs/PORT_REPORT.md" <<'PLANT'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); lines = p.read_text(encoding='utf-8').split('\n')
+m = re.search(r'\((\d[\d,]*)\s+cases\)', lines[0])
+assert m, 'the headline no longer states a corpus; re-derive this plant'
+lines[0] = lines[0].replace(m.group(0), '(%d cases)' % (int(m.group(1).replace(',', '')) - 7))
+p.write_text('\n'.join(lines), encoding='utf-8')
+PLANT
+  expect_says M48_report_headline_corpus 'the headline states a corpus of' "$D" python3 scripts/claims-audit.py
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -1304,7 +1322,7 @@ else
               M37_header_html M38_duplicate_sev_column M39_mutant_prose_total \
               M40_severity_header M41_cf_in_findings_cell M42_paste_vs_command_ids \
               M43_paste_vs_stated_range M44_id_in_html_block M45_homoglyph_id \
-              M46_paste_vs_flagged_ids M47_whole_run_wrong_commit; do
+              M46_paste_vs_flagged_ids M47_whole_run_wrong_commit M48_report_headline_corpus; do
     echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
     n=$((n+1)); untestable+=("$m")
   done

@@ -1010,6 +1010,19 @@ def audit(files, f, gates, verbose):
     for bad in f.get("corpus_bad", []):
         findings.append({"file": "perf/evidence/" + bad.split(":")[0], "line": 0, "text": "",
                          "finding": "a corpus cell's ratio is not the quotient of its counts: " + bad})
+    # docs/PORT_REPORT.md's FIRST LINE is the report's headline and carries the corpus it was gated on. It
+    # went stale by 56 cases (1071 while the pasted lanes line said 1127) and no rule saw it, because the
+    # count patterns want "N captured cases" and the headline says "N cases" (2026-09-26, the same
+    # phrasing-brittleness as README's "closed instances"). Widening the global pattern to a bare `(\d+)
+    # cases` is NOT the fix: about twenty lines across these documents state a case count for a NAMED
+    # commit's corpus, which is provenance and legitimately not today's number. So this check reads the
+    # headline itself and asks only that the current count appear in it, which cannot go stale by rewording.
+    if "docs/PORT_REPORT.md" in files and f.get("cases"):
+        first = read("docs/PORT_REPORT.md").split("\n")[0]
+        if re.search(r"\(\d[\d,]*\s+cases\)", first) and str(f["cases"]) not in first:
+            hit("docs/PORT_REPORT.md", 1,
+                "the headline states a corpus of %s, not the %d cases of goldens/cases.tsv"
+                % ((re.search(r"\((\d[\d,]*)\s+cases\)", first) or [""])[1], f["cases"]), first)
     # every number of README's performance section must come from perf/evidence/
     readme = read("README.md")
     a = readme.find("## Performance")

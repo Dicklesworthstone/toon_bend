@@ -104,6 +104,9 @@ RULES = [  # (regex on the law name, rows) — first match wins
  # otherwise suggest one side is pinned by itself. The classifier laws are about `esc.cls` only.
  (r"escape_step_", ["encoder primitives", "tokens, string literals"]),
  (r"escape_class_of_", ["encoder primitives"]),
+ # the same theorem on the JSON side: one law binds the WRITER's escape table to the READER's machine, so it
+ # is cited on both of their rows for the same reason.
+ (r"json_escape_round_trip_", ["JSON writer A", "JSON text input"]),
  # round 29 (R29-3, R29-4): header brackets and the quoted key's next character; the sticky limb; the expansion
  # conflict's wording; `-0` as an indent (the utf8_verdict_ law falls under the strict UTF-8 rule)
  (r"(decode_bracket_only_delimiter_is_key|decode_char_after_quoted_key_refused)$", ["tokens, string literals"]),

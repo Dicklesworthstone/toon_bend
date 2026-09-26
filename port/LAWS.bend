@@ -3097,3 +3097,174 @@ law escape_step_plain:
   for badc: U32
   {D.unesc.go(String.reverse(E.esc.ch(0n, 65, SNil{})) ++ rest, D.UE{False{}, rev, False{}, badc})
     == D.unesc.go(rest, D.UE{False{}, SCon{Chr{65}, rev}, False{}, badc}) : D.UE}
+
+# ---------------------------------------------------------------- JSON escape / unescape: the round trip (toon_bend-tqz)
+#
+# The same theorem as the section above, one file over, and STRONGER in one way: it runs the reader's whole
+# machine (`J.run`) over the writer's own output rather than the unescaper's inner transition, so the law
+# composes the two steps a JSON escape takes (the backslash arming the escape, the letter discharging it)
+# instead of asserting them separately. For each ARM of the writer's escape table (`J.w.ch_a`), escaping a
+# byte and reading the result back leaves the reader in the state the raw byte would have produced: that
+# byte prepended to the text so far, the same key flag, the same stack, depth, line and root, and the column
+# advanced by exactly the bytes the writer emitted (two for a short escape, six for the hex form, one for a
+# byte written raw). The stack, the depth, the line, the column, the root, the key flag AND the kill-switch
+# `spec` are all universally quantified — the escape path is outside EXP-027's fast arm, so the law holds
+# with the switch open or closed, and each proof says so by cases.
+#
+# The escape STYLE here is what one of the original's fixed bugs was about (two styles, `docs/DISCREPANCIES.md`
+# "Former bug-compatibility candidates"), and until this block the table was pinned by the documents of
+# particular goldens only. EVERY arm is covered: the seven short forms, the `\u00XX` form the writer uses
+# below 0x20 (six bytes out, four of them walked back through the reader's `MHex` state), and a byte copied
+# raw. What is still not reached is the one wall the section above names: no law quantifies over the BYTE,
+# because `J.esc.cls` and `J.w.cls` decide with `U32.is_eq` on the scalar, so the hex arm and the raw arm are
+# each stated on representative bytes (0x01, 0x1f and 'A').
+#
+# ONE thing these laws provably cannot pin, established by mutation rather than by reading: the CASE of the
+# hex digits. The reader's `hex.val` accepts `a`-`f` and `A`-`F` alike, so upper-casing `hexc`'s letter branch
+# leaves every round trip true and all ten laws pass — while it changes the writer's OUTPUT BYTES, which is
+# what the goldens pin (`jsonout_*`, `decstr_control_out`). A mutation of the digit VALUES is a different
+# matter and is refused: shifting the letter digits by one (`f` to `g`) breaks `json_escape_round_trip_hex_1f`,
+# and shifting the numeric ones breaks both hex laws. The round trip pins what the digits MEAN; the corpus
+# pins how they are spelled.
+
+# S5.63/S2.18 the quote
+law json_escape_round_trip_quote:
+  for rev: String
+  for key: Bool
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for spec: Bool
+  {J.run(T.ascii_bytes(String.reverse(J.w.ch_a(1n, 34, SNil{})), Nil{}),
+         J.St{J.MStr{rev, key, 0n, 0}, stack, depth, l, c, root}, spec)
+    == J.St{J.MStr{SCon{Chr{34}, rev}, key, 0n, 0}, stack, depth, l, 1n+1n+c, root} : J.St}
+
+# S5.63/S2.18 the backslash
+law json_escape_round_trip_backslash:
+  for rev: String
+  for key: Bool
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for spec: Bool
+  {J.run(T.ascii_bytes(String.reverse(J.w.ch_a(2n, 92, SNil{})), Nil{}),
+         J.St{J.MStr{rev, key, 0n, 0}, stack, depth, l, c, root}, spec)
+    == J.St{J.MStr{SCon{Chr{92}, rev}, key, 0n, 0}, stack, depth, l, 1n+1n+c, root} : J.St}
+
+# S5.63/S2.18 the backspace, whose short form exists in writer A
+law json_escape_round_trip_backspace:
+  for rev: String
+  for key: Bool
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for spec: Bool
+  {J.run(T.ascii_bytes(String.reverse(J.w.ch_a(3n, 8, SNil{})), Nil{}),
+         J.St{J.MStr{rev, key, 0n, 0}, stack, depth, l, c, root}, spec)
+    == J.St{J.MStr{SCon{Chr{8}, rev}, key, 0n, 0}, stack, depth, l, 1n+1n+c, root} : J.St}
+
+# S5.63/S2.18 the tab
+law json_escape_round_trip_tab:
+  for rev: String
+  for key: Bool
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for spec: Bool
+  {J.run(T.ascii_bytes(String.reverse(J.w.ch_a(4n, 9, SNil{})), Nil{}),
+         J.St{J.MStr{rev, key, 0n, 0}, stack, depth, l, c, root}, spec)
+    == J.St{J.MStr{SCon{Chr{9}, rev}, key, 0n, 0}, stack, depth, l, 1n+1n+c, root} : J.St}
+
+# S5.63/S2.18 the line feed
+law json_escape_round_trip_lf:
+  for rev: String
+  for key: Bool
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for spec: Bool
+  {J.run(T.ascii_bytes(String.reverse(J.w.ch_a(5n, 10, SNil{})), Nil{}),
+         J.St{J.MStr{rev, key, 0n, 0}, stack, depth, l, c, root}, spec)
+    == J.St{J.MStr{SCon{Chr{10}, rev}, key, 0n, 0}, stack, depth, l, 1n+1n+c, root} : J.St}
+
+# S5.63/S2.18 the form feed, whose short form exists in writer A
+law json_escape_round_trip_formfeed:
+  for rev: String
+  for key: Bool
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for spec: Bool
+  {J.run(T.ascii_bytes(String.reverse(J.w.ch_a(6n, 12, SNil{})), Nil{}),
+         J.St{J.MStr{rev, key, 0n, 0}, stack, depth, l, c, root}, spec)
+    == J.St{J.MStr{SCon{Chr{12}, rev}, key, 0n, 0}, stack, depth, l, 1n+1n+c, root} : J.St}
+
+# S5.63/S2.18 the carriage return
+law json_escape_round_trip_cr:
+  for rev: String
+  for key: Bool
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for spec: Bool
+  {J.run(T.ascii_bytes(String.reverse(J.w.ch_a(7n, 13, SNil{})), Nil{}),
+         J.St{J.MStr{rev, key, 0n, 0}, stack, depth, l, c, root}, spec)
+    == J.St{J.MStr{SCon{Chr{13}, rev}, key, 0n, 0}, stack, depth, l, 1n+1n+c, root} : J.St}
+
+# S5.63/S2.18 the hex form the writer uses below 0x20, on a representative control byte
+law json_escape_round_trip_hex_01:
+  for rev: String
+  for key: Bool
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for spec: Bool
+  {J.run(T.ascii_bytes(String.reverse(J.w.ch_a(0n, 1, SNil{})), Nil{}),
+         J.St{J.MStr{rev, key, 0n, 0}, stack, depth, l, c, root}, spec)
+    == J.St{J.MStr{SCon{Chr{1}, rev}, key, 0n, 0}, stack, depth, l, 1n+1n+1n+1n+1n+1n+c, root} : J.St}
+
+# S5.63/S2.18 the hex form on a byte whose digits reach the LETTER range of `hexc` (0x1f prints `\u001f`).
+# `hex_01` above cannot see that path — all four of its digits are below ten — and a mutant that shifts the
+# letter digits by one (`f` becomes `g`) passes it while this law refuses it.
+law json_escape_round_trip_hex_1f:
+  for rev: String
+  for key: Bool
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for spec: Bool
+  {J.run(T.ascii_bytes(String.reverse(J.w.ch_a(0n, 31, SNil{})), Nil{}),
+         J.St{J.MStr{rev, key, 0n, 0}, stack, depth, l, c, root}, spec)
+    == J.St{J.MStr{SCon{Chr{31}, rev}, key, 0n, 0}, stack, depth, l, 1n+1n+1n+1n+1n+1n+c, root} : J.St}
+
+# S5.63/S2.18 a byte with no escape at all, on a representative byte: written raw, read back raw
+law json_escape_round_trip_plain_A:
+  for rev: String
+  for key: Bool
+  for stack: List<&2, J.Frame>
+  for depth: Nat
+  for l: Nat
+  for c: Nat
+  for root: Maybe<&2, J.Json>
+  for spec: Bool
+  {J.run(T.ascii_bytes(String.reverse(J.w.ch_a(0n, 65, SNil{})), Nil{}),
+         J.St{J.MStr{rev, key, 0n, 0}, stack, depth, l, c, root}, spec)
+    == J.St{J.MStr{SCon{Chr{65}, rev}, key, 0n, 0}, stack, depth, l, 1n+c, root} : J.St}

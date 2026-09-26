@@ -2869,3 +2869,89 @@ def Laws.escape_step_tab(rest, rev, badc):
 # S4.19/S2.123 the plain class on a representative byte: copied through, no escape armed
 def Laws.escape_step_plain(rest, rev, badc):
   {==}
+
+# S5.63/S2.18 the JSON escape round trip, one arm at a time (toon_bend-tqz). Each side reduces to the same
+# term: the writer's output for a known class is closed bytes, `String.reverse` and `T.ascii_bytes` on a
+# closed string compute, and the reader's steps (the backslash arming the escape through `MEsc`, the letter
+# discharging it through `J.esc`) carry the stack, the depth, the line, the root and the key flag untouched
+# while prepending the original byte and advancing the column once per byte read. The case split on `spec` is
+# what the kill-switch costs: `J.run`'s string arm consults `F.twin.on(spec, plain(b))` (EXP-027), and a
+# backslash is not plain, so both settings take the same path — the checker needs the two cases to see it.
+def Laws.json_escape_round_trip_quote(rev, key, stack, depth, l, c, root, spec):
+  match spec:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# S5.63/S2.18 as above, the backslash
+def Laws.json_escape_round_trip_backslash(rev, key, stack, depth, l, c, root, spec):
+  match spec:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# S5.63/S2.18 as above, the backspace
+def Laws.json_escape_round_trip_backspace(rev, key, stack, depth, l, c, root, spec):
+  match spec:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# S5.63/S2.18 as above, the tab
+def Laws.json_escape_round_trip_tab(rev, key, stack, depth, l, c, root, spec):
+  match spec:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# S5.63/S2.18 as above, the line feed
+def Laws.json_escape_round_trip_lf(rev, key, stack, depth, l, c, root, spec):
+  match spec:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# S5.63/S2.18 as above, the form feed
+def Laws.json_escape_round_trip_formfeed(rev, key, stack, depth, l, c, root, spec):
+  match spec:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# S5.63/S2.18 as above, the carriage return
+def Laws.json_escape_round_trip_cr(rev, key, stack, depth, l, c, root, spec):
+  match spec:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# S5.63/S2.18 the hex arm: six bytes out, four digits walked back through MHex
+def Laws.json_escape_round_trip_hex_01(rev, key, stack, depth, l, c, root, spec):
+  match spec:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# S5.63/S2.18 the hex arm on a byte whose digits reach `hexc`'s letter branch
+def Laws.json_escape_round_trip_hex_1f(rev, key, stack, depth, l, c, root, spec):
+  match spec:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# S5.63/S2.18 the raw arm, the one byte EXP-027's fast path decides
+def Laws.json_escape_round_trip_plain_A(rev, key, stack, depth, l, c, root, spec):
+  match spec:
+    case True{}:
+      {==}
+    case False{}:
+      {==}

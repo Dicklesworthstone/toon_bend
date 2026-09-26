@@ -292,10 +292,21 @@ for def in "${DEFS[@]}"; do
     diffline="$(diff "$T/base/$FILE" "$d/$FILE" | grep '^[<>]' | sed 's/^/      /' | head -4)"
     t0=$(now)
     rc=$(brun "$d" "$d/check.out" "$FILE" -o "$d/m.c")
+    # A MODULE cannot be compiled to C at all: there is no entry point, so a clean module type-checks and
+    # then reports exactly "Error: no main to run" with exit 1. That is a PASSED check with nothing to
+    # execute, not a compile failure. A mutant with a real type error prints `Location:` lines instead,
+    # which the INVALID branch below already keys on, so the two are distinguishable. Before 2026-09-25
+    # every mutant of every module came back ERROR "unclassified compile failure" in under a second, which
+    # is why this script had only ever been pointed at main.bend and reported INCONCLUSIVE elsewhere: the
+    # first batch aimed at decode.bend scored errors=4 valid=0 for this reason alone.
+    nomain=0
+    if [[ "$rc" -eq 1 ]] && ! grep -q '^Location:' "$d/check.out" && grep -q 'no main to run' "$d/check.out"; then
+      nomain=1; rc=0
+    fi
     if [[ "$rc" -eq 124 ]]; then st=TIMEOUT; kb=""; timeouts=$((timeouts+1))
     elif [[ "$rc" -eq 1 ]] && grep -q '^Location:' "$d/check.out"; then st=INVALID; kb="$(grep -v '^$' "$d/check.out" | grep -v '^Error:$' | head -1 | cut -c1-80)"; invalid=$((invalid+1))
     elif [[ "$rc" -ne 0 ]]; then st=ERROR; kb="unclassified compile failure (exit $rc)"; errors=$((errors+1))
-    elif [[ ! -s "$d/m.c" ]]; then st=ERROR; kb="compiler exited zero without emitted C"; errors=$((errors+1))
+    elif [[ "$nomain" -eq 0 && ! -s "$d/m.c" ]]; then st=ERROR; kb="compiler exited zero without emitted C"; errors=$((errors+1))
     else
       rc=$(brun "$d" "$d/proof.out" "$PROOF")
       if [[ "$rc" -eq 124 ]]; then st=TIMEOUT; kb=""; timeouts=$((timeouts+1))

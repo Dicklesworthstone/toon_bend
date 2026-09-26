@@ -737,8 +737,9 @@ git push                # Push to remote
 5. **Lint the words** - `./scripts/claims-lint.sh README.md CONTRIBUTING.md docs/PORT_REPORT.md docs/PORT_STATE.md docs/PARITY_RUNBOOK.md docs/DISCREPANCIES.md docs/OPEN_QUESTIONS.md perf/*.md`
 6. **Update issue status** - Close finished work, update in-progress items
 7. **Sync beads** - `br sync --flush-only` to export to JSONL
-8. **Commit** (and push when a remote is configured)
-9. **Hand off** - Provide context for next session
+8. **Commit, then re-run `claims-audit.py` AFTER the final `git pull --rebase`, and only then push.** A rebase REWRITES your commit hashes, so every document line citing "the tree of `<sha>`" points at an orphaned object and the audit's reachability check turns red — on the tree you just pushed. A green audit taken before the last rebase does not survive it. This happened on 2026-09-26 (`1926f37` pushed with six "not reachable" lines, fixed in `e6640bb` minutes later): the gate worked, the ORDER of the steps did not
+9. **Push**
+10. **Hand off** - Provide context for next session
 
 Stopping early writes `STOPPED: <reason>. Resume with: <command>` as PORT_STATE's next action.
 

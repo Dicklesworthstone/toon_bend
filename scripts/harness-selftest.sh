@@ -44,6 +44,9 @@
 #   M34 inline HTML strikethrough in a sev cell                             -> converge.sh (R27-1)
 #   M35 an escaped commit in a JSONL file with one unparseable line         -> claims-audit.py (R27-2)
 #   M36 a mutant count OVERSTATED beside three-digit ids                    -> claims-audit.py
+#   M37 inline HTML in a findings-table HEADER cell                         -> converge.sh (R28-1)
+#   M38 a findings table with two `sev` columns, no HTML                    -> converge.sh (R28-1)
+#   M39 a mutant PROSE total beside two ids, below the inventory            -> claims-audit.py (R28-2)
 # and one CONTROL, counted on its own axis, never as a mutation:
 #   C1  a hidden excerpt with a DIFFERENT count while the visible table stays correct -> every gate SILENT
 # M14, M15, M18, M19, M21, M23 and M25 assert on converge.sh's MESSAGE, not its exit code: the gate is
@@ -658,9 +661,30 @@ if [[ -f scripts/converge.sh ]]; then
   expect_says M15_unfixed_finding 'round 18: 4 of 5 finding' "$D" \
     scripts/converge.sh docs/PORT_STATE.md
   # M18 a round labelled non-author with no report behind it (R22-1): two such rows printed CONVERGED.
+  # The planted round is the last row's number plus ONE HUNDRED, and the plant ASSERTS that no report
+  # exists for it. At last+1 this mutation LEAKED once in a peer's chain (2026-09-26): during a repair the
+  # next round's real report is already in the working tree before its row is written, so the planted round
+  # HAS a report and "has no report" never appears. A mutation whose validity depends on what a concurrent
+  # review happens to have filed is not a mutation, and the leak looks like a broken gate.
   D="$(copy m18)"
-  awk '/^\| [0-9]+ \| / {last=NR; num=$2} {line[NR]=$0} END {for (i=1;i<=NR;i++) {print line[i]; if (i==last) print "| " num+1 " | non-author hostile review (subagent): harness-selftest M18 (non-author) | 0 | 0 | yes | 2026-09-24 |"}}' \
-    docs/PORT_STATE.md >"$D/docs/PORT_STATE.md"
+  python3 - "$D/docs/PORT_STATE.md" "$D/docs/reviews" <<'PLANT'
+import os, re, sys
+from pathlib import Path
+state, reviews = Path(sys.argv[1]), sys.argv[2]
+lines = state.read_text(encoding='utf-8').split('\n')
+rows = [(i, int(m.group(1))) for i, l in enumerate(lines) for m in [re.match(r'^\|\s*(\d+)\s*\|', l)] if m]
+assert rows, 'no numeric round row in the rounds table'
+last_i, last_n = rows[-1]
+planted = last_n + 100
+assert not os.path.exists(os.path.join(reviews, 'round-%02d.md' % planted)), \
+    'a report exists for the planted round %d; pick another number' % planted
+cells = lines[last_i].split('|')
+cells[1] = ' %d ' % planted
+cells[2] = ' non-author hostile review (subagent): harness-selftest M18 (non-author) '
+cells[3], cells[4], cells[5] = ' 0 ', ' 0 ', ' yes '
+lines.insert(last_i + 1, '|'.join(cells))
+state.write_text('\n'.join(lines), encoding='utf-8')
+PLANT
   expect_says M18_round_without_report 'has no report' "$D" \
     scripts/converge.sh docs/PORT_STATE.md
   # M19 a round from 20 recorded 0 | 0 | yes while its report's counted rows are re-spelled `Medium | Behaviour`
@@ -1060,6 +1084,61 @@ p.write_text(p.read_text(encoding='utf-8') +
              '`{"mutants": 999, "killed": 999, "survived": [], "verdict": "STRONG"}`\n', encoding='utf-8')
 PLANT
   expect M36_mutant_count_overstated "$b_audit" 1 "$D" python3 scripts/claims-audit.py
+  # M37/M38 round 28's shapes, and they must be planted SEPARATELY. R28-1 moved one row up from R27-1: the
+  # body-HTML refusal did not cover the HEADER, so `<del>sev</del> | sev` there chose which column was read.
+  # The obvious single plant is wrong: with `<del>sev</del> | sev` BOTH rules fire, because markdown-it keeps
+  # the struck text node, so the mutation would pass on whichever error came first and prove nothing about
+  # either rule. So M37 carries the header tag and no duplicate-looking column pair beyond it, and M38 is a
+  # plain `sev | sev` header with no HTML anywhere. Both LEAKED on fb20875: sev read LOW, counted 0, NO
+  # errors, while a reader of the rendered report sees the MEDIUM in the second column.
+  D="$(copy m37)"
+  python3 - "$D/docs/reviews/round-23.md" html <<'PLANT'
+import re, sys
+from pathlib import Path
+p, mode = Path(sys.argv[1]), sys.argv[2]
+lines = p.read_text(encoding='utf-8').split('\n')
+i = next(k for k, l in enumerate(lines) if re.match(r'^\|\s*id\s*\|\s*sev\s*\|\s*class\s*\|', l))
+c = lines[i].split('|')
+sev = next(j for j, x in enumerate(c) if x.strip().lower() == 'sev')
+c[sev] = ' <del>sev</del> ' if mode == 'html' else ' sev '
+lines[i] = '|'.join(c)
+assert ('<del>' in lines[i]) == (mode == 'html')
+p.write_text('\n'.join(lines), encoding='utf-8')
+PLANT
+  expect_says M37_header_html 'a cell contains inline HTML' "$D" scripts/converge.sh docs/PORT_STATE.md
+  D="$(copy m38)"
+  python3 - "$D/docs/reviews/round-23.md" <<'PLANT'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); lines = p.read_text(encoding='utf-8').split('\n')
+i = next(k for k, l in enumerate(lines) if re.match(r'^\|\s*id\s*\|\s*sev\s*\|\s*class\s*\|', l))
+c = lines[i].split('|')
+sev = next(j for j, x in enumerate(c) if x.strip().lower() == 'sev')
+c.insert(sev + 1, ' sev ')                      # a SECOND sev column, no HTML anywhere
+lines[i] = '|'.join(c)
+d = lines[i + 1].split('|'); d.insert(sev + 1, '---'); lines[i + 1] = '|'.join(d)
+for k in range(i + 2, len(lines)):
+    if not lines[k].startswith('|'):
+        break
+    r = lines[k].split('|'); r.insert(sev + 1, ' LOW '); lines[k] = '|'.join(r)
+assert lines[i].lower().count('| sev |') >= 1
+p.write_text('\n'.join(lines), encoding='utf-8')
+PLANT
+  expect_says M38_duplicate_sev_column 'more than one .sev. column' "$D" scripts/converge.sh docs/PORT_STATE.md
+  # M39 the edge M36 missed, and round 28 found: the mutant-selection exemption also excused PROSE totals,
+  # not only a pasted `"mutants": N`. Isolated with a one-variable control on fb20875 -- the same prose total
+  # with the two ids REMOVED was CAUGHT ("mutants in all: says 50, the repository has 107"), so the exemption
+  # is the cause rather than the phrasing. An exemption has more than one dimension, the direction of the
+  # error and the set of counts it covers, and M36 held only the first.
+  D="$(copy m39)"
+  python3 - "$D/docs/PORT_STATE.md" <<'PLANT'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+p.write_text(p.read_text(encoding='utf-8') +
+             '\n- planted: `scripts/hand-mutants.py M104 M105` covers 50 mutants in all\n', encoding='utf-8')
+PLANT
+  expect M39_mutant_prose_total "$b_audit" 1 "$D" python3 scripts/claims-audit.py
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -1076,7 +1155,8 @@ else
   n=$((n+1)); untestable+=(M25_report_table_in_quote)
   for m in M26_rounds_row_prose_only M27_report_without_row M28_round_cell_not_a_number M29_escaped_commit M30_accepted_disc_no_approver \
               M31_fullwidth_fence_decoy M32_duplicate_commit_key M33_readme_closed_count \
-              M34_html_strike_in_sev M35_jsonl_bad_line_escape M36_mutant_count_overstated; do
+              M34_html_strike_in_sev M35_jsonl_bad_line_escape M36_mutant_count_overstated \
+              M37_header_html M38_duplicate_sev_column M39_mutant_prose_total; do
     echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
     n=$((n+1)); untestable+=("$m")
   done

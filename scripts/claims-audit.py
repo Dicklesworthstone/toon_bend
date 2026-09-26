@@ -856,7 +856,18 @@ def audit(files, f, gates, verbose):
                         since = line[:m.start()]
                         prior = list(re.finditer(r'"mutants": \d+', since))
                         span = since[prior[-1].end():] if prior else since
-                        cmd = re.findall(r"hand-mutants\.py([^`\n|]*)", span)
+                        # A MENTION is not a command. `re.findall(r"hand-mutants\.py…")` matched any prose
+                        # naming the script, so a sentence like "a def that `scripts/hand-mutants.py`'s
+                        # inventory covers" before a pasted count made the `elif cmd` branch below treat the
+                        # paste as a WHOLE-INVENTORY run and demand a commit sha — a false finding, reported by
+                        # the round-30 reviewer as a side effect of their own pointer sentence (2026-09-26).
+                        # The discriminator is checked against how these documents actually spell things, not
+                        # guessed: every real invocation carries an interpreter or a path prefix
+                        # (`python3 scripts/hand-mutants.py …`, five of them), and every prose mention is a bare
+                        # backticked path. A mention that still LISTS ids stays a command whatever its prefix,
+                        # because ids are unambiguous; a bare mention falls through to the ordinary check.
+                        cmd = [t for pre, t in re.findall(r"((?:python3\s+|\./)?)(?:scripts/)?hand-mutants\.py([^`\n|]*)", span)
+                               if pre or re.search(r"\bM\d+\b", t)]
                         if not cmd and not prior and para_cmd is not None:
                             cmd = [para_cmd]
                         rng = re.findall(r"\bM(\d+) to M(\d+)\b", span)

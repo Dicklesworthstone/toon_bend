@@ -1305,6 +1305,26 @@ PLANT
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
+  # C2 a PROSE MENTION of scripts/hand-mutants.py beside a CORRECT whole-inventory count. Round 30's rule
+  # scoped a paste by "the ids its own command lists", and its command detector matched any mention, so a
+  # sentence naming the script made the audit demand a commit sha of a paste that needed none -- a false
+  # finding the round-30 reviewer hit with their own pointer sentence. A mention is not a command, so this
+  # must stay SILENT; if it speaks, the detector has been widened back and reads prose as an invocation.
+  # The count is the true inventory, so the ordinary check passes and only the scoping is under test.
+  D="$(copy c2)"
+  python3 - "$D/docs/PORT_STATE.md" "$(python3 -c "
+import ast
+src=open('scripts/hand-mutants.py').read()
+print(len(next(ast.literal_eval(n.value) for n in ast.parse(src).body if getattr(n,'targets',[]) and getattr(n.targets[0],'id','')=='MUTANTS')))")" <<'PLANT'
+import sys
+from pathlib import Path
+p, total = Path(sys.argv[1]), sys.argv[2]
+assert total.isdigit() and int(total) > 0, 'could not read the inventory size'
+p.write_text(p.read_text(encoding='utf-8') +
+             '\n- planted control: a def that `scripts/hand-mutants.py` covers -> `{"mutants": %s, '
+             '"killed": %s, "survived": [], "verdict": "STRONG"}`\n' % (total, total), encoding='utf-8')
+PLANT
+  expect_quiet C2_prose_mention_not_a_command 'mutants in a pasted line' "$D" python3 scripts/claims-audit.py
   D="$(copy c1)"
   python3 "$HERE/.hst-decoy.py" "$D/docs/reviews/round-23.md" quote
   expect_quiet C1_hidden_table_ignored 'round 23: docs/reviews/round-23.md' "$D" \

@@ -546,6 +546,19 @@ def main():
                  "original: " + " ".join(command), "original_argv: " + json.dumps(command),
                  "original_identity: " + json.dumps(identity(command)),
                  f"cases: {args.cases} ({len(manifest)} cases)"]
+        # `scripts/pin-check.sh` compares a `version:` line here against [original].version_expect of
+        # docs/PIN.toml, and nothing had ever written one, so that check sat YELLOW permanently and told a
+        # reader nothing (found 2026-09-26 by running a gate no routine runs). The exact identifier is the
+        # executable sha256 inside `provenance:` below, which pin-check now also checks; this line is the
+        # human-readable half. It is omitted rather than guessed when the original does not answer
+        # `--version`, since a wrong version line is worse than an absent one.
+        try:
+            probe = run(list(command) + ["--version"], timeout=30.0)
+            first = (probe["out"] or b"").decode("utf-8", "replace").strip().split("\n")[0]
+            if probe["rc"] == 0 and first:
+                lines.append("version: " + first)
+        except (OSError, ValueError):
+            pass
         try:
             after = provenance(command, args.cases, manifest)
         except OSError as exc:

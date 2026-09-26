@@ -209,6 +209,23 @@ PY
     mv="$(sed -n 's/^version: *//p' "$M")"
     if [[ "$mv" == *"$ve"* ]]; then add manifest_version GREEN "$ve"; else add manifest_version YELLOW "MANIFEST version lacks the pinned version string '$ve' (the original does not answer --version, or the pin moved)"; fi
   fi
+  # The EXACT tie between the goldens and the pinned original: MANIFEST's `provenance:` records the
+  # executable's sha256, and docs/PIN.toml records the same digest for oracle/toon. Comparing those two
+  # answers "were these goldens captured from the pinned binary" precisely, where `manifest_version` above
+  # only compares a human-readable string and had never been written at all (2026-09-26). RED on a
+  # mismatch, because a golden captured from a different binary is not evidence about this pin.
+  po="$(grep -oE 'oracle/toon sha256 [0-9a-f]{64}' "$P" | head -1 | grep -oE '[0-9a-f]{64}')"
+  mo="$(python3 - "$M" <<'PY' 2>/dev/null
+import json, sys
+for line in open(sys.argv[1], encoding="utf-8"):
+    if line.startswith("provenance:"):
+        print((json.loads(line.split(":", 1)[1]).get("executable") or {}).get("sha256", ""))
+        break
+PY
+  )"
+  if [[ -z "$po" || -z "$mo" ]]; then add manifest_oracle_sha YELLOW "no oracle sha256 in ${po:+MANIFEST}${po:-PIN.toml}"
+  elif [[ "$po" == "$mo" ]]; then add manifest_oracle_sha GREEN "${po:0:12}…"
+  else add manifest_oracle_sha RED "goldens captured from ${mo:0:12}…, PIN.toml pins ${po:0:12}…"; fi
   nc="$(PYTHONPATH="$HERE${PYTHONPATH:+:$PYTHONPATH}" python3 -c 'from case_manifest import cases; print(len(cases("goldens/cases.tsv")))' 2>/dev/null)"; [[ "$nc" =~ ^[0-9]+$ ]] || nc=0
   ng="$(ls goldens/*.out 2>/dev/null | wc -l | tr -d ' ')"
   nm="$(sed -n 's/^cases:.*(\([0-9]*\) cases).*/\1/p' "$M" | head -1)"

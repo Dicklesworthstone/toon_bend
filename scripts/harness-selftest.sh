@@ -47,6 +47,10 @@
 #   M37 inline HTML in a findings-table HEADER cell                         -> converge.sh (R28-1)
 #   M38 a findings table with two `sev` columns, no HTML                    -> converge.sh (R28-1)
 #   M39 a mutant PROSE total beside two ids, below the inventory            -> claims-audit.py (R28-2)
+#   M40 a `Severity:` findings header                                       -> converge.sh (R29-1)
+#   M41 an invisible Cf character in a findings BODY cell                   -> converge.sh (R29-1)
+#   M42 a pasted mutant count disagreeing with its command's ids            -> claims-audit.py (R29-2)
+#   M43 a pasted mutant count disagreeing with its stated range             -> claims-audit.py (R29-2)
 # and one CONTROL, counted on its own axis, never as a mutation:
 #   C1  a hidden excerpt with a DIFFERENT count while the visible table stays correct -> every gate SILENT
 # M14, M15, M18, M19, M21, M23 and M25 assert on converge.sh's MESSAGE, not its exit code: the gate is
@@ -693,7 +697,11 @@ PLANT
     D="$(copy m19)"
     sed 's/^\(| 21 | .*\)| 2 | 2 | no |/\1| 0 | 0 | yes |/' docs/PORT_STATE.md >"$D/docs/PORT_STATE.md"
     sed 's/^| R21-\([0-9]*\) | MEDIUM | BEHAVIOR/| R21-\1 | Medium | Behaviour/' docs/reviews/round-21.md >"$D/docs/reviews/round-21.md"
-    expect_says M19_counted_rows_respelled 'round 21: the table says 0 counted finding' "$D" \
+    # Round 29's source-text contract changed which rule fires: a re-spelled `Medium | Behaviour` report
+    # no longer PARSES to a count, so the old phrase 'the table says 0 counted finding' can never appear
+    # and this plant reported LEAK while the gate was refusing it correctly. Asserted on the rule that
+    # now fires, read from converge's whole output in a retained tree.
+    expect_says M19_counted_rows_respelled 'the sev cell `Medium` is not exactly' "$D" \
       scripts/converge.sh docs/PORT_STATE.md
     # M21 a round's report present but EMPTY (R23-1): an empty file used to satisfy "the report exists".
     D="$(copy m21)"
@@ -1018,8 +1026,11 @@ PLANT
   # while the text INSIDE them was kept, so a browser showed `LOW` struck out and the gate read it. The
   # struck text must come FIRST, because the reader takes the cell's first word: probed on b5ac14b,
   # `<del>LOW</del> MEDIUM`, `<s>LOW</s> MEDIUM` and `<span hidden>LOW</span> MEDIUM` each read sev LOW
-  # with counted 0, while the control `~~LOW~~ MEDIUM` correctly read MEDIUM with counted 1 -- the
-  # asymmetry that IS the finding. Since R27-1 any findings cell containing inline HTML is refused.
+  # with counted 0, while `~~LOW~~ MEDIUM` correctly read MEDIUM with counted 1 -- the asymmetry that WAS
+  # the finding. That asymmetry is GONE as of round 29's source-text contract (c0fd6df): a sev cell must be
+  # exactly HIGH, MEDIUM or LOW as written, so `~~LOW~~ MEDIUM` is now an error too and is no longer a
+  # control. The plant still fires the inline-HTML rule, which is refused whatever the header, so the
+  # assertion below is unchanged and still passes for its own rule.
   D="$(copy m34)"
   python3 - "$D/docs/reviews/round-23.md" <<'PLANT'
 import re, sys
@@ -1124,7 +1135,12 @@ for k in range(i + 2, len(lines)):
 assert lines[i].lower().count('| sev |') >= 1
 p.write_text('\n'.join(lines), encoding='utf-8')
 PLANT
-  expect_says M38_duplicate_sev_column 'more than one .sev. column' "$D" scripts/converge.sh docs/PORT_STATE.md
+  # The duplicate-column rule NO LONGER EXISTS: round 29's exact-header contract subsumed it, and the phrase
+  # is absent from review_report.py, so this plant reported LEAK while the report was refused. A duplicated
+  # `sev` header is still a distinct lie shape (a reader sees two columns, the gate picks one) and the
+  # contract is the only rule it can reach, so it is re-pointed rather than dropped.
+  expect_says M38_duplicate_sev_column 'it must be exactly `| id | sev | class | what | spec |`' "$D" \
+    scripts/converge.sh docs/PORT_STATE.md
   # M39 the edge M36 missed, and round 28 found: the mutant-selection exemption also excused PROSE totals,
   # not only a pasted `"mutants": N`. Isolated with a one-variable control on fb20875 -- the same prose total
   # with the two ids REMOVED was CAUGHT ("mutants in all: says 50, the repository has 107"), so the exemption
@@ -1139,6 +1155,68 @@ p.write_text(p.read_text(encoding='utf-8') +
              '\n- planted: `scripts/hand-mutants.py M104 M105` covers 50 mutants in all\n', encoding='utf-8')
 PLANT
   expect M39_mutant_prose_total "$b_audit" 1 "$D" python3 scripts/claims-audit.py
+  # M40 a `Severity:` header — the second shape pinned to round 29's exact-header contract (e33925e). One
+  # rule, two shapes: M38's duplicated column and this respelling both reach only the contract, and the
+  # reviewer's per-shape firing table says each fires the contract error ALONE, so neither can pass for
+  # another rule's reason.
+  D="$(copy m40)"
+  python3 - "$D/docs/reviews/round-23.md" <<'PLANT'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); lines = p.read_text(encoding='utf-8').split('\n')
+i = next(k for k, l in enumerate(lines) if re.match(r'^\|\s*id\s*\|\s*sev\s*\|\s*class\s*\|', l))
+c = lines[i].split('|')
+j = next(k for k, x in enumerate(c) if x.strip().lower() == 'sev')
+c[j] = ' Severity: '
+lines[i] = '|'.join(c)
+assert 'Severity:' in lines[i]
+p.write_text('\n'.join(lines), encoding='utf-8')
+PLANT
+  expect_says M40_severity_header 'it must be exactly `| id | sev | class | what | spec |`' "$D" \
+    scripts/converge.sh docs/PORT_STATE.md
+  # M41 an invisible format character (U+200B) in a findings BODY cell, with an EXACT header. The placement
+  # is the reviewer's shape test rather than a guess: a Cf character in the HEADER fires the Cf error AND the
+  # contract error, so the plant would pass on either; in a body sev cell it fires the Cf error beside the
+  # sev-vocabulary error and NO contract error, so the asserted phrase pins the Cf rule.
+  D="$(copy m41)"
+  python3 - "$D/docs/reviews/round-23.md" <<'PLANT'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); lines = p.read_text(encoding='utf-8').split('\n')
+i = next(k for k, l in enumerate(lines) if re.match(r'^\|\s*id\s*\|\s*sev\s*\|\s*class\s*\|', l))
+row = next(k for k in range(i + 2, len(lines)) if lines[k].startswith('|'))
+c = lines[row].split('|')
+j = next(k for k, x in enumerate(c) if x.strip() in ('HIGH', 'MEDIUM', 'LOW'))
+c[j] = c[j].replace(c[j].strip(), c[j].strip() + '​')      # a zero-width space a reader cannot see
+lines[row] = '|'.join(c)
+assert '​' in lines[row] and lines[i].strip().startswith('| id | sev | class')
+p.write_text('\n'.join(lines), encoding='utf-8')
+PLANT
+  expect_says M41_cf_in_findings_cell 'invisible format character' "$D" scripts/converge.sh docs/PORT_STATE.md
+  # M42/M43 the two halves of round 29's paste-scope rule (R29-2): a pasted `"mutants": N` is judged against
+  # the ids ITS OWN command lists, else a range named since the previous paste, else the whole inventory. The
+  # two shapes test opposite sides of one rule, which is why both are planted: a count that disagrees with its
+  # command's ids, and a count that disagrees with its stated range.
+  D="$(copy m42)"
+  python3 - "$D/docs/PORT_STATE.md" <<'PLANT'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+p.write_text(p.read_text(encoding='utf-8') +
+             '\n- planted: `python3 scripts/hand-mutants.py M120 M121` -> `{"mutants": 5, "killed": 5, '
+             '"survived": [], "verdict": "STRONG"}`\n', encoding='utf-8')
+PLANT
+  expect_says M42_paste_vs_command_ids 'ids its hand-mutants.py command lists' "$D" python3 scripts/claims-audit.py
+  D="$(copy m43)"
+  python3 - "$D/docs/PORT_STATE.md" <<'PLANT'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+p.write_text(p.read_text(encoding='utf-8') +
+             '\n- planted: the run covered M01 to M10 -> `{"mutants": 99, "killed": 99, "survived": [], '
+             '"verdict": "STRONG"}`\n', encoding='utf-8')
+PLANT
+  expect_says M43_paste_vs_stated_range 'inventory ids in M1 to M10' "$D" python3 scripts/claims-audit.py
   # C1: the same decoy, but the visible table is left CORRECT and the hidden copy carries a DIFFERENT
   # count. Nothing a reader sees is wrong, so the gate must stay silent; if it speaks, it is reading what
   # no reader sees. This is the shape that was wrongly refused before round 24's repair.
@@ -1156,7 +1234,9 @@ else
   for m in M26_rounds_row_prose_only M27_report_without_row M28_round_cell_not_a_number M29_escaped_commit M30_accepted_disc_no_approver \
               M31_fullwidth_fence_decoy M32_duplicate_commit_key M33_readme_closed_count \
               M34_html_strike_in_sev M35_jsonl_bad_line_escape M36_mutant_count_overstated \
-              M37_header_html M38_duplicate_sev_column M39_mutant_prose_total; do
+              M37_header_html M38_duplicate_sev_column M39_mutant_prose_total \
+              M40_severity_header M41_cf_in_findings_cell M42_paste_vs_command_ids \
+              M43_paste_vs_stated_range; do
     echo "UNTESTABLE $m  scripts/review_report.py or docs/reviews/round-23.md is not in this port"
     n=$((n+1)); untestable+=("$m")
   done

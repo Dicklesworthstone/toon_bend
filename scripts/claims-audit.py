@@ -799,7 +799,8 @@ def audit(files, f, gates, verbose):
                             % (m.group(1)[:12], f["oracle_sha"][:12]), line)
             # `hand-mutants.py M24 M25 M26` runs a SELECTION and reports that many mutants: a line that names
             # the ids it ran is not a stale full-set line. It must still name ids that exist (REFERENCES).
-            selective = bool(re.search(r"\bM\d\d\b[^\n]*\bM\d\d\b", line))
+            # Ids run past M99 since round 26 (M100..): two digits or more, or a scoped run of M104..M108 reads as the set.
+            selective = bool(re.search(r"\bM\d{2,}\b[^\n]*\bM\d{2,}\b", line))
             for name, pat, want in counts:
                 if want is None or path in ARCHIVE:
                     continue

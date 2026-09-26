@@ -786,6 +786,10 @@ def _proposed_e():
     dec("decnum_long_mantissa_final_carry", "a: 1063382396627932698323045648224275660865535.00057\n", cls="dec-number", note="S7.21: the big-natural sum's final carry is kept (N4)")
     dec("toonedge_key_bucket_below_root", "jda: 1\nexr: 2\n", cls="toon-edge", note="S6.10: a key below its bucket's root is not already present (K1)")
     enc("enc_utf8_last_below_surrogate", b'"\xed\x9f\xbf"', note="S2.2: ED 9F BF encodes U+D7FF, the last scalar below the surrogates -> accepted (U11)")
+    # Round 30 (R30-4): three corpus gaps in the header's fields segment, each input the reviewer's own.
+    dec("toonedge_escaped_quote_in_quoted_field_name", 'a[1]{"x\\"}y"}:\n  1\n', cls="toon-edge", note="S2.132: a backslash inside a quoted field name escapes the next character, so the escaped quote and the brace stay in the name (X1)")
+    dec("toonerr_duplicate_field_name", "a[1]{x,x}:\n  1,2\n", cls="toon-error", note="S3.26: a field name repeated in one header is a duplicate sibling key (X11)")
+    dec("toonedge_spaces_after_fields_colon", "a[1]{x}:  \n  1\n", cls="toon-edge", note="S2.132: spaces after a fields-bearing header's colon are trimmed, not content (X12)")
     # ---- structure (S4.202-S4.207, S4.217, S10.80, S10.81, S10.90, S10.98)
     dec("toonedge_root_array_trailing_ignored", "[2]: a,b\nc: 1\n", cls="toon-edge", note="S4.202: lines after a root array are ignored")
     dec("toonedge_rest_dropped_after_overindent", "a:\n  b: 1\n    c: 2\n  d: 3\ne: 4\n", cls="toon-edge", note="S4.204/S10.80: everything after the over-indented line is dropped -> {\"a\":{\"b\":1.0}}")

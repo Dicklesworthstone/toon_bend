@@ -266,6 +266,16 @@ MUTANTS = [
   'plan.head: object/other conflict names the types in the wrong order (R29-4, E3)'),
  ('M125', 'cli.bend', 'Bool.and(Bool.or(Bool.not(neg), T.str_eq(c, "0")), Nat.is_le(', 'Bool.and(Bool.not(neg), Nat.is_le(',
   'indent.check.c: -0 out of range (R29-4, C2)'),
+ # round 30: the reviewer's own mutant texts (r30/m30defs.py). Not here: X10 (a 128-deep input; twelve corpus
+ # cases catch it).
+ ('M126', 'decode.bend', '    case SCon{h, +rest} 1n:\n      ucut.go(rest, ucut.cls(rest, inq, True{}, k), inq, SCon{h, rev}, k)', '    case SCon{h, +rest} 1n:\n      ucut.go(rest, ucut.cls(rest, inq, False{}, k), inq, SCon{h, rev}, k)',
+  'ucut.go: a backslash inside quotes in a fields segment no longer escapes the next character (R30-4, X1)'),
+ ('M127', 'decode.bend', 'fields.dup.go(rest, T.kt.put(seen, name), T.kt.has(seen, name))', 'fields.dup.go(rest, T.kt.put(seen, name), False{})',
+  'fields.dup.go: a repeated field name is never detected (R30-4, X11)'),
+ ('M128', 'decode.bend', '      hdr.d(quoted, keyraw, inside, True{}, seg, T.trim(rest))', '      hdr.d(quoted, keyraw, inside, True{}, seg, rest)',
+  'hdr.c.colon.if: the text after a fields header colon is not trimmed (R30-4, X12)'),
+ ('M129', 'decode.bend', '    case SNil{}:\n      HL{False{}, 44, SNil{}}', '    case SNil{}:\n      HL{True{}, 44, SNil{}}',
+  'len.rev: empty bracket content is a usable length (0) (R30-5, X2)'),
 ]
 
 def reduced(laws_text, proof_text):

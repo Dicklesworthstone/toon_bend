@@ -2804,3 +2804,19 @@ def Laws.decode_expand_conflict_names_object_first():
 # S1.31 closed: the whole pure core computed (round 29)
 def Laws.argv_indent_minus_zero():
   {==}
+
+# S2.132 closed: the whole pure core computed (round 30)
+def Laws.decode_escaped_quote_in_quoted_field_name():
+  {==}
+
+# S3.26 closed: the whole pure core computed (round 30)
+def Laws.decode_duplicate_field_name_refused():
+  {==}
+
+# S2.132 closed: the whole pure core computed (round 30)
+def Laws.decode_spaces_after_fields_colon():
+  {==}
+
+# S2.135 closed: the whole pure core computed (round 30)
+def Laws.decode_empty_brackets_are_a_key():
+  {==}

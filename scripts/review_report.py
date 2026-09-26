@@ -144,8 +144,10 @@ def parse(text, rnd):
         for i, row in enumerate(rows):
             if any(unicodedata.category(ch) == "Cf" for cell in row for ch in cell):
                 err("table %d, row %d: a cell contains an invisible format character (Unicode Cf)" % (n + 1, i + 1))
+    # Round 30 (R30-2): letters run together (`base vs mutant` -> `basevsmutant`) made honest headers candidates. A
+    # header now names sev or class when one of its WORDS starts with `sev` or `class` (`Severity:`, `sev`, `classes`).
     found = [n for n, rows in enumerate(tables) if rows
-             and any(re.search(r"sev|class", re.sub(r"[^a-z]", "", c.lower())) for c in rows[0])]
+             and any(re.match(r"sev|class", w) for c in rows[0] for w in re.findall(r"[^\W\d_]+", c.lower()))]
     if len(found) != 1:
         err("%d findings tables (a header naming sev or class); a report has exactly one" % len(found))
         return out
@@ -187,9 +189,26 @@ def parse(text, rnd):
             for r in rows:
                 if r and re.fullmatch(r"R%d[-.]0*\d+" % rnd, r[0], re.I):
                     err("a table other than the findings table lists %s" % r[0])
-    shown = " ".join(_text(x) for x in tokens if x.type == "inline")
-    named = {"R%d-%d" % (rnd, int(k)) for k in
-             re.findall(r"(?<![A-Za-z0-9])R%d[-.]0*(\d+)(?![0-9])" % rnd, shown, re.I)}
+    # Round 30 (R30-1): ids were looked for in the RENDERED inline text only, so an id in an HTML block, one broken
+    # by a zero-width space or a soft hyphen, or one spelled with a Cyrillic `Р` was never "named" while the page
+    # showed it. The completeness check now reads the SOURCE (prose, code, HTML blocks and comments alike) with every
+    # invisible format character (Unicode Cf) removed, so a hidden id is found rather than missed; and an id-shaped
+    # `<letter><round>-<k>` whose letter is not an ASCII R is an error, not an absence. Over-reading source can only
+    # demand MORE rows (fail closed): an honest report names its ids in plain text, and its rows hold them.
+    # Fenced and indented code blocks are QUOTATION (commands, outputs, the decoys a reviewer planted, which the brief
+    # asks them to show): they are left out, as they always were. Everything else in the source is read.
+    lines = text.split("\n")
+    for t in tokens:
+        if t.type in ("fence", "code_block") and t.map:
+            for i in range(t.map[0], t.map[1]):
+                lines[i] = ""
+    scan = fold("".join(ch for ch in "\n".join(lines) if unicodedata.category(ch) != "Cf"))
+    named = set()
+    for m in re.finditer(r"(?<!\w)([^\W\d_])%d[-.]0*(\d+)(?![0-9])" % rnd, scan):
+        if m.group(1) in "Rr":
+            named.add("R%d-%d" % (rnd, int(m.group(2))))
+        elif not m.group(1).isascii():
+            err("`%s` names a round-%d id with the letter U+%04X instead of R" % (m.group(0), rnd, ord(m.group(1))))
     for ident in sorted(named - seen, key=lambda s: int(s.split("-")[1])):
         err("%s is named in the report but has no row in its findings table" % ident)
     return out

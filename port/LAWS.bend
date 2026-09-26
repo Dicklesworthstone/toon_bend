@@ -2996,3 +2996,20 @@ law decode_expand_conflict_names_object_first:
 
 law argv_indent_minus_zero:
   {C.run_pure(["--encode", "--indent", "-0"], T.ascii_bytes("{\"a\":1}", Nil{})) == C.Out{1n, "", "Indentation size must be at least 1 when encoding TOON"} : C.Out}
+
+# Round 30 (R30-4, R30-5): behaviours whose hand mutants the corpus did not catch (R30-4) or no law did (R30-5), pinned
+# with bytes from the pinned original, each law checked ALONE and against its mutant under a 6 GB / 180 s cap before
+# it was added. S2.132: a backslash in a quoted field name escapes, and spaces after a fields colon are trimmed (X1,
+# X12). S3.26: a repeated field name is a duplicate sibling key (X11). S2.135: empty brackets are part of a key (X2).
+# Case-pinned by design: X10 (the nesting limit needs a 128-deep input; twelve corpus cases catch it)
+law decode_escaped_quote_in_quoted_field_name:
+  {C.run_pure(["--decode"], T.ascii_bytes("a[1]{\"x\\\"}y\"}:\n  1\n", Nil{})) == C.Out{0n, "{\n  \"a\": [\n    {\n      \"x\\\"}y\": 1\n    }\n  ]\n}\n", ""} : C.Out}
+
+law decode_duplicate_field_name_refused:
+  {C.run_pure(["--decode"], T.ascii_bytes("a[1]{x,x}:\n  1,2\n", Nil{})) == C.Out{1n, "", "Failed to decode TOON: Duplicate sibling key \"x\""} : C.Out}
+
+law decode_spaces_after_fields_colon:
+  {C.run_pure(["--decode"], T.ascii_bytes("a[1]{x}:  \n  1\n", Nil{})) == C.Out{0n, "{\n  \"a\": [\n    {\n      \"x\": 1\n    }\n  ]\n}\n", ""} : C.Out}
+
+law decode_empty_brackets_are_a_key:
+  {C.run_pure(["--decode"], T.ascii_bytes("items[]: 1\n", Nil{})) == C.Out{0n, "{\n  \"items[]\": 1\n}\n", ""} : C.Out}

@@ -71,6 +71,29 @@ def reachable(rev):
     return _REACH[rev]
 
 
+_INVENTORY = {}
+
+
+def inventory_at(rev):
+    """len(MUTANTS) of scripts/hand-mutants.py at commit `rev`, or None when `rev` is not a commit HEAD contains or
+    has no inventory there (round 30, R30-3: a whole-inventory run is checked against the inventory it ran on)."""
+    if rev not in _INVENTORY:
+        _INVENTORY[rev] = None
+        try:
+            ok = subprocess.run(["git", "-C", ROOT, "merge-base", "--is-ancestor", rev, "HEAD"], stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, timeout=10, check=False).returncode == 0
+            r = subprocess.run(["git", "-C", ROOT, "show", rev + ":scripts/hand-mutants.py"], capture_output=True,
+                               text=True, timeout=10, check=False) if ok else None
+            if r is not None and r.returncode == 0:
+                import ast
+                _INVENTORY[rev] = next((len(ast.literal_eval(n.value)) for n in ast.parse(r.stdout).body
+                                        if isinstance(n, ast.Assign)
+                                        and any(getattr(t, "id", "") == "MUTANTS" for t in n.targets)), None)
+        except Exception:
+            _INVENTORY[rev] = None
+    return _INVENTORY[rev]
+
+
 def gitignored(rel):
     """True when a cited path is excluded by .gitignore. Cached; one subprocess per distinct path.
     A git failure (no git, not a work tree) answers False: this check may add findings, never remove
@@ -726,7 +749,10 @@ def audit(files, f, gates, verbose):
                     continue  # one stale sentence, one finding
                 seen_lines.add(n)
                 hit(path, n, why, lines[n - 1] if 0 < n <= len(lines) else "")
+        para_cmd = None   # the last hand-mutants.py command of the current paragraph (round 30, R30-3)
         for n, line in enumerate(text.splitlines(), 1):
+            if not line.strip():
+                para_cmd = None
             historical = bool(HISTORY.search(line))
             # A pasted gate line is internally consistent by construction, so one that contradicts
             # itself is falsified or mis-transcribed. Checked even on a historical line: a gate's
@@ -810,16 +836,30 @@ def audit(files, f, gates, verbose):
                     # is now judged by the text since the previous paste: the ids its own `hand-mutants.py` command
                     # lists, else a range `M<a> to M<b>` named there (the inventory's ids inside it), else the
                     # whole inventory. The first two must match EXACTLY; the third is the ordinary check below.
+                    # Round 30 (R30-3): the command's ids are ALL its `M<n>` arguments (`--all-laws M120 M121`), a
+                    # command on an earlier line of the same paragraph (a fenced two-line paste) still scopes the
+                    # count, and a WHOLE-inventory run (a command listing no ids) is checked against the inventory at
+                    # the commit it names, read from git: a prose range beside a whole run was the writer's word.
                     if name == "mutants in a pasted line":
                         since = line[:m.start()]
                         prior = list(re.finditer(r'"mutants": \d+', since))
                         span = since[prior[-1].end():] if prior else since
-                        cmd = re.findall(r"hand-mutants\.py((?: M\d+)+)", span)
+                        cmd = re.findall(r"hand-mutants\.py([^`\n|]*)", span)
+                        if not cmd and not prior and para_cmd is not None:
+                            cmd = [para_cmd]
                         rng = re.findall(r"\bM(\d+) to M(\d+)\b", span)
                         scope = None
-                        if cmd:
-                            scope = len(set(re.findall(r"M\d+", cmd[-1])))
+                        if cmd and re.search(r"\bM\d+\b", cmd[-1]):
+                            scope = len(set(re.findall(r"\bM\d+\b", cmd[-1])))
                             what = "the %d ids its hand-mutants.py command lists" % scope
+                        elif cmd:
+                            shas = [s for s in re.findall(r"`([0-9a-f]{7,40})`", span) if inventory_at(s) is not None]
+                            if not shas:
+                                hit(path, n, "%s: a whole-inventory run (its command lists no ids) says %d and names "
+                                    "no commit it ran at; name it (`<sha>`) so its inventory can be read" % (name, said), line)
+                                continue
+                            scope = inventory_at(shas[-1])
+                            what = "the whole inventory at %s (%d mutants)" % (shas[-1], scope)
                         elif rng:
                             lo, hi = int(rng[-1][0]), int(rng[-1][1])
                             scope = sum(1 for k in f["mutant_ids"] if lo <= k <= hi)
@@ -837,6 +877,9 @@ def audit(files, f, gates, verbose):
                         exempt += 1
                     else:
                         hit(path, n, "%s: says %d, the repository has %d" % (name, said, want), line)
+            cmds = re.findall(r"hand-mutants\.py([^`\n|]*)", line)
+            if cmds:
+                para_cmd = cmds[-1]
             # references that must exist
             for ident in re.findall(r"\bDISC-\d+\b", line):
                 if ident not in f["disc_ids"]:

@@ -692,6 +692,9 @@ jsonerr_surrogate_last_dfff	["--encode"]	cases/inputs/hand/jsonerr_surrogate_las
 decnum_long_mantissa_final_carry	["--decode"]	cases/inputs/hand/decnum_long_mantissa_final_carry.toon	dec-number	S7.21: the big-natural sum's final carry is kept (N4)
 toonedge_key_bucket_below_root	["--decode"]	cases/inputs/hand/toonedge_key_bucket_below_root.toon	toon-edge	S6.10: a key below its bucket's root is not already present (K1)
 enc_utf8_last_below_surrogate	["--encode"]	cases/inputs/hand/enc_utf8_last_below_surrogate.json	enc-string	S2.2: ED 9F BF encodes U+D7FF, the last scalar below the surrogates -> accepted (U11)
+toonedge_escaped_quote_in_quoted_field_name	["--decode"]	cases/inputs/hand/toonedge_escaped_quote_in_quoted_field_name.toon	toon-edge	S2.132: a backslash inside a quoted field name escapes the next character, so the escaped quote and the brace stay in the name (X1)
+toonerr_duplicate_field_name	["--decode"]	cases/inputs/hand/toonerr_duplicate_field_name.toon	toon-error	S3.26: a field name repeated in one header is a duplicate sibling key (X11)
+toonedge_spaces_after_fields_colon	["--decode"]	cases/inputs/hand/toonedge_spaces_after_fields_colon.toon	toon-edge	S2.132: spaces after a fields-bearing header's colon are trimmed, not content (X12)
 toonedge_root_array_trailing_ignored	["--decode"]	cases/inputs/hand/toonedge_root_array_trailing_ignored.toon	toon-edge	S4.202: lines after a root array are ignored
 toonedge_rest_dropped_after_overindent	["--decode"]	cases/inputs/hand/toonedge_rest_dropped_after_overindent.toon	toon-edge	S4.204/S10.80: everything after the over-indented line is dropped -> {"a":{"b":1.0}}
 toonlenient_leftover_rows_drop_rest	["--decode", "--no-strict"]	cases/inputs/hand/toonlenient_leftover_rows_drop_rest.toon	toon-edge	S4.217: leftover row ends the document, k is lost

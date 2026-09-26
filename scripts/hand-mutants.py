@@ -279,9 +279,13 @@ MUTANTS = [
  # toon_bend-tqz: the escape/unescape round-trip laws. One mutant per side of the round trip plus one for the
  # classifier, because the laws split exactly there: the six `escape_step_*` laws pin the two TABLES against
  # each other for any state and any continuation, and the five `escape_class_of_*` laws pin the classifier on
- # the bytes it can be pinned on. Each was run against the new laws alone before the laws were committed and
- # each was killed by the law named here; they are in the inventory so the next change to either table is
- # judged by the script rather than by hand.
+ # the bytes it can be pinned on. The law named in each entry is the one that refused the mutant when the NEW
+ # laws were checked ALONE, which is the run that admitted them. Over the whole reduced set this script may
+ # report an EARLIER killer -- M130 comes back `"by": "decode_quoted_key_four_escapes"`, a closed golden that
+ # happens to carry that escape -- and that is the point of the new laws rather than an objection to them: the
+ # tables were pinned only through the documents of particular goldens, and are now pinned by quantified laws
+ # that hold for every text. The mutants are in the inventory so the next change to either table is judged by
+ # the script rather than by hand.
  ('M130', 'decode.bend', '    case False{} True{} 1n:\n      UE{False{}, SCon{Chr{10}, rev}, False{}, badc}',
   '    case False{} True{} 1n:\n      UE{False{}, SCon{Chr{13}, rev}, False{}, badc}',
   'unesc.tr: the escape `\\n` unescapes to CR (killed by escape_step_lf)'),

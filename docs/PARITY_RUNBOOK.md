@@ -109,3 +109,28 @@ is the executable list.
 
 Its three last lines, pasted, are the certification (`docs/PORT_REPORT.md`
 "Reproduce").
+
+## 11. How to run a find-fix round
+
+A round is a fresh non-author reviewer on a frozen tree, and its report is read by a gate, not by a person: an
+unparseable report is an error for `converge.sh` and `claims-audit.py` alike, so a round whose report does not
+meet the contract below buys nothing. Brief the reviewer with it.
+
+- **The class words, from round 32** (the owner's decision of 2026-09-26, `toon_bend-txp`): `PORT`, `HARNESS`,
+  `CORPUS`, `LAW-COVERAGE`, `DOCUMENT`. `BEHAVIOR` named two kinds at once and is REFUSED from round 32; rounds
+  20 to 31 were briefed with it and keep it. `scripts/review_report.py` holds both sets (`PORT_RULE_ROUND`).
+- **What makes a round dirty**: one HIGH or MEDIUM `PORT` finding — a stdout, stderr or exit-code difference from
+  the pinned original on some lane, or a wrong proof verdict. Every other finding is recorded and repaired all
+  the same (the rounds table's `fixed` column, which `converge.sh` checks); it does not decide convergence.
+- **The report** (in `docs/reviews/`, named for its round as the existing reports are): a
+  `| reviewed commit | <hex> |` header row naming a commit HEAD
+  contains; exactly one findings table, with the header the reader requires verbatim; one row per finding, its id
+  a bare `RNN-<k>`, its sev cell exactly `HIGH`, `MEDIUM` or `LOW`, its class cell starting with one of the words
+  above; every id the report names anywhere in its source carried by a row of that table. Fenced code blocks are
+  quotation and are not read for ids, which is where a reviewer shows the decoys they planted.
+- **The rounds table row** in `docs/PORT_STATE.md`: `| NN | <lens> | <counted> | <fixed> | <clean?> | <date> |`,
+  the lens beginning `non-author` and ending `(non-author)` when the report calls itself non-author, and
+  `<counted>` equal to what the report's table counts under the rule above.
+- **Then**: `python3 scripts/claims-audit.py` (it reads every row through the same reader `converge.sh` uses) and
+  `./scripts/converge.sh docs/PORT_STATE.md`. `./scripts/harness-selftest.sh -- ./oracle/toon` is the proof that
+  those two bite: M18, M27, M28, M50 and M51 are reports and rows built wrong on purpose.

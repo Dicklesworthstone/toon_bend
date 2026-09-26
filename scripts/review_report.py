@@ -77,25 +77,30 @@ def _text(inline):
     return fold("".join(out)).strip()
 
 
-def _tables(tokens, html=None):
+def _tables(tokens, html=None, raw=None):
     """Every rendered table, anywhere (top level, blockquote, list item), as a list of rows of cell texts. `html`, when
-    given, collects (table, row) for every row with inline HTML in a cell."""
-    tables, rows, row = [], None, None
+    given, collects (table, row) for every row with inline HTML in a cell; `raw`, when given, receives the same tables
+    as the cells' SOURCE text (markup not interpreted)."""
+    tables, rows, row, rrows, rrow = [], None, None, None, None
     for t in tokens:
         if t.type == "table_open":
-            rows = []
+            rows, rrows = [], []
         elif t.type == "tr_open":
-            row = []
+            row, rrow = [], []
         elif t.type == "inline" and row is not None:
             if html is not None and any(c.type == "html_inline" for c in t.children or []):
                 html.add((len(tables), len(rows)))
             row.append(_text(t))
+            rrow.append(t.content.strip())
         elif t.type == "tr_close":
             rows.append(row)
-            row = None
+            rrows.append(rrow)
+            row = rrow = None
         elif t.type == "table_close":
             tables.append(rows)
-            rows = None
+            if raw is not None:
+                raw.append(rrows)
+            rows = rrows = None
     return tables
 
 
@@ -114,8 +119,8 @@ def parse(text, rnd):
         err("the report is empty")
         return out
     tokens = md.parse(text)
-    html = set()
-    tables = _tables(tokens, html)
+    html, raw = set(), []
+    tables = _tables(tokens, html, raw)
     # Round 27 (R27-1): `<del>LOW</del> MEDIUM` renders MEDIUM and was read LOW. Round 28 (R28-1): refusing it only in
     # the findings BODY left the header, where `<del>sev</del> | sev` chooses which column is read, and every other
     # table (the reviewed commit's). How a browser renders inline HTML is not decided here: ANY table cell with inline
@@ -145,28 +150,33 @@ def parse(text, rnd):
         err("%d findings tables (a header naming sev or class); a report has exactly one" % len(found))
         return out
     tn = found[0]
-    if [c.lower() for c in tables[tn][0]] != list(HEADER):
+    # The header is compared as SOURCE text: `~~sev~~` or `*sev*` is not the contract, whatever it renders as.
+    if [c.lower() for c in raw[tn][0]] != list(HEADER):
         err("the findings header is `| %s |`; it must be exactly `| %s |`"
-            % (" | ".join(tables[tn][0])[:120], " | ".join(HEADER)))
+            % (" | ".join(raw[tn][0])[:120], " | ".join(HEADER)))
         return out
     cols = {name: HEADER.index(name) for name in ("id", "sev", "class")}
     seen = set()
-    for r in tables[tn][1:]:
+    # The three cells the count rests on are read as SOURCE text too (round 29): an id is bare `R<n>-<k>`, a sev is
+    # exactly one bare word, a class starts with a bare class word. No markup there is interpreted, so no new markup
+    # shape (strikethrough, emphasis, links, entities, images) can make the gate read one word while a page shows
+    # another. Every filed report from round 20 on meets this; its prose columns (`what`, `spec`) stay free.
+    for r in raw[tn][1:]:
         ident, sev, cls = (r[cols[k]] if cols[k] < len(r) else "" for k in ("id", "sev", "class"))
-        m = re.fullmatch(r"R(\d+)[-.]0*(\d+)", ident, re.I)
+        m = re.fullmatch(r"R(\d+)-(\d+)", ident)
         if not m or int(m.group(1)) != rnd:
-            err("a findings row whose id `%s` is not R%d-<k>" % (ident[:40], rnd))
+            err("a findings row whose id `%s` is not a bare R%d-<k>" % (ident[:40], rnd))
             continue
         ident = "R%d-%d" % (rnd, int(m.group(2)))
         if ident in seen:
             err("%s has two rows in the findings table" % ident)
         seen.add(ident)
-        sev_word = (sev.upper().split() or [""])[0]
-        cls_word = (re.match(r"[A-Z-]*", cls.upper()) or [""])[0]
-        if sev_word not in SEVERITIES:
-            err("%s: the sev cell `%s` is not HIGH, MEDIUM or LOW" % (ident, sev[:30]))
-        if cls_word not in CLASSES:
-            err("%s: the class cell `%s` does not start BEHAVIOR, LAW-COVERAGE or DOCUMENT" % (ident, cls[:30]))
+        sev_word = sev if sev in SEVERITIES else ""
+        cls_word = (re.match(r"(BEHAVIOUR|BEHAVIOR|LAW-COVERAGE|DOCUMENT)(?=$| )", cls) or [""])[0]
+        if not sev_word:
+            err("%s: the sev cell `%s` is not exactly HIGH, MEDIUM or LOW" % (ident, sev[:30]))
+        if not cls_word:
+            err("%s: the class cell `%s` does not start with a bare BEHAVIOR, LAW-COVERAGE or DOCUMENT" % (ident, cls[:30]))
         out["rows"].append({"id": ident, "sev": sev_word, "class": cls_word})
         if sev_word in ("HIGH", "MEDIUM") and cls_word.startswith("BEHAVIO"):
             out["counted"] += 1
